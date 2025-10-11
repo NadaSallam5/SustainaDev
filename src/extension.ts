@@ -1,26 +1,38 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
+import * as path from 'path';
+import { exec } from 'child_process';
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
+    console.log('🟢 SustainaDev Analyzer extension is active');
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "hello-world" is now active!');
+    const disposable = vscode.commands.registerCommand('sustainadev.runAnalyzer', () => {
+        vscode.window.showInformationMessage('🚀 Running SustainaDev Java Analyzer...');
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('hello-world.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from hello-world!');
-	});
+        // 👉 change these two paths if needed
+        const jarPath = path.join("C:\\Users\\Silvia\\OneDrive\\Desktop\\SustainaDev\\target", "javatool-1.0-SNAPSHOT-jar-with-dependencies.jar");
+        const projectPath = "C:\\Users\\Silvia\\OneDrive\\Desktop\\SustainaDev\\testcode";
 
-	context.subscriptions.push(disposable);
+        const command = `java -jar "${jarPath}" "${projectPath}"`;
+
+        const terminal = vscode.window.createTerminal("SustainaDev Analyzer");
+        terminal.show();
+        terminal.sendText(command);
+
+        // run the process and wait for it to finish
+        exec(command, (error, stdout, stderr) => {
+            if (error) {
+                vscode.window.showErrorMessage(`❌ Analyzer failed: ${error.message}`);
+                return;
+            }
+            if (stderr) {
+                console.error(stderr);
+            }
+            console.log(stdout);
+            vscode.window.showInformationMessage('✅ Analysis complete! Check analysis-report.json');
+        });
+    });
+
+    context.subscriptions.push(disposable);
 }
 
-// This method is called when your extension is deactivated
 export function deactivate() {}

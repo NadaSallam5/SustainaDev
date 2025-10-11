@@ -1,6 +1,6 @@
 {
-  "name": "hello-world",
-  "displayName": "hello-world",
+  "name": "sustainadev",
+  "displayName": "SustainaDev Analyzer",
   "description": "My first VS Code extension",
   "version": "0.0.1",
   "engines": {
@@ -10,18 +10,18 @@
     "Other"
   ],
   "activationEvents": [
-  "onStartupFinished"
+  "onCommand:sustainadev.runAnalyzer"
 ],
 
 
   "main": "./dist/extension.js",
   "contributes": {
-    "commands": [
-      {
-        "command": "hello-world.helloWorld",
-        "title": "Hello World"
-      }
-    ]
+   "commands": [
+  {
+    "command": "sustainadev.runAnalyzer",
+    "title": "Run SustainaDev Java Analyzer"
+  }
+]
   },
   "scripts": {
     "vscode:prepublish": "npm run package",

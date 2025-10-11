@@ -1,0 +1,42 @@
+[ {
+  "file" : "C:\\Users\\Silvia\\OneDrive\\Desktop\\SustainaDev\\testcode\\LongMethodExample.java",
+  "methods" : [ {
+    "ifCount" : 3,
+    "isLongMethod" : true,
+    "name" : "massiveMethod",
+    "lines" : 63,
+    "params" : 0,
+    "forCount" : 10
+  } ]
+}, {
+  "file" : "C:\\Users\\Silvia\\OneDrive\\Desktop\\SustainaDev\\testcode\\Sample.java",
+  "methods" : [ {
+    "ifCount" : 0,
+    "isLongMethod" : false,
+    "name" : "hello",
+    "lines" : 3,
+    "params" : 0,
+    "forCount" : 0
+  }, {
+    "ifCount" : 0,
+    "isLongMethod" : false,
+    "name" : "loopExample",
+    "lines" : 5,
+    "params" : 0,
+    "forCount" : 1
+  }, {
+    "ifCount" : 0,
+    "isLongMethod" : false,
+    "name" : "add",
+    "lines" : 3,
+    "params" : 2,
+    "forCount" : 0
+  }, {
+    "ifCount" : 1,
+    "isLongMethod" : false,
+    "name" : "checkValue",
+    "lines" : 7,
+    "params" : 1,
+    "forCount" : 0
+  } ]
+} ]
