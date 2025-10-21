@@ -6,23 +6,40 @@
   "engines": {
     "vscode": "^1.100.2"
   },
-  "categories": [
-    "Other"
-  ],
+  "categories": ["Other"],
   "activationEvents": [
-  "onCommand:sustainadev.runAnalyzer"
-],
-
-
+    "onCommand:sustainadev.runAnalyzer",
+    "onCommand:sustainadev.analyzeActiveFile",
+    "onCommand:sustainadev.openDashboard"
+  ],
   "main": "./dist/extension.js",
+
   "contributes": {
-   "commands": [
-  {
-    "command": "sustainadev.runAnalyzer",
-    "title": "Run SustainaDev Java Analyzer"
-  }
-]
+    "commands": [
+      { "command": "sustainadev.runAnalyzer", "title": "Run SustainaDev Java Analyzer" },
+      { "command": "sustainadev.analyzeActiveFile", "title": "SustainaDev: Analyze & Suggest Refactor" },
+      { "command": "sustainadev.openDashboard", "title": "SustainaDev: Open Dashboard" }
+    ],
+
+    
+    "configuration": {
+      "title": "SustainaDev",
+      "properties": {
+        "sustainadev.enableRefactoringMiner": {
+          "type": "boolean",
+          "default": false,
+          "description": "Run RefactoringMiner during analysis. When false, the step is skipped."
+        },
+        "sustainadev.refactoringMinerJar": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Optional absolute path to a RefactoringMiner JAR (e.g. `C:\\\\Tools\\\\RefactoringMiner-2.6.jar`). If empty and enabled, the extension will try the `RefactoringMiner` command on PATH or `REFMINER` env var."
+        }
+      }
+    }
+    
   },
+
   "scripts": {
     "vscode:prepublish": "npm run package",
     "compile": "webpack",

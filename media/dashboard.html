@@ -1,0 +1,18 @@
+<!doctype html><meta charset="utf-8">
+<title>SustainaDev Dashboard</title>
+<canvas id="c1"></canvas>
+<canvas id="c2"></canvas>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const vscode = acquireVsCodeApi();
+window.addEventListener('message', ({data}) => {
+  if (data.type !== 'data') return;
+  const pts = data.points;
+  const labels = pts.map(p => new Date(p.timestamp).toLocaleString());
+  const ccn = pts.map(p => p.after.ccn);
+  const kwh = pts.map(p => p.energy.estimated_kwh_saved);
+  new Chart(document.getElementById('c1'), { type:'line', data:{ labels, datasets:[{ label:'Post-commit CCN', data: ccn }] }});
+  new Chart(document.getElementById('c2'), { type:'line', data:{ labels, datasets:[{ label:'Estimated kWh saved', data: kwh }] }});
+});
+vscode.postMessage({ type:'refresh' });
+</script>
