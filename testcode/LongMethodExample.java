@@ -19,17 +19,7 @@ public class LongMethodExample {
 
         for (int k = 0; k < 10; k++) {
             total += k;
-            if (k % 5 == 0) {
-                System.out.println("Multiple of 5: " + k);
-            }
-        }
-
-        for (int a = 0; a < 10; a++) {
-            total += a;
-            System.out.println("A = " + a);
-        }
-
-        for (int b = 0; b < 10; b++) {
+        extractedHelper();
             total += b;
             if (b % 3 == 0) {
                 System.out.println("Multiple of 3: " + b);
@@ -64,3 +54,18 @@ public class LongMethodExample {
         System.out.println("Done. Total = " + total);
     }
 }
+
+    private void extractedHelper() {
+                    if (k % 5 == 0) {
+                        System.out.println("Multiple of 5: " + k);
+                    }
+                }
+        
+                for (int a = 0; a < 10; a++) {
+                    total += a;
+                    System.out.println("A = " + a);
+                }
+        
+                for (int b = 0; b < 10; b++) {
+    }
+

@@ -1,4 +1,4 @@
-package testcode;
+
 
 public class Sample {
     public void hello() {
