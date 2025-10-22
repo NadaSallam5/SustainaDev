@@ -1,4 +1,5 @@
 {
+  "publisher": "sustainadev",
   "name": "sustainadev",
   "displayName": "SustainaDev Analyzer",
   "description": "My first VS Code extension",
@@ -6,22 +7,30 @@
   "engines": {
     "vscode": "^1.100.2"
   },
-  "categories": ["Other"],
+  "categories": [
+    "Other"
+  ],
   "activationEvents": [
     "onCommand:sustainadev.runAnalyzer",
     "onCommand:sustainadev.analyzeActiveFile",
     "onCommand:sustainadev.openDashboard"
   ],
   "main": "./dist/extension.js",
-
   "contributes": {
     "commands": [
-      { "command": "sustainadev.runAnalyzer", "title": "Run SustainaDev Java Analyzer" },
-      { "command": "sustainadev.analyzeActiveFile", "title": "SustainaDev: Analyze & Suggest Refactor" },
-      { "command": "sustainadev.openDashboard", "title": "SustainaDev: Open Dashboard" }
+      {
+        "command": "sustainadev.runAnalyzer",
+        "title": "Run SustainaDev Java Analyzer"
+      },
+      {
+        "command": "sustainadev.analyzeActiveFile",
+        "title": "SustainaDev: Analyze & Suggest Refactor"
+      },
+      {
+        "command": "sustainadev.openDashboard",
+        "title": "SustainaDev: Open Dashboard"
+      }
     ],
-
-    
     "configuration": {
       "title": "SustainaDev",
       "properties": {
@@ -37,9 +46,7 @@
         }
       }
     }
-    
   },
-
   "scripts": {
     "vscode:prepublish": "npm run package",
     "compile": "webpack",
