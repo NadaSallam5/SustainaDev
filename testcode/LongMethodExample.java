@@ -11,11 +11,6 @@ public class LongMethodExample {
                     / count;System.out.println("Average price: "+avg);System.out.println("Order processed successfully.");
     }}
 
-    private void calculateTotalAndCount(int[] prices, int total, int count) {
-        for (int price : prices) {
-            if (price > 0) {
-                total += price;
-                count++;
-            }
-        }
+    private double calculateAverage(int total, int count) {
+        return (count == 0) ? 0 : (double) total / count;
 }
