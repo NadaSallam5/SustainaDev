@@ -8,82 +8,127 @@ const client = new OpenAI({
 });
 
 /**
- * Builds an Extract Method patch using the OpenAI API.
- * Returns { preview, newMethod, callName }
+ * Build an Extract Method patch using OpenAI.
+ * Returns: { preview, newMethod, callName }
  */
 export async function buildExtractPatch(
   fullCode: string,
   range: { from: number; to: number },
   fileName?: string
 ): Promise<{ preview: string; newMethod: string; callName: string }> {
-  const lines = fullCode.split(/\r?\n/);
-  const snippet = lines.slice(range.from - 1, range.to).join("\n");
+  // 1️⃣ Extract class block around the selected function
+  const { classBlock } = extractClassBlock(fullCode, range.from);
 
+  // 2️⃣ Build strict, scope-bounded prompt
   const prompt = `
 You are an expert Java refactoring assistant.
-Perform an **Extract Method** refactoring on the given code.
+
+Perform ONLY an **Extract Method** refactoring inside the following class.
 
 ### Rules:
-- Keep class and import structure intact.
-- Do NOT change program behavior.
-- Do NOT rename or modify existing code outside the extracted block.
+- Modify code ONLY inside this class.
+- Keep imports, outer braces, and other classes unchanged.
+- Insert the new method directly below the original one.
+- Maintain indentation and syntax.
 - Replace the selected lines with a call to the new method.
-- Use a clean, descriptive name for the new method (camelCase, like 'extractedHelper').
-- Maintain indentation.
-- Return code in the requested format below.
+- Do NOT add extra closing braces.
+- Use camelCase for the new method name (e.g. extractedHelper).
+- Do NOT change any other code or rename existing methods.
 
-### Input:
+### Input
 File: ${fileName ?? "UnknownFile.java"}
-Extract lines: ${range.from}–${range.to}
+Lines to extract: ${range.from}–${range.to}
 
-### Full code:
+### Full class:
 \`\`\`java
-${fullCode}
+${classBlock}
 \`\`\`
 
-### Output Format (strict):
+### Output Format (strict)
 ---
 Preview:
 \`\`\`java
-(full file content with extracted method call inserted and new method appended)
+(full updated class with method call inserted and new method appended)
 \`\`\`
 New Method:
 \`\`\`java
-(only the new method)
+(only the new method code)
 \`\`\`
 Call Name:
 (newMethodNameOnly)
 ---
 `;
 
-  try {
-    const resp = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.3,
-      max_tokens: 500,
-    });
+  // 3️⃣ Send to OpenAI
+  const resp = await client.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.3,
+    max_tokens: 2800,
+  });
 
-    const text = resp.choices?.[0]?.message?.content ?? "";
+  const text = resp.choices?.[0]?.message?.content ?? "";
 
-    const preview = extractSection(text, "Preview");
-    const newMethod = extractSection(text, "New Method");
-    const callName = extractLabelValue(text, "Call Name");
+  // 4️⃣ Parse AI response sections
+  const preview = extractSection(text, "Preview");
+  const newMethod = extractSection(text, "New Method");
+  const callName = extractLabelValue(text, "Call Name");
 
-    if (!preview || !newMethod || !callName) {
-      throw new Error("AI output missing one or more required fields.");
-    }
-
-    return { preview, newMethod, callName };
-  } catch (err: any) {
-    vscode.window.showErrorMessage("AI Extract Method failed: " + err.message);
-    throw err;
+  if (!preview || !newMethod || !callName) {
+    vscode.window.showErrorMessage("AI output missing required sections.");
+    throw new Error("Incomplete AI response");
   }
+
+  // 5️⃣ Simple safety correction
+  if (!preview.includes(callName)) {
+    vscode.window.showWarningMessage(
+      "⚠️ AI output missing call reference, inserting fallback name."
+    );
+  }
+
+  return { preview, newMethod, callName };
 }
 
-/* ------------------------- Helpers ------------------------- */
+/* --------------------------------------------------------------------- */
+/* ---------------------------- Helper Functions ----------------------- */
+/* --------------------------------------------------------------------- */
 
-// Extract a ```java ... ``` block from labeled sections
+/**
+ * Finds the class block surrounding the given line number.
+ */
+function extractClassBlock(
+  fullCode: string,
+  functionStart: number
+): { classBlock: string; classStart: number; classEnd: number } {
+  const lines = fullCode.split(/\r?\n/);
+  let classStart = 0;
+  let classEnd = lines.length - 1;
+
+  // find nearest "class " line before the function start
+  for (let i = functionStart - 1; i >= 0; i--) {
+    if (lines[i].includes("class ")) {
+      classStart = i;
+      break;
+    }
+  }
+
+  // find closing brace of that class
+  let braceCount = 0;
+  for (let i = classStart; i < lines.length; i++) {
+    const line = lines[i];
+    braceCount += (line.match(/{/g) || []).length;
+    braceCount -= (line.match(/}/g) || []).length;
+    if (braceCount === 0 && i > classStart) {
+      classEnd = i;
+      break;
+    }
+  }
+
+  const classBlock = lines.slice(classStart, classEnd + 1).join("\n");
+  return { classBlock, classStart, classEnd };
+}
+
+/** Extract triple-backtick code blocks from AI output */
 function extractSection(output: string, label: string): string {
   const re = new RegExp(`${label}:\\s*\\\`\\\`\\\`[\\s\\S]*?\\\`\\\`\\\``, "i");
   const match = output.match(re);
@@ -95,7 +140,7 @@ function extractSection(output: string, label: string): string {
     .trim();
 }
 
-// Extract single-line label (for Call Name)
+/** Extract simple single-line label (Call Name) */
 function extractLabelValue(output: string, label: string): string {
   const re = new RegExp(`${label}:\\s*(.*)`);
   const match = output.match(re);

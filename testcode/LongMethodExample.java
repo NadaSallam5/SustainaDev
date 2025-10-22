@@ -1,20 +1,14 @@
 public class LongMethodExample {
 
-    public class TestRefactor {
-
-        public void processOrder(int[] prices) {
-            int total = 0;
-            int count = 0;
-
+    public void processOrder(int[] prices) {
+        int total = 0;
+        int count = 0;
         extractedHelper();
-            }
+    }}
 
-            double avg = (count == 0) ? 0 : (double) total / count;
-            System.out.println("Average price: " + avg);
-
-            System.out.println("Order processed successfully.");
-        }
-
+    double avg = (count == 0) ? 0
+            : (double) total
+                    / count;System.out.println("Average price: "+avg);System.out.println("Order processed successfully.");
     }}
 
     private void calculateTotalAndCount(int[] prices, int total, int count) {
