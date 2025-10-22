@@ -5,12 +5,7 @@ public class LongMethodExample {
 
         for (int i = 0; i < 10; i++) {
             total += i;
-            if (i % 2 == 0) {
-                System.out.println("Even number: " + i);
-            } else {
-                System.out.println("Odd number: " + i);
-            }
-        }
+        extractedHelper();
 
         for (int j = 0; j < 10; j++) {
             total += j;
@@ -72,5 +67,15 @@ public class LongMethodExample {
                 }
         
                 for (int c = 0; c < 10; c++) {
+    }
+
+
+    private void extractedHelper() {
+                    if (i % 2 == 0) {
+                        System.out.println("Even number: " + i);
+                    } else {
+                        System.out.println("Odd number: " + i);
+                    }
+                }
     }
 

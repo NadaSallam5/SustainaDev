@@ -9,12 +9,16 @@ import { buildExtractPatch } from './refactor/extractMethod';
 import { buildExplanation } from './refactor/explanation';
 import { gitCommit } from './git/commit';
 import { verifyLastRefactor } from './git/refactoringMiner';
-import { estimateEnergy } from './metrics/codeCarbon';
+// 🔽 changed: bring in initPaths together with estimateEnergy
+import { initPaths, estimateEnergy } from './metrics/codeCarbon';
 import { appendLog } from './metrics/logger';
 import { openDashboard } from './ui/dashboardPanel';
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('🟢 SustainaDev Analyzer extension is active');
+
+  // 🔽 added: initialize paths so estimate.py resolves correctly
+  initPaths(context);
 
   // ---- Your original analyzer command (kept) ----
   const runAnalyzer = vscode.commands.registerCommand('sustainadev.runAnalyzer', () => {
@@ -128,8 +132,7 @@ export function activate(context: vscode.ExtensionContext) {
     let verified = false;
     if (useRM) {
       try {
-       verified = (await verifyLastRefactor(ws)).length > 0;
-
+        verified = (await verifyLastRefactor(ws)).length > 0;
       } catch (e: any) {
         vscode.window.showWarningMessage(
           `RefactoringMiner verification failed; continuing without it. ${e?.message ?? ''}`.trim()
