@@ -88,7 +88,10 @@ export function activate(context: vscode.ExtensionContext) {
       const from = worst.start + Math.floor(len / 3);
       const to = Math.min(worst.end, from + Math.min(10, Math.floor(len / 4)));
 
-      const patch = buildExtractPatch(editor.document.getText(), { from, to });
+      const patch = await buildExtractPatch(editor.document.getText(), {
+        from,
+        to,
+      });
 
       // preview (diff)
       const right = vscode.Uri.parse("untitled:RefactorPreview.java");
