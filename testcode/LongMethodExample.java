@@ -16,17 +16,7 @@ public class LongMethodExample {
             total += j;
             System.out.println("J = " + j);
         }
-
-        for (int k = 0; k < 10; k++) {
-            total += k;
         extractedHelper();
-            total += b;
-            if (b % 3 == 0) {
-                System.out.println("Multiple of 3: " + b);
-            }
-        }
-
-        for (int c = 0; c < 10; c++) {
             total += c;
             System.out.println("C = " + c);
         }
@@ -67,5 +57,20 @@ public class LongMethodExample {
                 }
         
                 for (int b = 0; b < 10; b++) {
+    }
+
+
+    private void extractedHelper() {
+        
+                for (int k = 0; k < 10; k++) {
+                    total += k;
+                extractedHelper();
+                    total += b;
+                    if (b % 3 == 0) {
+                        System.out.println("Multiple of 3: " + b);
+                    }
+                }
+        
+                for (int c = 0; c < 10; c++) {
     }
 
