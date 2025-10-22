@@ -127,14 +127,24 @@ export function activate(context: vscode.ExtensionContext) {
         new vscode.Position(from - 1, 0),
         new vscode.Position(to, 0)
       );
-      we.replace(originalUri, replaceRange, `        extractedHelper();\n`);
+      we.replace(originalUri, replaceRange, `        ${patch.callName}();\n`);
 
-      // Append the new method at end of file
-      we.insert(
-        originalUri,
-        new vscode.Position(doc.lineCount, 0),
-        "\n" + patch.newMethod + "\n"
-      );
+      // ✅ Insert the new method *inside the class*, just before the last closing brace
+      const insertPos = findClassClosingBrace(doc);
+
+      function findClassClosingBrace(
+        doc: vscode.TextDocument
+      ): vscode.Position {
+        // find the last "}" at column 0 (closing the class)
+        for (let i = doc.lineCount - 1; i >= 0; i--) {
+          const line = doc.lineAt(i).text.trim();
+          if (line === "}") {
+            return new vscode.Position(i, 0);
+          }
+        }
+        return new vscode.Position(doc.lineCount, 0);
+      }
+      we.insert(originalUri, insertPos, "\n" + patch.newMethod + "\n");
 
       const applied = await vscode.workspace.applyEdit(we);
       if (!applied) {
