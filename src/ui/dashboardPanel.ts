@@ -14,6 +14,6 @@ export function openDashboard(context: vscode.ExtensionContext) {
     const points = fs.existsSync(logPath) ? fs.readFileSync(logPath,'utf8').trim().split('\n').filter(Boolean).map(l=>JSON.parse(l)) : [];
     panel.webview.postMessage({ type:'data', points });
   }
-  panel.webview.onDidReceiveMessage(msg=>{ if (msg.type==='refresh') load(); });
+  panel.webview.onDidReceiveMessage(msg=>{ if (msg.type==='refresh') {load();} });
   load();
 }
