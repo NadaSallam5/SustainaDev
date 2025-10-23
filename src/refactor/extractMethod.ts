@@ -15,25 +15,38 @@ export async function buildExtractPatch(
   const { classBlock } = extractClassBlock(fullCode, range.from);
 
   const prompt = `
-You are a senior Java refactoring engineer.
+You are a senior Java refactoring engineer performing an **Extract Method** refactoring.
 
-Perform an **Extract Method** refactoring within the following Java class.
+### Task
+Analyze the following Java class and identify ONE cohesive code block within the target method that should be extracted into a new private method.
 
-### Requirements
-- Modify ONLY code inside this class.
-- Keep imports, outer braces, and all existing methods untouched.
-- Insert exactly **one** new private method directly after the existing one.
-- Maintain correct braces and indentation (4 spaces per level).
-- Replace the selected lines with a call to the new method at the same location.
-- If variables from outside the extracted lines are used, pass them as parameters.
-- If a value is needed later, return it from the new method.
-- Do NOT duplicate the new method or create multiple versions.
-- Do NOT move or rename any other code.
-- The result must be valid, compilable Java code.
+### Selection Criteria (IMPORTANT)
+Choose a block that is:
+- **Cohesive**: Performs a single, well-defined task (e.g., printing output, validation logic, calculation)
+- **Safe to extract**: Does NOT modify variables that are used later in the parent method
+- **Meaningful**: At least 3-5 lines that would benefit from being a separate method
+- **Pure or side-effect limited**: Prefer blocks that only read data or produce output
+
+### What NOT to Extract
+- Single lines (not worth extracting)
+- Code that modifies critical state variables (e.g., total -= discount)
+- Code with complex control flow that spans the entire method
+- Code that would require too many parameters (>4)
+
+### Refactoring Requirements
+- Modify ONLY code inside this class
+- Keep imports, outer braces, and all existing methods untouched
+- Insert exactly **one** new private method directly after the existing one
+- Maintain correct braces and indentation (4 spaces per level)
+- Replace the selected lines with a call to the new method at the same location
+- Pass necessary variables as parameters
+- If a value is needed later, return it from the new method
+- Do NOT duplicate the new method or create multiple versions
+- The result must be valid, compilable Java code
 
 ### Input
 File: ${fileName ?? "UnknownFile.java"}
-Extract lines: ${range.from}–${range.to}
+Target method is between lines: ${range.from}–${range.to}
 
 ### Full class:
 \`\`\`java
@@ -52,14 +65,18 @@ New Method:
 \`\`\`
 Call Name:
 (newMethodNameOnly)
+Extracted Lines:
+(start-end line numbers of what you extracted, e.g., "38-42")
+Reason:
+(one sentence explaining why this block was chosen)
 ---
 `;
 
   const resp = await client.chat.completions.create({
     model: "gpt-4o-mini",
     messages: [{ role: "user", content: prompt }],
-    temperature: 0.2, // more deterministic
-    max_tokens: 3000, // prevent truncation
+    temperature: 0.3, // Lower for more consistent decisions
+    max_tokens: 3000,
   });
 
   const text = resp.choices?.[0]?.message?.content ?? "";
@@ -67,17 +84,28 @@ Call Name:
   const preview = extractSection(text, "Preview");
   const newMethod = extractSection(text, "New Method");
   const callName = extractLabelValue(text, "Call Name");
+  const extractedLines = extractLabelValue(text, "Extracted Lines");
+  const reason = extractLabelValue(text, "Reason");
 
   if (!preview || !newMethod || !callName) {
     vscode.window.showErrorMessage("AI output missing sections.");
     throw new Error("Incomplete AI response");
   }
 
+  if (!extractedLines || extractedLines === "none") {
+    vscode.window.showInformationMessage(
+      "AI couldn't find a good extraction candidate in this method."
+    );
+    throw new Error("AI couldn't find extraction candidate");
+  }
   if (!isBalanced(preview)) {
     vscode.window.showWarningMessage(
       "⚠️ AI output braces unbalanced — review before applying."
     );
   }
+
+  // Optional: Log what the AI decided to extract
+  console.log(`AI extracted lines ${extractedLines}: ${reason}`);
 
   return { preview, newMethod, callName };
 }

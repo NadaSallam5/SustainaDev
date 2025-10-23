@@ -83,15 +83,20 @@ export function activate(context: vscode.ExtensionContext) {
         return;
       }
 
-      // pick a middle slice of the method (PoC-safe)
+      /*  // pick a middle slice of the method (PoC-safe)
       const len = worst.end - worst.start + 1;
       const from = worst.start + Math.floor(len / 3);
       const to = Math.min(worst.end, from + Math.min(10, Math.floor(len / 4)));
-
-      const patch = await buildExtractPatch(editor.document.getText(), {
-        from,
-        to,
-      });
+ */
+      // NEW: Just pass the entire method range
+      const patch = await buildExtractPatch(
+        editor.document.getText(),
+        {
+          from: worst.start,
+          to: worst.end,
+        },
+        path.basename(filePath)
+      );
 
       // preview (diff)
       const right = vscode.Uri.parse("untitled:RefactorPreview.java");
@@ -127,11 +132,6 @@ export function activate(context: vscode.ExtensionContext) {
         new vscode.Position(0, 0),
         new vscode.Position(doc.lineCount, 0)
       );
-      function normalizePreview(text: string): string {
-        // Convert CRLF → LF, trim trailing spaces, and ensure final newline
-        const cleaned = text.replace(/\r\n/g, "\n").replace(/[ \t]+$/gm, "");
-        return cleaned.endsWith("\n") ? cleaned : cleaned + "\n";
-      }
 
       we.replace(originalUri, fullRange, patch.preview);
 
