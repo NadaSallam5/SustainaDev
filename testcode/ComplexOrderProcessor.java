@@ -1,3 +1,4 @@
+
 public class ComplexOrderProcessor {
 
     // Simple method (low complexity)
@@ -51,12 +52,5 @@ public class ComplexOrderProcessor {
     // Another small helper
     public void printSummary(String name, int total) {
         System.out.println("Summary for " + name + ": $" + total);
-    }
-
-    private void printOrderSummary(int itemCount, double avg, int total) {
-        System.out.println("Items count: " + itemCount);
-        System.out.println("Average item price: " + avg);
-        System.out.println("Final total: " + total);
-        System.out.println("Order processed successfully.");
     }
 }
