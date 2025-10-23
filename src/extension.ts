@@ -52,10 +52,18 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
+  let isRunning = false;
   // ---- Analyze current file, suggest refactor, preview, apply, commit, verify (optional), log ----
   const analyzeActiveFile = vscode.commands.registerCommand(
     "sustainadev.analyzeActiveFile",
     async () => {
+      if (isRunning) {
+        vscode.window.showWarningMessage(
+          "⏳ SustainaDev is still processing the last file. Please wait..."
+        );
+        return;
+      }
+      isRunning = true;
       const editor = vscode.window.activeTextEditor;
       if (!editor) return;
 
