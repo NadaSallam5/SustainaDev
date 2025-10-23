@@ -1,62 +1,26 @@
-public class ComplexOrderProcessor {
+public class InvoiceCalculator {
 
-    // Simple method (low complexity)
-    public double calculateDiscount(double totalPrice) {
-        if (totalPrice > 1000) {
-            return totalPrice * 0.1;
-        } else if (totalPrice > 500) {
-            return totalPrice * 0.05;
-        } else {
-            return 0;
-        }
-    }
+    public void calculateInvoice(double[] items, boolean applyDiscount) {
+        double subtotal = 0;
 
-    // Moderate method
-    public void sendNotification(String userEmail, String message) {
-        if (userEmail != null && !userEmail.isEmpty()) {
-            System.out.println("Sending email to " + userEmail);
-            System.out.println("Message: " + message);
-        } else {
-            System.out.println("No user email found.");
-        }
-    }
-
-    // Complex method (target for Extract Method)
-    public void processOrder(int[] prices, boolean applyDiscount) {
-        int total = 0;
-        int itemCount = 0;
-
-        for (int price : prices) {
-            if (price > 0) {
-                total += price;
-                itemCount++;
+        for (double item : items) {
+            if (item > 0) {
+                subtotal += item;
             }
         }
 
-        double avg = (itemCount == 0) ? 0 : (double) total / itemCount;
-
-        System.out.println("Items count: " + itemCount);
-        System.out.println("Average item price: " + avg);
+        System.out.println("Subtotal: " + subtotal);
 
         if (applyDiscount) {
-            double discount = calculateDiscount(total);
-            total -= discount;
+            double discount = subtotal * 0.1;
+            subtotal -= discount;
             System.out.println("Discount applied: " + discount);
         }
 
-        System.out.println("Final total: " + total);
-        System.out.println("Order processed successfully.");
-    }
+        double tax = subtotal * 0.05;
+        double total = subtotal + tax;
 
-    // Another small helper
-    public void printSummary(String name, int total) {
-        System.out.println("Summary for " + name + ": $" + total);
-    }
-
-    private void printOrderSummary(int itemCount, double avg, int total) {
-        System.out.println("Items count: " + itemCount);
-        System.out.println("Average item price: " + avg);
-        System.out.println("Final total: " + total);
-        System.out.println("Order processed successfully.");
+        System.out.println("Tax: " + tax);
+        System.out.println("Total: " + total);
     }
 }
