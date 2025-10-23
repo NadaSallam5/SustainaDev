@@ -1,17 +1,17 @@
 import OpenAI from "openai";
 import * as vscode from "vscode";
 
-const client = new OpenAI({
-  apiKey:
-    "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",
-  project: "proj_LNUP8IUIyX6NsPPmk5Fg5e37",
-});
-
 export async function buildExtractPatch(
   fullCode: string,
   range: { from: number; to: number },
   fileName?: string
 ): Promise<{ preview: string; newMethod: string; callName: string }> {
+  const client = new OpenAI({
+    apiKey:
+      "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",
+    project: "proj_LNUP8IUIyX6NsPPmk5Fg5e37",
+  });
+
   const { classBlock } = extractClassBlock(fullCode, range.from);
 
   const prompt = `
@@ -72,10 +72,18 @@ Reason:
 ---
 `;
 
+  // ✅ Use a system message to reset model context
   const resp = await client.chat.completions.create({
     model: "gpt-4o-mini",
-    messages: [{ role: "user", content: prompt }],
-    temperature: 0.3, // Lower for more consistent decisions
+    messages: [
+      {
+        role: "system",
+        content:
+          "You are a stateless Java refactoring expert. Treat every request as a clean slate — never remember or reuse past code. Only modify what is in the current prompt.",
+      },
+      { role: "user", content: prompt },
+    ],
+    temperature: 0.3,
     max_tokens: 3000,
   });
 
@@ -96,7 +104,7 @@ Reason:
     vscode.window.showInformationMessage(
       "AI couldn't find a good extraction candidate in this method."
     );
-    throw new Error("AI couldn't find extraction candidate");
+    throw new Error("Ai couldn't find extraction candidate");
   }
   if (!isBalanced(preview)) {
     vscode.window.showWarningMessage(
