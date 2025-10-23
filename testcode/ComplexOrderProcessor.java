@@ -1,4 +1,4 @@
-public class Sample {
+public class ComplexOrderProcessor {
 
     // Simple method (low complexity)
     public double calculateDiscount(double totalPrice) {
