@@ -123,24 +123,53 @@ export function activate(context: vscode.ExtensionContext) {
       const we = new vscode.WorkspaceEdit();
 
       // Replace the selected block with the call
-      const replaceRange = new vscode.Range(
+      /*  const replaceRange = new vscode.Range(
         new vscode.Position(from - 1, 0),
         new vscode.Position(to, 0)
       );
       we.replace(originalUri, replaceRange, `        ${patch.callName}();\n`);
+ */
+      /* -----------------------------------------------------------
+   1️⃣ Safely calculate replacement range inside the method
+----------------------------------------------------------- */
+      const safeFrom = Math.max(0, from - 1);
+      const safeTo = Math.min(doc.lineCount - 1, to - 1);
+      const replaceRange = new vscode.Range(
+        new vscode.Position(safeFrom, 0),
+        new vscode.Position(safeTo + 1, 0)
+      );
 
+      /* -----------------------------------------------------------
+   2️⃣ Try to detect the correct call line automatically
+----------------------------------------------------------- */
+      let callLine = "";
+
+      // Try to extract the actual call (e.g. calculateAverage(prices, total, count);)
+      const callRegex = new RegExp(
+        `(${patch.callName}\\s*\\([^;{}]*\\)\\s*;?)`,
+        "m"
+      );
+      const matchCall = patch.preview.match(callRegex);
+
+      if (matchCall && matchCall[1]) {
+        // Use the AI’s actual generated call line
+        callLine = `        ${matchCall[1].trim()}\n`;
+      } else {
+        // Fallback to a simple call if not detected
+        callLine = `        ${patch.callName}();\n`;
+      }
+
+      // Apply the replacement
+      we.replace(originalUri, replaceRange, callLine);
       // ✅ Insert the new method *inside the class*, just before the last closing brace
       const insertPos = findClassClosingBrace(doc);
 
       function findClassClosingBrace(
         doc: vscode.TextDocument
       ): vscode.Position {
-        // find the last "}" at column 0 (closing the class)
         for (let i = doc.lineCount - 1; i >= 0; i--) {
-          const line = doc.lineAt(i).text.trim();
-          if (line === "}") {
-            return new vscode.Position(i, 0);
-          }
+          const text = doc.lineAt(i).text.trim();
+          if (text === "}") return new vscode.Position(i, 0);
         }
         return new vscode.Position(doc.lineCount, 0);
       }
