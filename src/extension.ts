@@ -133,6 +133,14 @@ export function activate(context: vscode.ExtensionContext) {
           path.basename(filePath)
         );
 
+        // 🧹 Clean duplicate classes in AI preview
+        const match = patch.preview.match(
+          /(public|protected|private)?\s*class\s+\w+[\s\S]*?\n}\s*$/
+        );
+        if (match) {
+          patch.preview = match[0]; // Keep only the first full class definition
+        }
+
         // preview (diff)
         const right = vscode.Uri.parse("untitled:RefactorPreview.java");
         await vscode.workspace.openTextDocument(right); // ensure it exists
