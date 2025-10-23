@@ -12,11 +12,15 @@ public class LongMethodExample {
         }
 
         double avg = calculateAverage(total, count);
-        System.out.println("Average price: " + avg);
+        printOrderSummary(avg);
         System.out.println("Order processed successfully.");
     }
 
     private double calculateAverage(int total, int count) {
         return (count == 0) ? 0 : (double) total / count;
+    }
+
+    private void printOrderSummary(double avg) {
+        System.out.println("Average price: " + avg);
     }
 }
