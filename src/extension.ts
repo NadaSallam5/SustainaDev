@@ -114,77 +114,28 @@ export function activate(context: vscode.ExtensionContext) {
 
       const apply = await vscode.window.showQuickPick(
         ["Apply refactor", "Cancel"],
-        {
-          placeHolder: "Apply Extract Method?",
-        }
+        { placeHolder: "Apply Extract Method?" }
       );
       if (apply !== "Apply refactor") return;
 
-      // ✅ apply changes safely via WorkspaceEdit on the original document (works even if diff is open)
+      // ✅ Apply the refactored code (AI already did all the work!)
       const doc = await vscode.workspace.openTextDocument(originalUri);
       const we = new vscode.WorkspaceEdit();
 
-      // Replace the selected block with the call
-      /*  const replaceRange = new vscode.Range(
-        new vscode.Position(from - 1, 0),
-        new vscode.Position(to, 0)
-      );
-      we.replace(originalUri, replaceRange, `        ${patch.callName}();\n`);
- */
-      /* -----------------------------------------------------------
-   1️⃣ Safely calculate replacement range inside the method
------------------------------------------------------------ */
-      // Clamp the safe bounds
-      const safeFrom = Math.max(0, from - 1);
-      const safeTo = Math.min(doc.lineCount - 1, to - 1);
-
-      // Replace only the intended lines (to line exclusive)
-      const replaceRange = new vscode.Range(
-        new vscode.Position(safeFrom, 0),
-        new vscode.Position(safeTo, 0)
+      // Replace entire document
+      const fullRange = new vscode.Range(
+        new vscode.Position(0, 0),
+        new vscode.Position(doc.lineCount, 0)
       );
 
-      // Try to get the exact call line from the AI preview
-      let callLine = "";
-      // The following RegExp searches the AI-generated preview text for the call line.
-      // Example: if patch.callName = "calculateAverage", it looks for any occurrence of:
-      //   calculateAverage(...)
-      // including parameters inside parentheses, possibly followed by a semicolon.
-      // - [^;{}]* means “any characters except ; or braces”.
-      // - The 'm' flag makes it work across multiple lines.
-
-      const callRegex = new RegExp(
-        `(${patch.callName}\\s*\\([^;{}]*\\)\\s*;?)`,
-        "m"
-      );
-      const matchCall = patch.preview.match(callRegex);
-
-      callLine =
-        matchCall && matchCall[1]
-          ? `        ${matchCall[1].trim()}\n`
-          : `        ${patch.callName}();\n`;
-
-      // Apply the replacement
-      we.replace(originalUri, replaceRange, callLine);
-      // ✅ Insert the new method *inside the class*, just before the last closing brace
-      const insertPos = findClassClosingBrace(doc);
-
-      function findClassClosingBrace(
-        doc: vscode.TextDocument
-      ): vscode.Position {
-        for (let i = doc.lineCount - 1; i >= 0; i--) {
-          const text = doc.lineAt(i).text.trim();
-          if (text === "}") return new vscode.Position(i, 0);
-        }
-        return new vscode.Position(doc.lineCount, 0);
-      }
-      we.insert(originalUri, insertPos, "\n" + patch.newMethod + "\n");
+      we.replace(originalUri, fullRange, patch.preview);
 
       const applied = await vscode.workspace.applyEdit(we);
       if (!applied) {
         vscode.window.showErrorMessage("Failed to apply refactor edits.");
         return;
       }
+
       await vscode.window.showTextDocument(doc, { preview: false });
       await doc.save();
 
