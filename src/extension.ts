@@ -96,12 +96,14 @@ export function activate(context: vscode.ExtensionContext) {
       // preview (diff)
       const right = vscode.Uri.parse("untitled:RefactorPreview.java");
       await vscode.workspace.openTextDocument(right); // ensure it exists
+
       const previewEdit = new vscode.WorkspaceEdit();
       previewEdit.insert(
         right,
         new vscode.Position(0, 0),
-        patch.preview + "\n\n" + patch.newMethod
+        patch.preview // ✅ Just use the preview - it already has everything!
       );
+
       await vscode.workspace.applyEdit(previewEdit);
       await vscode.commands.executeCommand(
         "vscode.diff",
@@ -144,11 +146,19 @@ export function activate(context: vscode.ExtensionContext) {
 
       // Try to get the exact call line from the AI preview
       let callLine = "";
+      // The following RegExp searches the AI-generated preview text for the call line.
+      // Example: if patch.callName = "calculateAverage", it looks for any occurrence of:
+      //   calculateAverage(...)
+      // including parameters inside parentheses, possibly followed by a semicolon.
+      // - [^;{}]* means “any characters except ; or braces”.
+      // - The 'm' flag makes it work across multiple lines.
+
       const callRegex = new RegExp(
         `(${patch.callName}\\s*\\([^;{}]*\\)\\s*;?)`,
         "m"
       );
       const matchCall = patch.preview.match(callRegex);
+
       callLine =
         matchCall && matchCall[1]
           ? `        ${matchCall[1].trim()}\n`

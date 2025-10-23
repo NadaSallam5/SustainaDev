@@ -58,7 +58,7 @@ Call Name:
   const resp = await client.chat.completions.create({
     model: "gpt-4o-mini",
     messages: [{ role: "user", content: prompt }],
-    temperature: 0.1, // more deterministic
+    temperature: 0.5, // more deterministic
     max_tokens: 3000, // prevent truncation
   });
 
