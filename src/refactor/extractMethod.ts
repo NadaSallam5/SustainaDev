@@ -95,6 +95,15 @@ Reason:
   const extractedLines = extractLabelValue(text, "Extracted Lines");
   const reason = extractLabelValue(text, "Reason");
 
+  // 🧩 Ensure AI output contains only ONE class
+  const classCount = (preview.match(/\bclass\s+\w+/g) || []).length;
+  if (classCount > 1) {
+    vscode.window.showErrorMessage(
+      `⚠️ AI output contains ${classCount} class definitions. Aborting to prevent duplication.`
+    );
+    throw new Error("AI output duplicated class definition.");
+  }
+
   if (!preview || !newMethod || !callName) {
     vscode.window.showErrorMessage("AI output missing sections.");
     throw new Error("Incomplete AI response");

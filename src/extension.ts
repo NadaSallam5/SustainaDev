@@ -79,7 +79,11 @@ export function activate(context: vscode.ExtensionContext) {
 
         const originalUri = editor.document.uri; // keep a handle to the original document
         const filePath = originalUri.fsPath;
-
+        // 🔄 Force a clean read from disk
+        const refreshedDoc = await vscode.workspace.openTextDocument(
+          editor.document.uri
+        );
+        await refreshedDoc.save();
         const analysis = await runLizard(filePath);
         if (!analysis.functions.length) {
           vscode.window.showInformationMessage("No functions found.");
@@ -103,11 +107,16 @@ export function activate(context: vscode.ExtensionContext) {
       const to = Math.min(worst.end, from + Math.min(10, Math.floor(len / 4)));
  */
 
-        // 🔄 Force a clean read from disk
-        const refreshedDoc = await vscode.workspace.openTextDocument(
-          editor.document.uri
-        );
         const fullCode = refreshedDoc.getText();
+        const fullCodeLines = fullCode.split(/\r?\n/);
+
+        if (worst.end > fullCodeLines.length) {
+          vscode.window.showErrorMessage(
+            "Refactor range invalid after update."
+          );
+          return;
+        }
+
         const classMatches = fullCode.match(/\bclass\s+\w+/g) || [];
         console.log("🧩 Classes detected:", classMatches);
         vscode.window.showInformationMessage(
