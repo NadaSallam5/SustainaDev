@@ -55,7 +55,7 @@
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "^22.18.12",
-    "@types/vscode": "^1.104.0",
+    "@types/vscode": "^1.105.0",
     "@typescript-eslint/eslint-plugin": "^8.42.0",
     "@typescript-eslint/parser": "^8.42.0",
     "@vscode/test-cli": "^0.0.11",
@@ -65,5 +65,8 @@
     "typescript": "^5.9.3",
     "webpack": "^5.101.3",
     "webpack-cli": "^6.0.1"
+  },
+  "dependencies": {
+    "vscode": "^1.1.37"
   }
 }

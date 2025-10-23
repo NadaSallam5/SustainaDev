@@ -1,18 +1,372 @@
-<!doctype html><meta charset="utf-8">
-<title>SustainaDev Dashboard</title>
-<canvas id="c1"></canvas>
-<canvas id="c2"></canvas>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-const vscode = acquireVsCodeApi();
-window.addEventListener('message', ({data}) => {
-  if (data.type !== 'data') return;
-  const pts = data.points;
-  const labels = pts.map(p => new Date(p.timestamp).toLocaleString());
-  const ccn = pts.map(p => p.after.ccn);
-  const kwh = pts.map(p => p.energy.estimated_kwh_saved);
-  new Chart(document.getElementById('c1'), { type:'line', data:{ labels, datasets:[{ label:'Post-commit CCN', data: ccn }] }});
-  new Chart(document.getElementById('c2'), { type:'line', data:{ labels, datasets:[{ label:'Estimated kWh saved', data: kwh }] }});
-});
-vscode.postMessage({ type:'refresh' });
-</script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none';
+                 img-src data:;
+                 style-src 'unsafe-inline';
+                 script-src 'unsafe-inline'">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SustainaDev Dashboard</title>
+  <style>
+    :root{
+      --bg:#1b1d20; --panel:#202329; --muted:#9aa4ad; --text:#e9eef3;
+      --accent:#4fc3f7; --accent-2:#5fb3df; --line:#ffcf5a;
+      --grid:#ffffff22; --grid-soft:#ffffff12; --border:#ffffff18;
+      --chip:#ffffff12; --shadow:0 0 0 1px var(--border) inset;
+    }
+    @media (prefers-color-scheme: light){
+      :root{
+        --bg:#f6f7f9; --panel:#ffffff; --muted:#5a6672; --text:#1a1d21;
+        --grid:#3a3f4418; --grid-soft:#3a3f440e; --border:#3a3f441a;
+        --chip:#3a3f4410; --shadow:0 0 0 1px var(--border) inset;
+      }
+    }
+    *{box-sizing:border-box}
+    body{margin:0;padding:20px;background:var(--bg);color:var(--text);
+         font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+    h1{margin:0 0 12px;color:var(--accent);font-size:20px;font-weight:800;letter-spacing:.2px}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .grow{flex:1 1 auto}
+    button{border:none;border-radius:10px;padding:9px 12px;font-weight:700;cursor:pointer;
+           background:var(--accent);color:#0b1116;box-shadow:var(--shadow)}
+    button.secondary{background:#3fb3e8}
+    button.ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
+    button:hover{filter:brightness(1.05)}
+    button:active{transform:translateY(1px)}
+    input[type="search"]{background:var(--chip);color:var(--text);border:1px solid var(--border);
+                         border-radius:10px;padding:9px 12px;min-width:260px;outline:none}
+    .card{margin-top:16px;padding:14px;border-radius:14px;background:var(--panel);box-shadow:var(--shadow)}
+    .muted{color:var(--muted)}
+    .grid{display:grid;gap:12px}
+    .kpi{grid-template-columns:repeat(3,1fr)}
+    .kpi>div{background:var(--panel);padding:14px;border-radius:14px;box-shadow:var(--shadow)}
+    .kpi .num{font-size:26px;font-weight:900;letter-spacing:.3px}
+    pre{background:var(--chip);padding:10px;border-radius:10px;white-space:pre-wrap;overflow:auto}
+    table{width:100%;border-collapse:collapse}
+    th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--grid-soft);vertical-align:middle}
+    th{color:var(--muted);font-weight:800;font-size:12px;letter-spacing:.4px;text-transform:uppercase}
+    tbody tr:hover{background:var(--chip)}
+    tr.selected{background:color-mix(in oklab, var(--accent) 16%, transparent)}
+    .pill{display:inline-flex;gap:6px;align-items:center;padding:2px 10px;border-radius:999px;
+          font-size:12px;background:var(--chip);border:1px solid var(--border)}
+    .panel-2col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .chart-wrap{position:relative;height:260px}
+    canvas{width:100%;height:100%;background:var(--chip);border-radius:12px}
+    .legend{display:flex;gap:10px;align-items:center}
+    .legend .chip{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:8px;
+                  border:1px solid var(--border);background:var(--chip);font-size:12px}
+    .swatch{display:inline-block;width:10px;height:10px;border-radius:2px}
+    .swatch.ccn{background:var(--accent-2)}
+    .swatch.energy{background:var(--line)}
+    .status{min-width:42px}
+    #tip{position:absolute;pointer-events:none;padding:8px 10px;border-radius:10px;
+         background:color-mix(in oklab, var(--bg) 70%, #000);color:var(--text);
+         border:1px solid var(--border);box-shadow:0 8px 24px #00000033;font-size:12px;display:none}
+    @media (max-width: 980px){ .panel-2col{grid-template-columns:1fr} }
+  </style>
+</head>
+<body>
+  <h1 aria-label="SustainaDev Dashboard">SustainaDev Dashboard</h1>
+
+  <div class="row">
+    <button id="load-analysis" aria-label="Load analysis report">Load analysis-report.json</button>
+    <button id="load-log" class="secondary" aria-label="Load refactor log">Load .sustainadev/log.jsonl</button>
+    <input id="filter" type="search" placeholder="Filter (file, refactor, commit)…" aria-label="Filter log entries"/>
+    <span id="status" class="muted status">Idle</span>
+    <span class="grow"></span>
+    <button id="export-png" class="ghost" title="Save chart as PNG" aria-label="Export chart">Export PNG</button>
+  </div>
+
+  <div class="grid kpi" role="group" aria-label="Key performance indicators">
+    <div><div class="muted">Refactors</div><div id="kpi-refactors" class="num">0</div></div>
+    <div><div class="muted">Avg ΔCCN</div><div id="kpi-delta" class="num">0</div></div>
+    <div><div class="muted">Energy (est.)</div><div id="kpi-energy" class="num">0</div></div>
+  </div>
+
+  <div class="panel-2col">
+    <div class="card">
+      <div class="muted" style="margin-bottom:6px">Last Analysis</div>
+      <pre id="analysis-pre">Click “Load analysis-report.json”.</pre>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div class="muted">Details</div>
+        <div class="legend">
+          <span class="chip"><span class="swatch ccn"></span> Δ CCN</span>
+          <span class="chip"><span class="swatch energy"></span> Energy</span>
+        </div>
+      </div>
+      <div id="details" class="stack" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">
+        <div class="muted">Select a row to see details and highlight it on the chart.</div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="chart" width="900" height="360" role="img" aria-label="Refactor impact chart"></canvas>
+        <div id="tip" aria-hidden="true"></div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button id="clear-selection" class="ghost">Clear selection</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between;">
+      <div class="muted">Log Entries</div>
+      <div class="muted" id="count"></div>
+    </div>
+    <table aria-label="Refactor history table">
+      <thead>
+        <tr>
+          <th style="width:150px">Time</th>
+          <th>File</th>
+          <th>Refactor</th>
+          <th style="width:90px">Δ CCN</th>
+          <th style="width:120px">Energy</th>
+          <th>Commit</th>
+          <th style="width:130px">Action</th>
+        </tr>
+      </thead>
+      <tbody id="log-tbody">
+        <tr><td class="muted" colspan="7">Click “Load log.jsonl”.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    // --- VS Code webview bridge ---
+    const vscode = (typeof acquireVsCodeApi === 'function') ? acquireVsCodeApi() : null;
+
+    // --- DOM helpers (safe) ---
+    function byId(id){ const el=document.getElementById(id); if(!el){ console.error('#'+id+' not found'); } return el; }
+    const statusEl = byId('status');
+    const analysisPre = byId('analysis-pre');
+    const filterInput = byId('filter');
+    const kpiRefactors = byId('kpi-refactors');
+    const kpiDelta = byId('kpi-delta');
+    const kpiEnergy = byId('kpi-energy');
+    const tbody = byId('log-tbody');
+    const detailsBox = byId('details');
+    const tip = byId('tip');
+
+    const canvas = /** @type {HTMLCanvasElement|null} */ (byId('chart'));
+    if(!canvas){ throw new Error('Chart canvas missing'); }
+    const ctx = canvas.getContext('2d');
+    if(!ctx){ throw new Error('2D context not available'); }
+
+    // --- State ---
+    let allRows = [];
+    let viewRows = [];
+    let selectedIndex = -1;
+    let anim = 0; // smooth animation 0..1
+
+    // --- Controls ---
+    byId('load-analysis').addEventListener('click', () => {
+      setStatus('Reading analysis-report.json…');
+      vscode && vscode.postMessage({ type:'readAnalysis' });
+    });
+    byId('load-log').addEventListener('click', () => {
+      setStatus('Reading .sustainadev/log.jsonl…');
+      vscode && vscode.postMessage({ type:'readLog' });
+    });
+    byId('clear-selection').addEventListener('click', () => {
+      selectedIndex = -1; markSelected(); drawChart(); renderDetails();
+    });
+    byId('export-png').addEventListener('click', () => {
+      const a = document.createElement('a');
+      a.download = 'sustainadev-chart.png';
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+    });
+    // Debounced filter
+    let fTimer = 0;
+    filterInput.addEventListener('input', () => {
+      clearTimeout(fTimer);
+      fTimer = setTimeout(() => { applyFilter(filterInput.value.trim()); renderTable(); restartAnim(); drawChart(); }, 150);
+    });
+
+    // --- Webview messaging ---
+    window.addEventListener('message', (event) => {
+      const msg = event.data; if (!msg) return;
+      if (msg.type === 'analysisContent') {
+        renderAnalysis(msg.content); setStatus('Analysis loaded ✓');
+      } else if (msg.type === 'analysisError') {
+        analysisPre.textContent = '⚠ ' + msg.error; setStatus('Error loading analysis');
+      } else if (msg.type === 'logContent') {
+        allRows = []; for (const line of msg.lines || []) { try { allRows.push(JSON.parse(line)); } catch {} }
+        applyFilter(filterInput.value.trim()); renderTable(); restartAnim(); drawChart(); setStatus('Log loaded ✓');
+      } else if (msg.type === 'logError') {
+        tbody.innerHTML = '<tr><td colspan="7" class="muted">No log found.</td></tr>'; setStatus('Error loading log');
+      }
+      // legacy
+      if (msg.type === 'fileContent') { renderAnalysis(msg.content); setStatus('Loaded ✓'); }
+      if (msg.type === 'fileError') { analysisPre.textContent = '⚠ ' + msg.error; setStatus('Error'); }
+    });
+
+    // --- Renderers & helpers ---
+    function setStatus(t){ statusEl.textContent = t; }
+    function renderAnalysis(content){
+      try { analysisPre.textContent = JSON.stringify(JSON.parse(content), null, 2); }
+      catch { analysisPre.textContent = content; }
+    }
+    function applyFilter(q){
+      if (!q) viewRows = [...allRows];
+      else {
+        const s = q.toLowerCase();
+        viewRows = allRows.filter(r =>
+          (r.file||'').toLowerCase().includes(s) ||
+          (r.refactor||'').toLowerCase().includes(s) ||
+          (r.commit?.message||'').toLowerCase().includes(s)
+        );
+      }
+      byId('count').textContent = `${viewRows.length} item${viewRows.length===1?'':'s'}`;
+      selectedIndex = -1;
+    }
+    function renderTable(){
+      tbody.innerHTML = '';
+      if (!viewRows.length){
+        tbody.innerHTML = '<tr><td class="muted" colspan="7">No entries.</td></tr>';
+        setKPIs(0,0,0); return;
+      }
+      let count=0,sumDelta=0,sumEnergy=0;
+      viewRows.forEach((row,i) => {
+        const delta = Number(row?.delta?.ccn ?? 0);
+        const energy = Number(row?.energy ?? 0);
+        sumDelta += delta; sumEnergy += energy; count++;
+
+        const tr = document.createElement('tr'); tr.dataset.index = String(i);
+        if (i === selectedIndex) tr.classList.add('selected');
+
+        const cells = [
+          row.timestamp ?? '', row.file ?? '', row.refactor ?? '',
+          String(delta), energy ? nf(energy,3)+' kWh' : '', row.commit?.message ?? ''
+        ];
+        for (const v of cells){ const td=document.createElement('td'); td.textContent=v; tr.appendChild(td); }
+
+        const actionTd = document.createElement('td');
+        const btnView = document.createElement('button'); btnView.className='ghost'; btnView.textContent='View';
+        btnView.addEventListener('click', () => { selectedIndex=i; markSelected(); renderDetails(); drawChart(); });
+        const btnOpen = document.createElement('button'); btnOpen.className='ghost'; btnOpen.textContent='Open';
+        btnOpen.addEventListener('click', () => { vscode && vscode.postMessage({ type:'openFile', file: row.file }); });
+        actionTd.appendChild(btnView); actionTd.appendChild(document.createTextNode(' ')); actionTd.appendChild(btnOpen);
+        tr.appendChild(actionTd); tbody.appendChild(tr);
+      });
+      setKPIs(count, sumDelta, sumEnergy);
+    }
+    function setKPIs(count,sumDelta,sumEnergy){
+      kpiRefactors.textContent = String(count);
+      kpiDelta.textContent = count ? (sumDelta/count).toFixed(2) : '0';
+      kpiEnergy.textContent = nf(sumEnergy,3)+' kWh';
+    }
+    function markSelected(){
+      document.querySelectorAll('#log-tbody tr').forEach((tr,i)=>{
+        if (i===selectedIndex) tr.classList.add('selected'); else tr.classList.remove('selected');
+      });
+    }
+    function renderDetails(){
+      if (selectedIndex<0 || !viewRows[selectedIndex]){ detailsBox.innerHTML = '<div class="muted">Select a row to see details.</div>'; return; }
+      const r=viewRows[selectedIndex];
+      detailsBox.innerHTML = `
+        <div><span class="muted">Time:</span> ${esc(r.timestamp||'')}</div>
+        <div><span class="muted">File:</span> <span class="pill">${esc(r.file||'')}</span></div>
+        <div><span class="muted">Refactor:</span> ${esc(r.refactor||'')}</div>
+        <div><span class="muted">Δ CCN:</span> ${Number(r?.delta?.ccn ?? 0)}</div>
+        <div><span class="muted">Energy:</span> ${nf(Number(r.energy||0),6)} kWh</div>
+        <div><span class="muted">Commit:</span> ${esc(r.commit?.message||'')}</div>`;
+    }
+
+    // --- Chart ---
+    function restartAnim(){ anim=0; }
+    function drawChart(){
+      const W=canvas.width,H=canvas.height; ctx.clearRect(0,0,W,H);
+      const padL=48,padR=24,padT=16,padB=32, plotW=W-padL-padR, plotH=H-padT-padB;
+
+      // background grid
+      ctx.strokeStyle=getVar('--grid'); ctx.lineWidth=1; ctx.setLineDash([3,3]);
+      for(let gy=0;gy<=4;gy++){ const y=padT+(plotH*gy/4); ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(padL+plotW,y); ctx.stroke(); }
+      ctx.setLineDash([]);
+
+      // axes
+      ctx.strokeStyle=getVar('--grid'); ctx.beginPath();
+      ctx.moveTo(padL,padT); ctx.lineTo(padL,padT+plotH); ctx.lineTo(padL+plotW,padT+plotH); ctx.stroke();
+
+      if(!viewRows.length){ label('No data', padL+8,padT+16); return; }
+
+      const deltas=viewRows.map(r=>Number(r?.delta?.ccn ?? 0));
+      const energy=viewRows.map(r=>Number(r?.energy ?? 0));
+      const maxDelta=Math.max(1, ...deltas);
+      const maxEnergy=Math.max(1e-9, ...energy);
+
+      labelLeft(maxDelta.toFixed(0), padL-36,padT+10);
+      labelLeft('0', padL-24, padT+plotH+12);
+      labelRight(`${nf(maxEnergy,3)} kWh`, padL+plotW-80, padT+10);
+      label('refactor index →', padL+plotW/2-50, H-8);
+
+      // bars
+      const n=deltas.length; const gap=2;
+      const barW=Math.max(2, Math.floor(plotW/Math.max(n,1)) - gap);
+      anim=Math.min(1, anim+0.15);
+
+      const hits=[]; // {x1,x2,y1,y2,i}
+      for(let i=0;i<n;i++){
+        const x=padL + i*(barW+gap);
+        const h=((deltas[i]/maxDelta)*plotH)*anim;
+        const y=padT + plotH - h;
+        ctx.fillStyle = (i===selectedIndex) ? getVar('--accent') : getVar('--accent-2');
+        ctx.fillRect(x,y,barW,h);
+        hits.push({x1:x,x2:x+barW,y1:y,y2:padT+plotH,i});
+      }
+
+      // energy line
+      ctx.strokeStyle=getVar('--line'); ctx.lineWidth=2; ctx.beginPath();
+      for(let i=0;i<n;i++){
+        const x=padL + i*(barW+gap) + barW/2;
+        const y=padT + plotH - ((energy[i]/maxEnergy)*plotH)*anim;
+        if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+
+      // selection marker
+      if(selectedIndex>=0 && selectedIndex<n){
+        const x=padL + selectedIndex*(barW+gap) + barW/2;
+        ctx.strokeStyle='#ffffffaa'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x,padT); ctx.lineTo(x,padT+plotH); ctx.stroke();
+      }
+
+      // hover tooltips
+      canvas.onmousemove = (ev)=>{
+        const r=canvas.getBoundingClientRect(), mx=ev.clientX-r.left, my=ev.clientY-r.top;
+        hideTip();
+        for(const h of hits){
+          if(mx>=h.x1 && mx<=h.x2 && my>=h.y1 && my<=h.y2){
+            const i=h.i; showTip(mx+12, my-12, i, deltas[i], energy[i], viewRows[i]?.timestamp); return;
+          }
+        }
+      };
+      canvas.onmouseleave = hideTip;
+
+      if(anim<1) requestAnimationFrame(drawChart);
+    }
+
+    // labels & utils
+    function label(t,x,y){ ctx.fillStyle=getVar('--muted'); ctx.font='12px system-ui'; ctx.fillText(t,x,y); }
+    function labelLeft(t,x,y){ label(t,x,y); }
+    function labelRight(t,x,y){ label(t,x,y); }
+    function getVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+    function esc(s){ return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+    function nf(n,dec=3){ return Number(n||0).toFixed(dec); }
+
+    function showTip(x,y,i,delta,ener,ts){
+      tip.style.left=x+'px'; tip.style.top=y+'px'; tip.style.display='block';
+      tip.innerHTML = `<b>Refactor #${i}</b><div class="muted">${esc(ts||'')}</div>
+                       <div>Δ CCN: <b>${delta}</b></div>
+                       <div>Energy: <b>${nf(ener,6)} kWh</b></div>`;
+    }
+    function hideTip(){ tip.style.display='none'; }
+
+    // initial paint
+    drawChart();
+  </script>
+</body>
+</html>
