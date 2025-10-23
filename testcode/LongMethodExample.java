@@ -1,4 +1,4 @@
-public class LongMethodExample {
+public class Mysample {
 
     public void processOrder(int[] prices) {
         int total = 0;

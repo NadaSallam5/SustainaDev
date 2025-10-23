@@ -88,9 +88,21 @@ export function activate(context: vscode.ExtensionContext) {
       const from = worst.start + Math.floor(len / 3);
       const to = Math.min(worst.end, from + Math.min(10, Math.floor(len / 4)));
  */
+
+      // 🔄 Force a clean read from disk
+      const refreshedDoc = await vscode.workspace.openTextDocument(
+        editor.document.uri
+      );
+      const fullCode = refreshedDoc.getText();
+      const classMatches = fullCode.match(/\bclass\s+\w+/g) || [];
+      console.log("🧩 Classes detected:", classMatches);
+      vscode.window.showInformationMessage(
+        `Analyzing ${classMatches.join(", ")}`
+      );
+
       // NEW: Just pass the entire method range
       const patch = await buildExtractPatch(
-        editor.document.getText(),
+        fullCode,
         {
           from: worst.start,
           to: worst.end,
