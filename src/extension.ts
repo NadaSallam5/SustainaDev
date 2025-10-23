@@ -132,32 +132,27 @@ export function activate(context: vscode.ExtensionContext) {
       /* -----------------------------------------------------------
    1️⃣ Safely calculate replacement range inside the method
 ----------------------------------------------------------- */
+      // Clamp the safe bounds
       const safeFrom = Math.max(0, from - 1);
       const safeTo = Math.min(doc.lineCount - 1, to - 1);
+
+      // Replace only the intended lines (to line exclusive)
       const replaceRange = new vscode.Range(
         new vscode.Position(safeFrom, 0),
-        new vscode.Position(safeTo + 1, 0)
+        new vscode.Position(safeTo, 0)
       );
 
-      /* -----------------------------------------------------------
-   2️⃣ Try to detect the correct call line automatically
------------------------------------------------------------ */
+      // Try to get the exact call line from the AI preview
       let callLine = "";
-
-      // Try to extract the actual call (e.g. calculateAverage(prices, total, count);)
       const callRegex = new RegExp(
         `(${patch.callName}\\s*\\([^;{}]*\\)\\s*;?)`,
         "m"
       );
       const matchCall = patch.preview.match(callRegex);
-
-      if (matchCall && matchCall[1]) {
-        // Use the AI’s actual generated call line
-        callLine = `        ${matchCall[1].trim()}\n`;
-      } else {
-        // Fallback to a simple call if not detected
-        callLine = `        ${patch.callName}();\n`;
-      }
+      callLine =
+        matchCall && matchCall[1]
+          ? `        ${matchCall[1].trim()}\n`
+          : `        ${patch.callName}();\n`;
 
       // Apply the replacement
       we.replace(originalUri, replaceRange, callLine);

@@ -1,26 +1,18 @@
-package testcode;
+public class LongMethodExample {
 
-public class Sample {
-    public void hello() {
-        System.out.println("Hello, SustainaDev!");
-    }
+    public void processOrder(int[] prices) {
+        int total = 0;
+        int count = 0;
 
-    public void loopExample() {
-        for (int i = 0; i < 5; i++) {
-            System.out.println(i);
+        for (int price : prices) {
+            if (price > 0) {
+                total += price;
+                count++;
+            }
         }
-    }
-    public class Extra {
-    public int add(int a, int b) {
-        return a + b;
-    }
 
-    public void checkValue(int x) {
-        if (x > 10) {
-            System.out.println("Big number");
-        } else {
-            System.out.println("Small number");
-        }
+        double avg = (count == 0) ? 0 : (double) total / count;
+        System.out.println("Average price: " + avg);
+        System.out.println("Order processed successfully.");
     }
-}
 }

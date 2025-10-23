@@ -4,6 +4,7 @@ public class LongMethodExample {
         int total = 0;
         int count = 0;
         calculateAverage(total, count);
+        count++;
     }}
 
     double avg = (count == 0) ? 0
