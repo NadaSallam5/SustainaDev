@@ -44,6 +44,7 @@ Choose a block that is:
 - Do NOT duplicate the new method or create multiple versions
 - The result must be valid, compilable Java code
 
+
 ### Input
 File: ${fileName ?? "UnknownFile.java"}
 Target method is between lines: ${range.from}–${range.to}
@@ -131,22 +132,33 @@ Reason:
 
 function extractClassBlock(fullCode: string, functionStart: number) {
   const lines = fullCode.split(/\r?\n/);
-  let classStart = 0;
+  let classStart = -1;
   let classEnd = lines.length - 1;
 
+  // find the nearest "class" declaration before the function start
   for (let i = functionStart - 1; i >= 0; i--) {
-    if (lines[i].includes("class ")) {
+    const trimmed = lines[i].trim();
+    if (/^(public|private|protected)?\s*class\s+\w+/.test(trimmed)) {
       classStart = i;
       break;
     }
   }
+  if (classStart === -1) throw new Error("Could not find class declaration.");
 
+  // find matching closing brace for that class
   let braceCount = 0;
+  let foundBrace = false;
   for (let i = classStart; i < lines.length; i++) {
     const line = lines[i];
-    braceCount += (line.match(/{/g) || []).length;
-    braceCount -= (line.match(/}/g) || []).length;
-    if (braceCount === 0 && i > classStart) {
+    for (const ch of line) {
+      if (ch === "{") {
+        braceCount++;
+        foundBrace = true;
+      } else if (ch === "}") {
+        braceCount--;
+      }
+    }
+    if (foundBrace && braceCount === 0) {
       classEnd = i;
       break;
     }

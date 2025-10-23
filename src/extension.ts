@@ -134,11 +134,14 @@ export function activate(context: vscode.ExtensionContext) {
         );
 
         // 🧹 Clean duplicate classes in AI preview
-        const match = patch.preview.match(
-          /(public|protected|private)?\s*class\s+\w+[\s\S]*?\n}\s*$/
-        );
-        if (match) {
-          patch.preview = match[0]; // Keep only the first full class definition
+        // ✅ Validate AI output before showing preview
+        if ((patch.preview.match(/\bclass\s+\w+/g) || []).length > 1) {
+          vscode.window.showWarningMessage(
+            "⚠️ AI returned multiple classes — trimming to the first one."
+          );
+          const firstEnd =
+            patch.preview.indexOf("}", patch.preview.indexOf("class ")) + 1;
+          patch.preview = patch.preview.slice(0, firstEnd);
         }
 
         // preview (diff)
