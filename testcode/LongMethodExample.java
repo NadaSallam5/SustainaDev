@@ -5,38 +5,13 @@ public class LongMethodExample {
 
         for (int i = 0; i < 10; i++) {
             total += i;
-            if (i % 2 == 0) {
-                System.out.println("Even number: " + i);
-            } else {
-                System.out.println("Odd number: " + i);
-            }
-        }
+        extractedHelper();
 
         for (int j = 0; j < 10; j++) {
             total += j;
             System.out.println("J = " + j);
         }
-
-        for (int k = 0; k < 10; k++) {
-            total += k;
-            if (k % 5 == 0) {
-                System.out.println("Multiple of 5: " + k);
-            }
-        }
-
-        for (int a = 0; a < 10; a++) {
-            total += a;
-            System.out.println("A = " + a);
-        }
-
-        for (int b = 0; b < 10; b++) {
-            total += b;
-            if (b % 3 == 0) {
-                System.out.println("Multiple of 3: " + b);
-            }
-        }
-
-        for (int c = 0; c < 10; c++) {
+        extractedHelper();
             total += c;
             System.out.println("C = " + c);
         }
@@ -64,3 +39,43 @@ public class LongMethodExample {
         System.out.println("Done. Total = " + total);
     }
 }
+
+    private void extractedHelper() {
+                    if (k % 5 == 0) {
+                        System.out.println("Multiple of 5: " + k);
+                    }
+                }
+        
+                for (int a = 0; a < 10; a++) {
+                    total += a;
+                    System.out.println("A = " + a);
+                }
+        
+                for (int b = 0; b < 10; b++) {
+    }
+
+
+    private void extractedHelper() {
+        
+                for (int k = 0; k < 10; k++) {
+                    total += k;
+                extractedHelper();
+                    total += b;
+                    if (b % 3 == 0) {
+                        System.out.println("Multiple of 3: " + b);
+                    }
+                }
+        
+                for (int c = 0; c < 10; c++) {
+    }
+
+
+    private void extractedHelper() {
+                    if (i % 2 == 0) {
+                        System.out.println("Even number: " + i);
+                    } else {
+                        System.out.println("Odd number: " + i);
+                    }
+                }
+    }
+
