@@ -127,6 +127,11 @@ export function activate(context: vscode.ExtensionContext) {
         new vscode.Position(0, 0),
         new vscode.Position(doc.lineCount, 0)
       );
+      function normalizePreview(text: string): string {
+        // Convert CRLF → LF, trim trailing spaces, and ensure final newline
+        const cleaned = text.replace(/\r\n/g, "\n").replace(/[ \t]+$/gm, "");
+        return cleaned.endsWith("\n") ? cleaned : cleaned + "\n";
+      }
 
       we.replace(originalUri, fullRange, patch.preview);
 
@@ -136,6 +141,7 @@ export function activate(context: vscode.ExtensionContext) {
         return;
       }
 
+      await vscode.commands.executeCommand("editor.action.formatDocument");
       await vscode.window.showTextDocument(doc, { preview: false });
       await doc.save();
 
