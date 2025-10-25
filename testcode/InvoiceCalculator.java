@@ -21,4 +21,9 @@ public class InvoiceCalculator {
         return (count == 0) ? 0 : (double) total / count;
     }
 
+    private void printOrderSummary(double avg) {
+        System.out.println("Order processed successfully.");
+        System.out.println("Average price: " + avg);
+    }
+
 }
