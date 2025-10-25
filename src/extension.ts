@@ -71,6 +71,9 @@ export function activate(context: vscode.ExtensionContext) {
 
       try {
         const editor = vscode.window.activeTextEditor;
+        if (editor && editor.document.isDirty) {
+          await editor.document.save();
+        }
         if (!editor) return;
 
         const cfg = vscode.workspace.getConfiguration("sustainadev");
