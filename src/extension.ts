@@ -146,6 +146,7 @@ export function activate(context: vscode.ExtensionContext) {
           patch.preview = patch.preview.slice(0, firstEnd);
         } */
 
+        // 🧹 1️⃣ Close any old preview tab if it exists
         const oldDoc = vscode.workspace.textDocuments.find(
           (d) => d.uri.toString() === "untitled:RefactorPreview.java"
         );
@@ -156,18 +157,18 @@ export function activate(context: vscode.ExtensionContext) {
           );
         }
 
+        // 🆕 2️⃣ Create a fresh in-memory preview document
         const right = vscode.Uri.parse("untitled:RefactorPreview.java");
-        const newDoc = await vscode.workspace.openTextDocument(right);
-
         const edit = new vscode.WorkspaceEdit();
-        edit.replace(
-          right,
-          new vscode.Range(0, 0, newDoc.lineCount, 0),
-          patch.preview
-        );
-        await vscode.workspace.applyEdit(edit);
-        await new Promise((resolve) => setTimeout(resolve, 100)); // allow buffer update
 
+        // Directly insert (no need to open it first)
+        edit.insert(right, new vscode.Position(0, 0), patch.preview);
+        await vscode.workspace.applyEdit(edit);
+
+        // 🕒 3️⃣ Wait briefly to ensure VS Code syncs buffer
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        // 🖥️ 4️⃣ Open the side-by-side diff view
         await vscode.commands.executeCommand(
           "vscode.diff",
           originalUri,
@@ -175,38 +176,41 @@ export function activate(context: vscode.ExtensionContext) {
           "Refactor Preview"
         );
 
-        const previewEdit = new vscode.WorkspaceEdit();
-        previewEdit.replace(
-          right,
-          new vscode.Range(0, 0, newDoc.lineCount, 0),
-          patch.preview
-        );
-
+        // 🧭 5️⃣ Ask user whether to apply
         const apply = await vscode.window.showQuickPick(
           ["Apply refactor", "Cancel"],
-          { placeHolder: "Apply Extract Method?" }
+          {
+            placeHolder: "Apply Extract Method?",
+          }
         );
-        if (apply !== "Apply refactor") return;
+        if (apply !== "Apply refactor") {
+          // optional: close preview if canceled
+          await vscode.commands.executeCommand(
+            "workbench.action.closeActiveEditor"
+          );
+          return;
+        }
 
-        // ✅ Apply the refactored code (AI already did all the work!)
+        // ✅ 6️⃣ Apply refactor to original file
         const we = new vscode.WorkspaceEdit();
-
-        // Replace entire document
         const fullRange = new vscode.Range(
           new vscode.Position(0, 0),
           new vscode.Position(refreshedDoc.lineCount, 0)
         );
-
         we.replace(originalUri, fullRange, patch.preview);
-
         const applied = await vscode.workspace.applyEdit(we);
+
         if (!applied) {
           vscode.window.showErrorMessage("Failed to apply refactor edits.");
           return;
         }
 
-        await vscode.commands.executeCommand("editor.action.formatDocument");
+        // 🎯 7️⃣ Close preview and refocus original file
+        await vscode.commands.executeCommand(
+          "workbench.action.closeActiveEditor"
+        );
         await vscode.window.showTextDocument(originalUri, { preview: false });
+        await vscode.commands.executeCommand("editor.action.formatDocument");
         await refreshedDoc.save();
 
         // re-run to get "after" metrics
