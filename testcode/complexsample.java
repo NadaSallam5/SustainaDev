@@ -22,6 +22,10 @@ public class complexsample {
         }
 
         // simulate nested complexity
+        printPriceCategories(prices);
+    }
+
+    private void printPriceCategories(int[] prices) {
         for (int p : prices) {
             if (p > 100) {
                 System.out.println("High value item detected: " + p);
@@ -33,35 +37,4 @@ public class complexsample {
         }
     }
 
-    // Function 2 - also complex enough for extraction
-    public void generateReport(String[] items, int[] sales) {
-        if (items == null || sales == null || items.length != sales.length) {
-            System.out.println("Invalid report data");
-            return;
-        }
-
-        int totalSales = 0;
-        for (int s : sales) {
-            totalSales += s;
-        }
-
-        double avgSales = (double) totalSales / sales.length;
-        System.out.println("Average sales per item: " + avgSales);
-
-        for (int i = 0; i < items.length; i++) {
-            String status = sales[i] > avgSales ? "above average" : "below average";
-            System.out.println(items[i] + " had " + status + " sales.");
-        }
-
-        // another nested if for complexity
-        for (int sale : sales) {
-            if (sale > 1000) {
-                System.out.println("Top performer!");
-            } else if (sale > 500) {
-                System.out.println("Good performer.");
-            } else {
-                System.out.println("Needs improvement.");
-            }
-        }
-    }
 }
