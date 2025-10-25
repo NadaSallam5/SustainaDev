@@ -31,8 +31,7 @@ public class OrderManager {
 
         double avgOrder = (validOrders == 0) ? 0 : total / validOrders;
 
-        System.out.println("✅ Processed " + validOrders + " valid orders.");
-        System.out.println("📊 Average order value: $" + avgOrder);
+        printOrderSummary(validOrders, avgOrder);
 
         return total;
     }
@@ -45,5 +44,10 @@ public class OrderManager {
         }
 
         return subtotal;
+    }
+
+    private void printOrderSummary(int validOrders, double avgOrder) {
+        System.out.println("✅ Processed " + validOrders + " valid orders.");
+        System.out.println("📊 Average order value: $" + avgOrder);
     }
 }
