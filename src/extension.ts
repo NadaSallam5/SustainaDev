@@ -103,6 +103,7 @@ export function activate(context: vscode.ExtensionContext) {
         }
 
         const fullCode = refreshedDoc.getText();
+
         const patch = await buildExtractPatch(
           fullCode,
           { from: worst.start, to: worst.end },
