@@ -9,9 +9,7 @@ public class Mysample {
                 total += price;
                 count++;
             }
-            double avg = (count == 0) ? 0 : (double) total / count;
-
-            printOrderDetails(avg);
+            calculateAverageAndPrint(total, count);
         }
 
     }
@@ -19,6 +17,11 @@ public class Mysample {
     private void printOrderDetails(double avg) {
         System.out.println("Order processed successfully.");
         System.out.println("Average price: " + avg);
+    }
+
+    private void calculateAverageAndPrint(int total, int count) {
+        double avg = (count == 0) ? 0 : (double) total / count;
+        printOrderDetails(avg);
     }
 
 }
