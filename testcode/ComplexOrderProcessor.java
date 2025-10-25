@@ -1,26 +1,18 @@
-public class InvoiceCalculator {
+public class LongMethodExample {
 
-    public void calculateInvoice(double[] items, boolean applyDiscount) {
-        double subtotal = 0;
+    public void processOrder(int[] prices) {
+        int total = 0;
+        int count = 0;
 
-        for (double item : items) {
-            if (item > 0) {
-                subtotal += item;
+        for (int price : prices) {
+            if (price > 0) {
+                total += price;
+                count++;
             }
         }
 
-        System.out.println("Subtotal: " + subtotal);
-
-        if (applyDiscount) {
-            double discount = subtotal * 0.1;
-            subtotal -= discount;
-            System.out.println("Discount applied: " + discount);
-        }
-
-        double tax = subtotal * 0.05;
-        double total = subtotal + tax;
-
-        System.out.println("Tax: " + tax);
-        System.out.println("Total: " + total);
+        double avg = (count == 0) ? 0 : (double) total / count;
+        System.out.println("Average price: " + avg);
+        System.out.println("Order processed successfully.");
     }
 }

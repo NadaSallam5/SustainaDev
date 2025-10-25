@@ -146,24 +146,38 @@ export function activate(context: vscode.ExtensionContext) {
           patch.preview = patch.preview.slice(0, firstEnd);
         } */
 
-        // preview (diff)
-        const right = vscode.Uri.parse("untitled:RefactorPreview.java");
-        await vscode.workspace.openTextDocument(right); // ensure it exists
-        const doc = await vscode.workspace.openTextDocument(originalUri);
+        const oldDoc = vscode.workspace.textDocuments.find(
+          (d) => d.uri.toString() === "untitled:RefactorPreview.java"
+        );
+        if (oldDoc) {
+          await vscode.window.showTextDocument(oldDoc);
+          await vscode.commands.executeCommand(
+            "workbench.action.closeActiveEditor"
+          );
+        }
 
-        const previewEdit = new vscode.WorkspaceEdit();
-        previewEdit.replace(
+        const right = vscode.Uri.parse("untitled:RefactorPreview.java");
+        const newDoc = await vscode.workspace.openTextDocument(right);
+
+        const edit = new vscode.WorkspaceEdit();
+        edit.replace(
           right,
-          new vscode.Range(0, 0, doc.lineCount, 0),
+          new vscode.Range(0, 0, newDoc.lineCount, 0),
           patch.preview
         );
-
-        await vscode.workspace.applyEdit(previewEdit);
+        await vscode.workspace.applyEdit(edit);
         await vscode.commands.executeCommand(
           "vscode.diff",
           originalUri,
           right,
           "Refactor Preview"
+        );
+
+        const previewEdit = new vscode.WorkspaceEdit();
+        previewEdit.replace(
+          right,
+          new vscode.Range(0, 0, newDoc.lineCount, 0),
+          patch.preview
         );
 
         const apply = await vscode.window.showQuickPick(
@@ -178,7 +192,7 @@ export function activate(context: vscode.ExtensionContext) {
         // Replace entire document
         const fullRange = new vscode.Range(
           new vscode.Position(0, 0),
-          new vscode.Position(doc.lineCount, 0)
+          new vscode.Position(refreshedDoc.lineCount, 0)
         );
 
         we.replace(originalUri, fullRange, patch.preview);
@@ -190,8 +204,8 @@ export function activate(context: vscode.ExtensionContext) {
         }
 
         await vscode.commands.executeCommand("editor.action.formatDocument");
-        await vscode.window.showTextDocument(doc, { preview: false });
-        await doc.save();
+        await vscode.window.showTextDocument(originalUri, { preview: false });
+        await refreshedDoc.save();
 
         // re-run to get "after" metrics
         const after = await runLizard(filePath);
