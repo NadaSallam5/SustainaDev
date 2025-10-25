@@ -48,6 +48,10 @@ Choose a block that is:
 - Do NOT duplicate the new method or create multiple versions
 - The result must be valid, compilable Java code
 - Preserve identical functionality
+- If the extracted block modifies variables declared outside it (e.g., accumulators, counters), 
+  return those variables from the new method as part of a small object or array and update the caller accordingly.
+- Always ensure that the refactored code preserves the original behavior, even for primitive variable updates.
+
 
 ---
 
