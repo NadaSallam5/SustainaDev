@@ -53,6 +53,8 @@ Choose a block that is:
 - Preserve identical functionality — the result should behave the same as before extraction.
 - The output must be valid, compilable Java code.
 - If the target method already delegates its main logic to another helper (e.g., calls another private method doing the main loop or calculation), DO NOT extract again.
+- Do not extract trivial helper methods that only wrap a loop or return primitive accumulators (e.g., total and count) 
+  UNLESS the loop was originally inside a larger method that also handles other tasks (like printing or calculating).
 
 
 
