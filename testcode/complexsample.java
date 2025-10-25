@@ -41,4 +41,12 @@ public class complexsample {
         return (double) total / count;
     }
 
+    private void printInvalidPrices(int[] prices) {
+        for (int price : prices) {
+            if (price < 0) {
+                System.out.println("Invalid price: " + price);
+            }
+        }
+    }
+
 }
