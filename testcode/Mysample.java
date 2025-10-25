@@ -11,30 +11,8 @@ public class Mysample {
             }
         }
 
-        double avg = calculateAverage(total, count);
-        printOrderSummary(avg);
-        System.out.println("Order processed successfully.");
-    }
-
-    private double calculateAverage(int total, int count) {
-        return (count == 0) ? 0 : (double) total / count;
-    }
-
-    private void printOrderSummary(double avg) {
+        double avg = (count == 0) ? 0 : (double) total / count;
         System.out.println("Average price: " + avg);
-    }
-
-    private void calculateTotalAndCount(int[] prices, int[] result) {
-        int total = 0;
-        int count = 0;
-
-        for (int price : prices) {
-            if (price > 0) {
-                total += price;
-                count++;
-            }
-        }
-        result[0] = total;
-        result[1] = count;
+        System.out.println("Order processed successfully.");
     }
 }
