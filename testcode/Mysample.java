@@ -5,10 +5,9 @@ public class Mysample {
         int count = 0;
 
         for (int price : prices) {
-            if (price > 0) {
-                total += price;
-                count++;
-            }
+            int[] results = updateTotalAndCount(price, total, count);
+            total = results[0];
+            count = results[1];
             calculateAverageAndPrint(total, count);
         }
 
@@ -22,6 +21,14 @@ public class Mysample {
     private void calculateAverageAndPrint(int total, int count) {
         double avg = (count == 0) ? 0 : (double) total / count;
         printOrderDetails(avg);
+    }
+
+    private int[] updateTotalAndCount(int price, int total, int count) {
+        if (price > 0) {
+            total += price;
+            count++;
+        }
+        return new int[] { total, count };
     }
 
 }
