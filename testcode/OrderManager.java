@@ -15,18 +15,9 @@ public class OrderManager {
         int validOrders = 0;
 
         for (int i = 0; i < quantities.length; i++) {
-            int quantity = quantities[i];
-            double price = prices[i];
-
-            if (quantity <= 0) {
-                System.out.println("⚠️ Invalid order skipped: Quantity = " + quantity);
-                continue;
-            }
-
-            double subtotal = calculateSubtotalAndCheckLargeOrder(quantity, price);
-
-            total += subtotal;
-            validOrders++;
+            double[] result = processOrder(quantities[i], prices[i]);
+            total += result[0];
+            validOrders += result[1];
         }
 
         double avgOrder = (validOrders == 0) ? 0 : total / validOrders;
@@ -49,5 +40,15 @@ public class OrderManager {
     private void printOrderSummary(int validOrders, double avgOrder) {
         System.out.println("✅ Processed " + validOrders + " valid orders.");
         System.out.println("📊 Average order value: $" + avgOrder);
+    }
+
+    private double[] processOrder(int quantity, double price) {
+        if (quantity <= 0) {
+            System.out.println("⚠️ Invalid order skipped: Quantity = " + quantity);
+            return new double[] { 0, 0 };
+        }
+
+        double subtotal = calculateSubtotalAndCheckLargeOrder(quantity, price);
+        return new double[] { subtotal, 1 };
     }
 }
