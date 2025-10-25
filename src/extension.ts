@@ -109,6 +109,14 @@ export function activate(context: vscode.ExtensionContext) {
           path.basename(filePath)
         );
 
+        console.log("🧠 AI Patch Response:", patch);
+        if (!patch || !patch.preview || patch.preview.trim().length < 10) {
+          vscode.window.showErrorMessage(
+            "AI returned incomplete or invalid refactor output."
+          );
+          return;
+        }
+
         // 🧹 Close any old preview
         const oldDoc = vscode.workspace.textDocuments.find(
           (d) => d.uri.toString() === "untitled:RefactorPreview.java"
