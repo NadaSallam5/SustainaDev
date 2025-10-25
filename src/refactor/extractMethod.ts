@@ -12,7 +12,11 @@ export async function buildExtractPatch(
     project: "proj_LNUP8IUIyX6NsPPmk5Fg5e37",
   });
 
-  const { classBlock } = extractClassBlock(fullCode, range.from);
+  const adjustedFrom = Math.max(0, range.from - 1);
+  const adjustedTo = range.to;
+
+  // Use adjustedFrom for extractClassBlock and prompt
+  const { classBlock } = extractClassBlock(fullCode, adjustedFrom);
 
   const prompt = `
 You are a senior Java refactoring engineer performing an **Extract Method** refactoring.
