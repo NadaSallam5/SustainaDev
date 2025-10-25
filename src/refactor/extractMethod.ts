@@ -38,19 +38,17 @@ Choose a block that is:
 - Code that would require too many parameters (>4)
 
 ### Refactoring Requirements
-- Modify ONLY code inside this class
-- Keep imports, outer braces, and all existing methods untouched
-- Insert exactly **one** new private method
-- Maintain correct braces and indentation (4 spaces per level)
-- Replace the selected lines with a call to the new method at the same location
-- Pass necessary variables as parameters
-- If a value is needed later, return it from the new method
-- Do NOT duplicate the new method or create multiple versions
-- The result must be valid, compilable Java code
-- Preserve identical functionality
-- If the extracted block modifies variables declared outside it (e.g., accumulators, counters), 
-  return those variables from the new method as part of a small object or array and update the caller accordingly.
-- Always ensure that the refactored code preserves the original behavior, even for primitive variable updates.
+- Modify ONLY code inside this class.
+- Keep imports, outer braces, and all existing methods untouched.
+- Insert exactly **one** new private method.
+- Maintain correct braces and indentation (4 spaces per level).
+- Replace the selected lines with a call to the new method at the same location.
+- Pass necessary variables as parameters.
+- **If the extracted block modifies variables declared outside it (e.g., accumulators, counters), 
+  return those updated variables as part of an array (e.g., \`return new int[]{var1, var2}\`) 
+  and unpack them at the call site.**
+- Preserve identical functionality — the result should behave the same as before extraction.
+- The output must be valid, compilable Java code.
 
 
 ---
