@@ -42,6 +42,8 @@ Choose a block that is:
 - If a value is needed later, return it from the new method
 - Do NOT duplicate the new method or create multiple versions
 - The result must be valid, compilable Java code
+- Replace the original code block with a call to this new method.
+- Preserve identical functionality.
 
 
 ### Input
