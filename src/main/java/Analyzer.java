@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.stmt.ForEachStmt;
 import com.github.javaparser.ast.stmt.ForStmt;
 import com.github.javaparser.ast.stmt.IfStmt;
@@ -83,6 +84,15 @@ public class Analyzer {
                                 methodInfo.put("extractableStart", blockStart);
                                 methodInfo.put("extractableEnd", blockEnd);
                             }
+
+                            String methodBody = m.getBody().map(Object::toString).orElse("");
+                            methodInfo.put("body", methodBody);
+
+                            List<String> localVars = m.findAll(VariableDeclarator.class)
+                                    .stream()
+                                    .map(v -> v.getNameAsString())
+                                    .toList();
+                            methodInfo.put("locals", localVars);
 
                             // ✅ FIX: add method info to the list!
                             methods.add(methodInfo);

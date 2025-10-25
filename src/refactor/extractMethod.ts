@@ -4,7 +4,8 @@ import * as vscode from "vscode";
 export async function buildExtractPatch(
   fullCode: string,
   range: { from: number; to: number },
-  fileName?: string
+  fileName?: string,
+  context?: { methodBody?: string; locals?: string[] }
 ): Promise<{ preview: string; newMethod: string; callName: string }> {
   const client = new OpenAI({
     apiKey:
@@ -28,7 +29,7 @@ Analyze the following Java class and identify ONE cohesive code block within the
 Choose a block that is:
 - **Cohesive**: Performs a single, well-defined task (e.g., printing output, validation logic, calculation)
 - **Safe to extract**: Does NOT modify variables that are used later in the parent method
-- **Meaningful**: At least 3-5 lines that would benefit from being a separate method
+- **Meaningful**: At least 3–5 lines that would benefit from being a separate method
 - **Pure or side-effect limited**: Prefer blocks that only read data or produce output
 
 ### What NOT to Extract
@@ -39,16 +40,16 @@ Choose a block that is:
 ### Refactoring Requirements
 - Modify ONLY code inside this class
 - Keep imports, outer braces, and all existing methods untouched
-- Insert exactly **one** new private method 
+- Insert exactly **one** new private method
 - Maintain correct braces and indentation (4 spaces per level)
 - Replace the selected lines with a call to the new method at the same location
 - Pass necessary variables as parameters
 - If a value is needed later, return it from the new method
 - Do NOT duplicate the new method or create multiple versions
 - The result must be valid, compilable Java code
-- Replace the original code block with a call to this new method.
-- Preserve identical functionality.
+- Preserve identical functionality
 
+---
 
 ### Input
 File: ${fileName ?? "UnknownFile.java"}
@@ -59,11 +60,31 @@ Target method is between lines: ${range.from}–${range.to}
 ${classBlock}
 \`\`\`
 
-### Output Format (strict)
+### Target Method Context
+Below is the **full method** that contains the target code block:
+
+\`\`\`java
+${context?.methodBody ?? "N/A"}
+\`\`\`
+
+Local variables in scope: ${context?.locals?.join(", ") || "none"}
+
+The code to extract lies between lines ${range.from}–${range.to}.
+You MUST replace those lines with a call to the new method at the same position inside the same parent method.
+
 ---
+
+### Output Format (strict)
+Respond ONLY with the formatted output below.  
+Do not include any explanations, commentary, or markdown outside the specified format.  
+If no good extraction candidate exists, respond with:
+Call Name: none
+Preview: none
+New Method: none
+
 Preview:
 \`\`\`java
-(full updated class with ONE new method inserted)
+(full updated class with ONE new method inserted and the extracted lines replaced by a call)
 \`\`\`
 New Method:
 \`\`\`java
@@ -72,7 +93,7 @@ New Method:
 Call Name:
 (newMethodNameOnly)
 Extracted Lines:
-(start-end line numbers of what you extracted, e.g., "38-42")
+(start–end line numbers of what you extracted, e.g., "38–42")
 Reason:
 (one sentence explaining why this block was chosen)
 ---

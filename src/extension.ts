@@ -138,7 +138,8 @@ export function activate(context: vscode.ExtensionContext) {
         // 3️⃣ Read analyzer output (if exists)
         let from = worst.start;
         let to = worst.end;
-
+        let methodBody = ""; // ✅ Declare outside
+        let locals: string[] = []; // ✅ Declare outside
         const analyzerReport = path.join(
           path.dirname(filePath),
           "analysis-report.json"
@@ -152,6 +153,9 @@ export function activate(context: vscode.ExtensionContext) {
             const method = fileReport?.methods?.find(
               (m: any) => m.name === worst.name
             );
+
+            methodBody = method?.body ?? "";
+            locals = method?.locals ?? [];
 
             if (method?.extractableStart && method?.extractableEnd) {
               from = method.extractableStart;
@@ -172,7 +176,8 @@ export function activate(context: vscode.ExtensionContext) {
         const patch = await buildExtractPatch(
           fullCode,
           { from, to },
-          path.basename(filePath)
+          path.basename(filePath),
+          { methodBody, locals }
         );
 
         console.log("🧠 AI Patch Response:", patch);
