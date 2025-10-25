@@ -15,7 +15,7 @@ public class complexsample {
         }
 
         if (count > 0) {
-            double avg = (double) total / count;
+            double avg = calculateAverage(total, count);
             System.out.println("Average price: " + avg);
         } else {
             System.out.println("No valid prices found.");
@@ -35,6 +35,10 @@ public class complexsample {
                 System.out.println("Low value item detected: " + p);
             }
         }
+    }
+
+    private double calculateAverage(int total, int count) {
+        return (double) total / count;
     }
 
 }
