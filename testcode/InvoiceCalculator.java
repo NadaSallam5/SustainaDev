@@ -25,4 +25,18 @@ public class InvoiceCalculator {
         System.out.println("Average price: " + avg);
     }
 
+    private void calculateTotalAndCount(int[] prices, int[] result) {
+        int total = 0;
+        int count = 0;
+
+        for (int price : prices) {
+            if (price > 0) {
+                total += price;
+                count++;
+            }
+        }
+        result[0] = total;
+        result[1] = count;
+    }
+
 }
