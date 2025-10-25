@@ -19,8 +19,7 @@ public class InvoiceCalculator {
 
         double avg = (count == 0) ? 0 : (double) total / count;
 
-        System.out.println("Order processed successfully.");
-        System.out.println("Average price: " + avg);
+        printOrderProcessed(avg);
     }
 
     private int[] calculateTotalAndCount(int[] prices) {
@@ -36,6 +35,11 @@ public class InvoiceCalculator {
             }
         }
         return new int[] { total, count };
+    }
+
+    private void printOrderProcessed(double avg) {
+        System.out.println("Order processed successfully.");
+        System.out.println("Average price: " + avg);
     }
 
 }
