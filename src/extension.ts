@@ -166,6 +166,8 @@ export function activate(context: vscode.ExtensionContext) {
           patch.preview
         );
         await vscode.workspace.applyEdit(edit);
+        await new Promise((resolve) => setTimeout(resolve, 100)); // allow buffer update
+
         await vscode.commands.executeCommand(
           "vscode.diff",
           originalUri,
