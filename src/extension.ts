@@ -113,12 +113,13 @@ export function activate(context: vscode.ExtensionContext) {
           path.basename(filePath)
         );
 
-        // 🧹 Clean up any old preview tab
+        // 🧹 Close old preview
         const oldDoc = vscode.workspace.textDocuments.find(
           (d) => d.uri.toString() === "untitled:RefactorPreview.java"
         );
         if (oldDoc) {
           await vscode.window.showTextDocument(oldDoc);
+          await vscode.commands.executeCommand("workbench.action.revertFile");
           await vscode.commands.executeCommand(
             "workbench.action.closeActiveEditor"
           );
@@ -126,22 +127,20 @@ export function activate(context: vscode.ExtensionContext) {
 
         // 🆕 Open a fresh preview doc
         const right = vscode.Uri.parse("untitled:RefactorPreview.java");
-        const newDoc = await vscode.workspace.openTextDocument(right);
 
         const edit = new vscode.WorkspaceEdit();
-        edit.replace(
-          right,
-          new vscode.Range(0, 0, newDoc.lineCount, 0),
-          patch.preview
-        );
+        edit.insert(right, new vscode.Position(0, 0), patch.preview);
         await vscode.workspace.applyEdit(edit);
+
+        await new Promise((resolve) => setTimeout(resolve, 100));
 
         // 💡 Show the diff preview
         await vscode.commands.executeCommand(
           "vscode.diff",
           originalUri,
           right,
-          "Refactor Preview"
+          "AI Suggested Changes",
+          { preview: true } // <--- Important: opens diff in preview mode
         );
 
         // 🧭 Ask user to apply or cancel
@@ -151,17 +150,17 @@ export function activate(context: vscode.ExtensionContext) {
         );
         if (apply !== "Apply refactor") return;
 
-        // ✅ Close the diff tab before applying edits
-        const activeEditor = vscode.window.activeTextEditor;
-        if (
-          activeEditor &&
-          activeEditor.document.uri.toString().includes("RefactorPreview.java")
-        ) {
+        // ✅ Close preview cleanly (no popup)
+        const previewDoc = vscode.workspace.textDocuments.find(
+          (d) => d.uri.toString() === "untitled:RefactorPreview.java"
+        );
+        if (previewDoc) {
+          await vscode.window.showTextDocument(previewDoc, { preview: false });
+          await vscode.commands.executeCommand("workbench.action.files.revert");
           await vscode.commands.executeCommand(
             "workbench.action.closeActiveEditor"
           );
         }
-
         // ✅ Apply the refactor to the real file
         const we = new vscode.WorkspaceEdit();
         const fullRange = new vscode.Range(
