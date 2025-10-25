@@ -151,6 +151,17 @@ export function activate(context: vscode.ExtensionContext) {
         );
         if (apply !== "Apply refactor") return;
 
+        // ✅ Close the diff tab before applying edits
+        const activeEditor = vscode.window.activeTextEditor;
+        if (
+          activeEditor &&
+          activeEditor.document.uri.toString().includes("RefactorPreview.java")
+        ) {
+          await vscode.commands.executeCommand(
+            "workbench.action.closeActiveEditor"
+          );
+        }
+
         // ✅ Apply the refactor to the real file
         const we = new vscode.WorkspaceEdit();
         const fullRange = new vscode.Range(
