@@ -4,36 +4,25 @@ public class Mysample {
         int total = 0;
         int count = 0;
 
-        for (int price : prices) {
-            if (price > 0) {
-                total += price;
-                count++;
-            }
-        }
+        int[] results = calculateAverage(prices, total, count);
+        total = results[0];
+        count = results[1];
 
-        double avg = calculateAverage(total, count);
-        printOrderSummary(avg);
+        double avg = (count == 0) ? 0 : (double) total / count;
+
         System.out.println("Order processed successfully.");
-    }
-
-    private double calculateAverage(int total, int count) {
-        return (count == 0) ? 0 : (double) total / count;
-    }
-
-    private void printOrderSummary(double avg) {
         System.out.println("Average price: " + avg);
+
     }
 
-    private void calculateTotalAndCount(int[] prices, int[] result) {
-        int total = 0;
-        int count = 0;
+    private int[] calculateAverage(int[] prices, int total, int count) {
         for (int price : prices) {
             if (price > 0) {
                 total += price;
                 count++;
             }
         }
-        result[0] = total;
-        result[1] = count;
+        return new int[] { total, count };
     }
+
 }
