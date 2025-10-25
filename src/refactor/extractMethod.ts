@@ -52,6 +52,8 @@ Choose a block that is:
   and unpack them at the call site.**
 - Preserve identical functionality — the result should behave the same as before extraction.
 - The output must be valid, compilable Java code.
+- If the target method already delegates its main logic to another helper (e.g., calls another private method doing the main loop or calculation), DO NOT extract again.
+
 
 
 ---
