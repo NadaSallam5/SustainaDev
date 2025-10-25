@@ -1,17 +1,19 @@
-import * as cp from 'child_process';
-import * as fs from 'fs';
+import * as cp from "child_process";
+import * as fs from "fs";
 
 export type FnInfo = {
   name: string;
-  ccn: number;   // cyclomatic (from lizard if possible; else estimated)
-  nloc: number;  // lines of code
+  ccn: number; // cyclomatic (from lizard if possible; else estimated)
+  nloc: number; // lines of code
   start: number; // 1-based line index
-  end: number;   // inclusive
+  end: number; // inclusive
 };
 
-export async function runLizard(filePath: string): Promise<{ functions: FnInfo[] }> {
+export async function runLizard(
+  filePath: string
+): Promise<{ functions: FnInfo[] }> {
   // 1) Try Lizard (no special flags; supports all versions)
-  let stdout = '';
+  let stdout = "";
   try {
     stdout = await execOut(`python -m lizard "${filePath}"`);
   } catch (e) {
@@ -19,12 +21,15 @@ export async function runLizard(filePath: string): Promise<{ functions: FnInfo[]
   }
 
   const fnsFromLizard = parseLizard(stdout);
+  console.log("🔍 Lizard raw output:\n", stdout);
+  console.log("🧩 Parsed functions:", fnsFromLizard);
+
   if (fnsFromLizard.length > 0) {
     return { functions: fnsFromLizard };
   }
 
   // 2) Fallback: parse Java methods directly and estimate CCN
-  const src = fs.readFileSync(filePath, 'utf8');
+  const src = fs.readFileSync(filePath, "utf8");
   const fnsFallback = extractJavaMethods(src);
   return { functions: fnsFallback };
 }
@@ -48,11 +53,13 @@ function parseLizard(stdout: string): FnInfo[] {
 
   // Pattern A (common):
   // NLOC CCN token PARAM length  functionName   file:START-END
-  const patA = /^\s*(\d+)\s+(\d+)\s+\S+\s+\S+\s+\S+\s+([A-Za-z0-9_<>$]+)\s+.*:(\d+)-(\d+)/;
+  const patA =
+    /^\s*(\d+)\s+(\d+)\s+\S+\s+\S+\s+\S+\s+([A-Za-z0-9_<>$]+)\s+.*:(\d+)-(\d+)/;
 
   // Pattern B (sometimes columns differ by one fewer token col):
   // NLOC CCN PARAM length  functionName   file:START-END
-  const patB = /^\s*(\d+)\s+(\d+)\s+\S+\s+\S+\s+([A-Za-z0-9_<>$]+)\s+.*:(\d+)-(\d+)/;
+  const patB =
+    /^\s*(\d+)\s+(\d+)\s+\S+\s+\S+\s+([A-Za-z0-9_<>$]+)\s+.*:(\d+)-(\d+)/;
 
   for (const ln of lines) {
     let m = ln.match(patA) || ln.match(patB);
@@ -73,7 +80,8 @@ function extractJavaMethods(source: string): FnInfo[] {
   const lines = source.split(/\r?\n/);
 
   // Rough method signature regex (public/protected/private/static/…)
-  const sig = /(?:public|private|protected|static|\s)*\s+[A-Za-z0-9_<>\[\].?]+(?:\s+[A-Za-z0-9_<>\[\].?]+)?\s+([A-Za-z_][A-Za-z0-9_]*)\s*\([^;]*\)\s*\{/g;
+  const sig =
+    /(?:public|private|protected|static|\s)*\s+[A-Za-z0-9_<>\[\].?]+(?:\s+[A-Za-z0-9_<>\[\].?]+)?\s+([A-Za-z_][A-Za-z0-9_]*)\s*\([^;]*\)\s*\{/g;
 
   const text = source;
   const fns: FnInfo[] = [];
@@ -91,23 +99,31 @@ function extractJavaMethods(source: string): FnInfo[] {
     let endPos = text.length - 1;
     for (; i < text.length; i++) {
       const ch = text[i];
-      if (ch === '{') brace++;
-      if (ch === '}') {
+      if (ch === "{") brace++;
+      if (ch === "}") {
         brace--;
-        if (brace === 0) { endPos = i; break; }
+        if (brace === 0) {
+          endPos = i;
+          break;
+        }
       }
     }
     const endLine = text.slice(0, endPos + 1).split(/\r?\n/).length;
 
-    const body = lines.slice(startLine - 1, endLine).join('\n');
+    const body = lines.slice(startLine - 1, endLine).join("\n");
 
     // NLOC = non-empty, non-brace lines
-    const nloc = body.split(/\r?\n/)
-      .filter(l => l.trim().length > 0 && l.trim() !== '{' && l.trim() !== '}')
-      .length;
+    const nloc = body
+      .split(/\r?\n/)
+      .filter(
+        (l) => l.trim().length > 0 && l.trim() !== "{" && l.trim() !== "}"
+      ).length;
 
     // CCN estimate: count common decision points
-    const ccn = 1 + (body.match(/\bif\b|\bfor\b|\bwhile\b|\bcase\b|\?|\bcatch\b|&&|\|\|/g)?.length || 0);
+    const ccn =
+      1 +
+      (body.match(/\bif\b|\bfor\b|\bwhile\b|\bcase\b|\?|\bcatch\b|&&|\|\|/g)
+        ?.length || 0);
 
     fns.push({ name, ccn, nloc, start: startLine, end: endLine });
   }
