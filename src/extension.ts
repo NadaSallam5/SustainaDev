@@ -71,35 +71,29 @@ export function activate(context: vscode.ExtensionContext) {
 
       try {
         const editor = vscode.window.activeTextEditor;
-        if (!editor) {
-          vscode.window.showWarningMessage("No active editor found.");
-          return;
-        }
+        if (!editor) return;
 
-        // Setting gate: turn RM on/off in settings
         const cfg = vscode.workspace.getConfiguration("sustainadev");
         const useRM = cfg.get<boolean>("enableRefactoringMiner") === true;
 
         const originalUri = editor.document.uri;
         const filePath = originalUri.fsPath;
 
-        // Save current document if it has unsaved changes
-        if (editor.document.isDirty) {
-          await editor.document.save();
-        }
+        // 🔄 Force a clean read from disk
+        const refreshedDoc = await vscode.workspace.openTextDocument(
+          editor.document.uri
+        );
+        await refreshedDoc.save();
 
-        // Run Lizard analysis
         const analysis = await runLizard(filePath);
         if (!analysis.functions.length) {
           vscode.window.showInformationMessage("No functions found.");
           return;
         }
 
-        // Find worst function
         const worst = analysis.functions.sort(
           (a, b) => b.ccn - a.ccn || b.nloc - a.nloc
         )[0];
-
         const decision = chooseRefactor(worst);
         if (decision.type !== "Extract Method") {
           vscode.window.showInformationMessage(
@@ -108,11 +102,8 @@ export function activate(context: vscode.ExtensionContext) {
           return;
         }
 
-        // Get fresh document content
-        const currentDoc = await vscode.workspace.openTextDocument(originalUri);
-        const fullCode = currentDoc.getText();
+        const fullCode = refreshedDoc.getText();
 
-        // Generate refactoring patch
         const patch = await buildExtractPatch(
           fullCode,
           {
@@ -122,118 +113,61 @@ export function activate(context: vscode.ExtensionContext) {
           path.basename(filePath)
         );
 
-        // 🧹 Close any old preview tab if it exists
-        const previewUriString = "untitled:RefactorPreview.java";
+        // 🧹 Clean up any old preview tab
         const oldDoc = vscode.workspace.textDocuments.find(
-          (d) => d.uri.toString() === previewUriString
+          (d) => d.uri.toString() === "untitled:RefactorPreview.java"
         );
-
         if (oldDoc) {
-          // Close all tabs showing this preview
-          const tabs = vscode.window.tabGroups.all
-            .flatMap((group) => group.tabs)
-            .filter(
-              (tab) =>
-                tab.input instanceof vscode.TabInputText &&
-                tab.input.uri.toString() === previewUriString
-            );
-
-          for (const tab of tabs) {
-            await vscode.window.tabGroups.close(tab);
-          }
+          await vscode.window.showTextDocument(oldDoc);
+          await vscode.commands.executeCommand(
+            "workbench.action.closeActiveEditor"
+          );
         }
 
-        // 🆕 Create a fresh in-memory preview document
-        const previewUri = vscode.Uri.parse(previewUriString);
-        const previewDoc = await vscode.workspace.openTextDocument(previewUri);
+        // 🆕 Open a fresh preview doc
+        const right = vscode.Uri.parse("untitled:RefactorPreview.java");
+        const newDoc = await vscode.workspace.openTextDocument(right);
 
-        const previewEdit = new vscode.WorkspaceEdit();
-        previewEdit.replace(
-          previewUri,
-          new vscode.Range(0, 0, previewDoc.lineCount, 0),
+        const edit = new vscode.WorkspaceEdit();
+        edit.replace(
+          right,
+          new vscode.Range(0, 0, newDoc.lineCount, 0),
           patch.preview
         );
+        await vscode.workspace.applyEdit(edit);
 
-        const previewSuccess = await vscode.workspace.applyEdit(previewEdit);
-        if (!previewSuccess) {
-          vscode.window.showErrorMessage("Failed to create preview.");
-          return;
-        }
-
-        // 🕒 Wait briefly to ensure VS Code syncs buffer
-        await new Promise((resolve) => setTimeout(resolve, 100));
-
-        // 🖥️ Open the side-by-side diff view
+        // 💡 Show the diff preview
         await vscode.commands.executeCommand(
           "vscode.diff",
           originalUri,
-          previewUri,
+          right,
           "Refactor Preview"
         );
 
-        // 🧭 Ask user whether to apply
+        // 🧭 Ask user to apply or cancel
         const apply = await vscode.window.showQuickPick(
           ["Apply refactor", "Cancel"],
-          {
-            placeHolder: "Apply Extract Method?",
-          }
+          { placeHolder: "Apply Extract Method?" }
         );
+        if (apply !== "Apply refactor") return;
 
-        if (apply !== "Apply refactor") {
-          // Close diff and preview
-          await vscode.commands.executeCommand(
-            "workbench.action.closeAllEditors"
-          );
-          // Re-open original file
-          await vscode.window.showTextDocument(originalUri, { preview: false });
-          vscode.window.showInformationMessage("Refactor cancelled.");
-          return;
-        }
-
-        // ✅ Apply refactor to original file
-        // Get the latest document state
-        const docToEdit = await vscode.workspace.openTextDocument(originalUri);
-
-        const applyEdit = new vscode.WorkspaceEdit();
+        // ✅ Apply the refactor to the real file
+        const we = new vscode.WorkspaceEdit();
         const fullRange = new vscode.Range(
           new vscode.Position(0, 0),
-          new vscode.Position(docToEdit.lineCount, 0)
+          new vscode.Position(refreshedDoc.lineCount, 0)
         );
+        we.replace(originalUri, fullRange, patch.preview);
 
-        applyEdit.replace(originalUri, fullRange, patch.preview);
-        const applied = await vscode.workspace.applyEdit(applyEdit);
-
+        const applied = await vscode.workspace.applyEdit(we);
         if (!applied) {
           vscode.window.showErrorMessage("Failed to apply refactor edits.");
           return;
         }
 
-        // 🎯 Close preview and refocus original file
-        // Close all editors (diff + preview)
-        await vscode.commands.executeCommand(
-          "workbench.action.closeAllEditors"
-        );
-
-        // Re-open and show the refactored file
-        const refactoredDoc = await vscode.workspace.openTextDocument(
-          originalUri
-        );
-        await vscode.window.showTextDocument(refactoredDoc, {
-          preview: false,
-        });
-
-        // Format document (with error handling)
-        try {
-          await vscode.commands.executeCommand("editor.action.formatDocument");
-          // Wait for formatting to complete
-          await new Promise((resolve) => setTimeout(resolve, 300));
-        } catch (error) {
-          console.warn("Formatting failed:", error);
-          // Continue without formatting
-        }
-
-        // Save the document
-        await refactoredDoc.save();
+        await vscode.commands.executeCommand("editor.action.formatDocument");
+        await vscode.window.showTextDocument(originalUri, { preview: false });
+        await refreshedDoc.save();
 
         // re-run to get "after" metrics
         const after = await runLizard(filePath);
