@@ -31,6 +31,9 @@ Choose a block that is:
 - **Safe to extract**: Does NOT modify variables that are used later in the parent method
 - **Meaningful**: At least 3–5 lines that would benefit from being a separate method
 - **Pure or side-effect limited**: Prefer blocks that only read data or produce output
+- Do NOT move statements that appear outside a loop to inside the loop.
+- The extracted method must preserve the same control flow and logical order.
+- Never call the new method from inside a loop if it was previously called after the loop.
 
 ### What NOT to Extract
 - Single lines (not worth extracting)
