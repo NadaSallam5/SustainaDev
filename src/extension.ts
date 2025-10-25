@@ -79,7 +79,7 @@ export function activate(context: vscode.ExtensionContext) {
         const originalUri = editor.document.uri;
         const filePath = originalUri.fsPath;
 
-        // 🔄 Force a clean read from disk
+        // 🔄 Ensure we work with a fresh copy
         const refreshedDoc = await vscode.workspace.openTextDocument(
           editor.document.uri
         );
@@ -103,65 +103,72 @@ export function activate(context: vscode.ExtensionContext) {
         }
 
         const fullCode = refreshedDoc.getText();
-
         const patch = await buildExtractPatch(
           fullCode,
-          {
-            from: worst.start,
-            to: worst.end,
-          },
+          { from: worst.start, to: worst.end },
           path.basename(filePath)
         );
 
-        // 🧹 Close old preview
+        // 🧹 Close any old preview
         const oldDoc = vscode.workspace.textDocuments.find(
           (d) => d.uri.toString() === "untitled:RefactorPreview.java"
         );
         if (oldDoc) {
           await vscode.window.showTextDocument(oldDoc);
-          await vscode.commands.executeCommand("workbench.action.revertFile");
           await vscode.commands.executeCommand(
             "workbench.action.closeActiveEditor"
           );
         }
 
-        // 🆕 Open a fresh preview doc
+        // 🆕 Create a new in-memory preview document
         const right = vscode.Uri.parse("untitled:RefactorPreview.java");
 
         const edit = new vscode.WorkspaceEdit();
         edit.insert(right, new vscode.Position(0, 0), patch.preview);
         await vscode.workspace.applyEdit(edit);
 
+        // 🕒 Wait to ensure buffer registration
         await new Promise((resolve) => setTimeout(resolve, 100));
 
-        // 💡 Show the diff preview
+        // 💡 Show the diff preview only
         await vscode.commands.executeCommand(
           "vscode.diff",
           originalUri,
           right,
           "AI Suggested Changes",
-          { preview: true } // <--- Important: opens diff in preview mode
+          { preview: true }
         );
 
-        // 🧭 Ask user to apply or cancel
+        // 🧭 Ask user whether to apply
         const apply = await vscode.window.showQuickPick(
           ["Apply refactor", "Cancel"],
-          { placeHolder: "Apply Extract Method?" }
+          {
+            placeHolder: "Apply Extract Method?",
+          }
         );
-        if (apply !== "Apply refactor") return;
-
-        // ✅ Close preview cleanly (no popup)
-        const previewDoc = vscode.workspace.textDocuments.find(
-          (d) => d.uri.toString() === "untitled:RefactorPreview.java"
-        );
-        if (previewDoc) {
-          await vscode.window.showTextDocument(previewDoc, { preview: false });
-          await vscode.commands.executeCommand("workbench.action.files.revert");
+        if (apply !== "Apply refactor") {
           await vscode.commands.executeCommand(
             "workbench.action.closeActiveEditor"
           );
+          return;
         }
-        // ✅ Apply the refactor to the real file
+
+        // ✅ Close the preview completely (no save popup)
+        const previewEditor = vscode.window.visibleTextEditors.find(
+          (e) => e.document.uri.toString() === "untitled:RefactorPreview.java"
+        );
+        if (previewEditor) {
+          await vscode.window.showTextDocument(previewEditor.document, {
+            preview: false,
+          });
+
+          // Force discard unsaved buffer (since revert doesn’t work on untitled)
+          await vscode.commands.executeCommand(
+            "workbench.action.revertAndCloseActiveEditor"
+          );
+        }
+
+        // ✅ Apply the patch to the original file
         const we = new vscode.WorkspaceEdit();
         const fullRange = new vscode.Range(
           new vscode.Position(0, 0),
