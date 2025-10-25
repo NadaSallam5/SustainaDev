@@ -29,14 +29,13 @@ Choose a block that is:
 
 ### What NOT to Extract
 - Single lines (not worth extracting)
-- Code that modifies critical state variables (e.g., total -= discount)
 - Code with complex control flow that spans the entire method
 - Code that would require too many parameters (>4)
 
 ### Refactoring Requirements
 - Modify ONLY code inside this class
 - Keep imports, outer braces, and all existing methods untouched
-- Insert exactly **one** new private method directly after the existing one
+- Insert exactly **one** new private method 
 - Maintain correct braces and indentation (4 spaces per level)
 - Replace the selected lines with a call to the new method at the same location
 - Pass necessary variables as parameters

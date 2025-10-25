@@ -79,11 +79,13 @@ export function activate(context: vscode.ExtensionContext) {
 
         const originalUri = editor.document.uri; // keep a handle to the original document
         const filePath = originalUri.fsPath;
+
         // 🔄 Force a clean read from disk
         const refreshedDoc = await vscode.workspace.openTextDocument(
           editor.document.uri
         );
         await refreshedDoc.save();
+
         const analysis = await runLizard(filePath);
         if (!analysis.functions.length) {
           vscode.window.showInformationMessage("No functions found.");
@@ -108,20 +110,20 @@ export function activate(context: vscode.ExtensionContext) {
  */
 
         const fullCode = refreshedDoc.getText();
-        const fullCodeLines = fullCode.split(/\r?\n/);
+        // const fullCodeLines = fullCode.split(/\r?\n/);
 
-        if (worst.end > fullCodeLines.length) {
+        /* if (worst.end > fullCodeLines.length) {
           vscode.window.showErrorMessage(
             "Refactor range invalid after update."
           );
           return;
-        }
+        } */
 
-        const classMatches = fullCode.match(/\bclass\s+\w+/g) || [];
+        /* const classMatches = fullCode.match(/\bclass\s+\w+/g) || [];
         console.log("🧩 Classes detected:", classMatches);
         vscode.window.showInformationMessage(
           `Analyzing ${classMatches.join(", ")}`
-        );
+        ); */
 
         // NEW: Just pass the entire method range
         const patch = await buildExtractPatch(
@@ -135,24 +137,25 @@ export function activate(context: vscode.ExtensionContext) {
 
         // 🧹 Clean duplicate classes in AI preview
         // ✅ Validate AI output before showing preview
-        if ((patch.preview.match(/\bclass\s+\w+/g) || []).length > 1) {
+        /*  if ((patch.preview.match(/\bclass\s+\w+/g) || []).length > 1) {
           vscode.window.showWarningMessage(
             "⚠️ AI returned multiple classes — trimming to the first one."
           );
           const firstEnd =
             patch.preview.indexOf("}", patch.preview.indexOf("class ")) + 1;
           patch.preview = patch.preview.slice(0, firstEnd);
-        }
+        } */
 
         // preview (diff)
         const right = vscode.Uri.parse("untitled:RefactorPreview.java");
         await vscode.workspace.openTextDocument(right); // ensure it exists
+        const doc = await vscode.workspace.openTextDocument(originalUri);
 
         const previewEdit = new vscode.WorkspaceEdit();
-        previewEdit.insert(
+        previewEdit.replace(
           right,
-          new vscode.Position(0, 0),
-          patch.preview // ✅ Just use the preview - it already has everything!
+          new vscode.Range(0, 0, doc.lineCount, 0),
+          patch.preview
         );
 
         await vscode.workspace.applyEdit(previewEdit);
@@ -170,7 +173,6 @@ export function activate(context: vscode.ExtensionContext) {
         if (apply !== "Apply refactor") return;
 
         // ✅ Apply the refactored code (AI already did all the work!)
-        const doc = await vscode.workspace.openTextDocument(originalUri);
         const we = new vscode.WorkspaceEdit();
 
         // Replace entire document
