@@ -4,7 +4,7 @@ public class InvoiceCalculator {
         int total = 0;
         int count = 0;
 
-        calculateTotalAndCount(prices, total, count);
+        calculateTotalAndCount(prices);
 
         double avg = calculateAverage(total, count);
         System.out.println("Order processed successfully.");
@@ -15,13 +15,16 @@ public class InvoiceCalculator {
         return (count == 0) ? 0 : (double) total / count;
     }
 
-    private void calculateTotalAndCount(int[] prices, int total, int count) {
+    private void calculateTotalAndCount(int[] prices) {
+        int total = 0;
+        int count = 0;
         for (int price : prices) {
             if (price > 0) {
                 total += price;
                 count++;
             }
         }
+        return new int[] { total, count };
     }
 
 }
