@@ -18,7 +18,7 @@ public class InvoiceCalculator {
                 total += price;
                 count++;
             } else {
-                System.out.println("⚠️ Invalid price skipped: " + price);
+                handleInvalidPrice(price);
             }
         }
 
@@ -30,5 +30,9 @@ public class InvoiceCalculator {
 
     private double calculateAveragePrice(int total, int count) {
         return (count == 0) ? 0 : (double) total / count;
+    }
+
+    private void handleInvalidPrice(int price) {
+        System.out.println("⚠️ Invalid price skipped: " + price);
     }
 }
