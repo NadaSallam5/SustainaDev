@@ -32,45 +32,68 @@ public class Analyzer {
         List<Map<String, Object>> reports = new ArrayList<>();
 
         Files.walk(root)
-            .filter(p -> p.toString().endsWith(".java"))
-            .forEach(p -> {
-                try {
-                    CompilationUnit cu = StaticJavaParser.parse(p);
+                .filter(p -> p.toString().endsWith(".java"))
+                .forEach(p -> {
+                    try {
+                        CompilationUnit cu = StaticJavaParser.parse(p);
 
-                    Map<String, Object> fileReport = new HashMap<>();
-                    fileReport.put("file", p.toString());
+                        Map<String, Object> fileReport = new HashMap<>();
+                        fileReport.put("file", p.toString());
 
-                    List<Map<String, Object>> methods = new ArrayList<>();
+                        List<Map<String, Object>> methods = new ArrayList<>();
 
-                    System.out.println("✅ Parsed file: " + p + " | Total methods: " + cu.findAll(MethodDeclaration.class).size());
+                        System.out.println("✅ Parsed file: " + p + " | Total methods: "
+                                + cu.findAll(MethodDeclaration.class).size());
 
-                    for (MethodDeclaration m : cu.findAll(MethodDeclaration.class)) {
-                        System.out.println("Analyzing method: " + m.getNameAsString() + " in " + p);
+                        for (MethodDeclaration m : cu.findAll(MethodDeclaration.class)) {
+                            System.out.println("Analyzing method: " + m.getNameAsString() + " in " + p);
 
-                        Map<String, Object> methodInfo = new HashMap<>();
-                        methodInfo.put("name", m.getNameAsString());
+                            Map<String, Object> methodInfo = new HashMap<>();
+                            methodInfo.put("name", m.getNameAsString());
 
-                        int start = m.getBegin().map(pos -> pos.line).orElse(0);
-                        int end = m.getEnd().map(pos -> pos.line).orElse(0);
-                        int lines = end - start + 1;
+                            int start = m.getBegin().map(pos -> pos.line).orElse(0);
+                            int end = m.getEnd().map(pos -> pos.line).orElse(0);
+                            int lines = end - start + 1;
 
-                        methodInfo.put("lines", lines);
-                        methodInfo.put("params", m.getParameters().size());
-                        methodInfo.put("ifCount", m.findAll(IfStmt.class).size());
-                        methodInfo.put("forCount", m.findAll(ForStmt.class).size() + m.findAll(ForEachStmt.class).size());
-                       methodInfo.put("isLongMethod", lines >= 50);
+                            methodInfo.put("lines", lines);
+                            methodInfo.put("params", m.getParameters().size());
+                            methodInfo.put("ifCount", m.findAll(IfStmt.class).size());
+                            methodInfo.put("forCount",
+                                    m.findAll(ForStmt.class).size() + m.findAll(ForEachStmt.class).size());
+                            methodInfo.put("isLongMethod", lines >= 50);
 
+                            // Detect first inner block (for/foreach/if)
+                            int blockStart = 0;
+                            int blockEnd = 0;
+                            if (m.findFirst(ForStmt.class).isPresent()) {
+                                var f = m.findFirst(ForStmt.class).get();
+                                blockStart = f.getBegin().map(pos -> pos.line).orElse(0);
+                                blockEnd = f.getEnd().map(pos -> pos.line).orElse(0);
+                            } else if (m.findFirst(ForEachStmt.class).isPresent()) {
+                                var f = m.findFirst(ForEachStmt.class).get();
+                                blockStart = f.getBegin().map(pos -> pos.line).orElse(0);
+                                blockEnd = f.getEnd().map(pos -> pos.line).orElse(0);
+                            } else if (m.findFirst(IfStmt.class).isPresent()) {
+                                var f = m.findFirst(IfStmt.class).get();
+                                blockStart = f.getBegin().map(pos -> pos.line).orElse(0);
+                                blockEnd = f.getEnd().map(pos -> pos.line).orElse(0);
+                            }
 
-                        // ✅ FIX: add method info to the list!
-                        methods.add(methodInfo);
+                            if (blockStart > 0 && blockEnd > 0) {
+                                methodInfo.put("extractableStart", blockStart);
+                                methodInfo.put("extractableEnd", blockEnd);
+                            }
+
+                            // ✅ FIX: add method info to the list!
+                            methods.add(methodInfo);
+                        }
+
+                        fileReport.put("methods", methods);
+                        reports.add(fileReport);
+                    } catch (Exception e) {
+                        System.err.println("⚠️ Error parsing " + p + ": " + e.getMessage());
                     }
-
-                    fileReport.put("methods", methods);
-                    reports.add(fileReport);
-                } catch (Exception e) {
-                    System.err.println("⚠️ Error parsing " + p + ": " + e.getMessage());
-                }
-            });
+                });
 
         // Save JSON output
         ObjectMapper om = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);

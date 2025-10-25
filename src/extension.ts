@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import { exec } from "child_process";
-
+import * as fs from "fs";
 // NEW imports for PoC flow
 import { runLizard } from "./analyzer/lizardRunner";
 import { chooseRefactor } from "./analyzer/smellClassifier";
@@ -94,6 +94,7 @@ export function activate(context: vscode.ExtensionContext) {
         const worst = analysis.functions.sort(
           (a, b) => b.ccn - a.ccn || b.nloc - a.nloc
         )[0];
+
         const decision = chooseRefactor(worst);
         if (decision.type !== "Extract Method") {
           vscode.window.showInformationMessage(
@@ -102,11 +103,75 @@ export function activate(context: vscode.ExtensionContext) {
           return;
         }
 
+        // 🧠 Run Java Analyzer (same as runAnalyzer)
+        const jarPath = path.join(
+          "C:\\Users\\MM\\Downloads\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
+        );
+        const projectPath = path.dirname(filePath);
+        const analyzerCmd = `java -jar "${jarPath}" "${projectPath}"`;
+
+        console.log("🔍 Running Analyzer:", analyzerCmd);
+
+        try {
+          await new Promise((resolve, reject) => {
+            const proc = require("child_process").exec(
+              analyzerCmd,
+              (err: any, stdout: string, stderr: string) => {
+                if (err) {
+                  console.error("❌ Analyzer failed:", err.message);
+                  console.error("stderr:", stderr);
+                  reject(err);
+                } else {
+                  console.log("✅ Analyzer output:", stdout);
+                  resolve(null);
+                }
+              }
+            );
+          });
+        } catch (err: any) {
+          vscode.window.showWarningMessage(
+            `⚠️ Analyzer failed to run: ${err.message}. Using Lizard fallback.`
+          );
+          console.error("Analyzer execution error:", err);
+        }
+
+        // 3️⃣ Read analyzer output (if exists)
+        let from = worst.start;
+        let to = worst.end;
+
+        const analyzerReport = path.join(
+          path.dirname(filePath),
+          "analysis-report.json"
+        );
+        if (fs.existsSync(analyzerReport)) {
+          try {
+            const report = JSON.parse(fs.readFileSync(analyzerReport, "utf8"));
+            const fileReport = report.find((r: any) =>
+              r.file.includes(path.basename(filePath))
+            );
+            const method = fileReport?.methods?.find(
+              (m: any) => m.name === worst.name
+            );
+
+            if (method?.extractableStart && method?.extractableEnd) {
+              from = method.extractableStart;
+              to = method.extractableEnd;
+              console.log(`📊 JavaParser block detected: ${from}-${to}`);
+            } else {
+              console.log(
+                "⚠️ Analyzer did not find an extractable block. Using Lizard range."
+              );
+            }
+          } catch (err) {
+            console.error("❌ Failed reading analyzer output:", err);
+          }
+        }
+
         const fullCode = refreshedDoc.getText();
 
         const patch = await buildExtractPatch(
           fullCode,
-          { from: worst.start, to: worst.end },
+          { from, to },
           path.basename(filePath)
         );
 

@@ -73,6 +73,7 @@
     "webpack-cli": "^6.0.1"
   },
   "dependencies": {
+    "java-parser": "^3.0.1",
     "openai": "^6.6.0"
   }
 }
