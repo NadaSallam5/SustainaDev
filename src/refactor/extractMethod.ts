@@ -103,7 +103,7 @@ Reason:
 
   // ✅ Use a system message to reset model context
   const resp = await client.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "gpt-4o",
     messages: [
       {
         role: "system",
@@ -112,7 +112,7 @@ Reason:
       },
       { role: "user", content: prompt },
     ],
-    temperature: 0.3,
+    temperature: 0.1,
     max_tokens: 5000,
   });
 
