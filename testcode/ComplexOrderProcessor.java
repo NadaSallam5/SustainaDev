@@ -52,6 +52,12 @@ public class ComplexOrderProcessor {
         System.out.println("Final total: " + total);
     }
 
+    // New method to print item count and average price
+    private void printItemCountAndAverage(int itemCount, double avg) {
+        System.out.println("Items count: " + itemCount);
+        System.out.println("Average item price: " + avg);
+    }
+
     // Another small helper
     public void printSummary(String name, int total) {
         System.out.println("Summary for " + name + ": $" + total);
