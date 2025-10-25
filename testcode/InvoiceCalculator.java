@@ -19,4 +19,11 @@ public class InvoiceCalculator {
         return (count == 0) ? 0 : (double) total / count;
     }
 
+    private void updateTotals(int price, int[] totals) {
+        if (price > 0) {
+            totals[0] += price;
+            totals[1]++;
+        }
+    }
+
 }
