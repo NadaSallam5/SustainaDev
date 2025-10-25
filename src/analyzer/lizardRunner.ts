@@ -16,8 +16,10 @@ export async function runLizard(
   let stdout = "";
   try {
     stdout = await execOut(`python -m lizard "${filePath}"`);
+    console.log("🐍 Lizard stdout:\n", stdout);
   } catch (e) {
     // ignore; we'll fallback
+    console.warn("⚠️ Lizard execution failed, falling back:");
   }
 
   const fnsFromLizard = parseLizard(stdout);
