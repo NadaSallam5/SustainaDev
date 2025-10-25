@@ -1,4 +1,3 @@
-
 public class ComplexOrderProcessor {
 
     // Simple method (low complexity)
@@ -45,8 +44,12 @@ public class ComplexOrderProcessor {
             System.out.println("Discount applied: " + discount);
         }
 
-        System.out.println("Final total: " + total);
+        printFinalTotal(total);
         System.out.println("Order processed successfully.");
+    }
+
+    private void printFinalTotal(int total) {
+        System.out.println("Final total: " + total);
     }
 
     // Another small helper
