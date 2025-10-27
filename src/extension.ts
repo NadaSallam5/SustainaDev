@@ -250,46 +250,57 @@ export function activate(context: vscode.ExtensionContext) {
           "🔄 Proposed Refactoring (Original ← → Refactored)",
           { preview: true }
         );
-
         // 🧭 Ask user whether to apply
         const apply = await vscode.window.showQuickPick(
-          ["✅ Apply refactor", "❌ Cancel"],
+          ["Apply refactor", "Cancel"],
           {
             placeHolder: "Apply Extract Method?",
           }
         );
-        if (apply !== "✅ Apply refactor") {
-          // ✅ Find and close preview silently
+        if (apply !== "Apply refactor") {
+          // ✅ Find the diff preview safely
           const previewEditor = vscode.window.visibleTextEditors.find((e) =>
             e.document.uri.toString().includes("RefactorPreview.java")
           );
 
           if (previewEditor) {
-            try {
-              // Directly close without showing it
+            const doc = previewEditor.document;
+
+            // 🧹 Discard all changes silently (no save popup)
+            await vscode.window.showTextDocument(doc, { preview: false });
+
+            // Try revert first (silently discards content)
+            await vscode.commands.executeCommand(
+              "workbench.action.revertAndCloseActiveEditor"
+            );
+
+            // Fallback in case revert isn't supported (untitled docs sometimes)
+            if (!doc.isClosed) {
               await vscode.commands.executeCommand(
                 "workbench.action.closeActiveEditor"
               );
-            } catch {}
+            }
           }
 
           vscode.window.showInformationMessage(
             "❌ Refactor canceled — preview closed without saving."
           );
-          isRunning = false;
           return;
         }
 
-        // ✅ Close the preview completely (no flash)
+        // ✅ Close the preview completely (no save popup)
         const previewEditor = vscode.window.visibleTextEditors.find((e) =>
-          e.document.uri.toString().includes("RefactorPreview")
+          e.document.uri.toString().includes("Preview")
         );
         if (previewEditor) {
-          try {
-            await vscode.commands.executeCommand(
-              "workbench.action.closeActiveEditor"
-            );
-          } catch {}
+          await vscode.window.showTextDocument(previewEditor.document, {
+            preview: false,
+          });
+
+          // Force discard unsaved buffer (since revert doesn’t work on untitled)
+          await vscode.commands.executeCommand(
+            "workbench.action.revertAndCloseActiveEditor"
+          );
         }
 
         // ✅ Apply the patch to the original file

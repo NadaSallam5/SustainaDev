@@ -20,11 +20,11 @@ public class InvoiceCalculator {
                 System.out.println("Invalid price skipped: ");
             }
 
-            calculateAndPrintAverage(total, count);
+            calculateAverageAndPrint(total, count);
         }
     }
 
-    private void calculateAndPrintAverage(int total, int count) {
+    private void calculateAverageAndPrint(int total, int count) {
         double avg = (count == 0) ? 0 : (double) total / count;
         System.out.println("Average price: " + avg);
         System.out.println("Order processed successfully.");
