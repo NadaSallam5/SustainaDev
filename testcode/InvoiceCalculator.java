@@ -17,20 +17,16 @@ public class InvoiceCalculator {
                 total += price;
                 count++;
             } else {
-                handleInvalidPrice();
+                System.out.println("Invalid price skipped: ");
             }
 
-            calculateAverageAndPrint(total, count);
+            calculateAndPrintAverage(total, count);
         }
     }
 
-    private void calculateAverageAndPrint(int total, int count) {
+    private void calculateAndPrintAverage(int total, int count) {
         double avg = (count == 0) ? 0 : (double) total / count;
         System.out.println("Average price: " + avg);
         System.out.println("Order processed successfully.");
-    }
-
-    private void handleInvalidPrice() {
-        System.out.println("Invalid price skipped: ");
     }
 }
