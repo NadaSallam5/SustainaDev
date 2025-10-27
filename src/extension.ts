@@ -5,14 +5,13 @@ import * as fs from "fs";
 // NEW imports for PoC flow
 import { runLizard } from "./analyzer/lizardRunner";
 import { chooseRefactor } from "./analyzer/smellClassifier";
-import { buildExtractPatch } from "./refactor/extractMethod";
+import { buildExtractPatch, extractClassBlock } from "./refactor/extractMethod";
 import { buildExplanation } from "./refactor/explanation";
 import { gitCommit } from "./git/commit";
 import { verifyLastRefactor } from "./git/refactoringMiner";
 import { estimateEnergy } from "./metrics/codeCarbon";
 import { appendLog } from "./metrics/logger";
 import { openDashboard } from "./ui/dashboardPanel";
-
 export function activate(context: vscode.ExtensionContext) {
   console.log("🟢 SustainaDev Analyzer extension is active");
 
@@ -202,7 +201,7 @@ export function activate(context: vscode.ExtensionContext) {
           );
         }
 
-        // 🆕 Create a new in-memory preview document
+        /* // 🆕 Create a new in-memory preview document
         const right = vscode.Uri.parse("untitled:RefactorPreview.java");
 
         const edit = new vscode.WorkspaceEdit();
@@ -218,6 +217,34 @@ export function activate(context: vscode.ExtensionContext) {
           originalUri,
           right,
           "AI Suggested Changes",
+          { preview: true }
+        ); */
+        // 🧩 Extract only the relevant class for a cleaner diff
+        const { classBlock } = extractClassBlock(fullCode, from);
+
+        // 🆕 Create temporary documents for diffing only this class
+        const leftUri = vscode.Uri.parse("untitled:OriginalClass.java");
+        const rightUri = vscode.Uri.parse("untitled:RefactorPreview.java");
+
+        // insert the original class (left)
+        const leftEdit = new vscode.WorkspaceEdit();
+        leftEdit.insert(leftUri, new vscode.Position(0, 0), classBlock);
+        await vscode.workspace.applyEdit(leftEdit);
+
+        // insert the AI-refactored class (right)
+        const rightEdit = new vscode.WorkspaceEdit();
+        rightEdit.insert(rightUri, new vscode.Position(0, 0), patch.preview);
+        await vscode.workspace.applyEdit(rightEdit);
+
+        // small delay so VS Code registers new untitled buffers
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        // 💡 Show a clear class-level diff instead of whole file
+        await vscode.commands.executeCommand(
+          "vscode.diff",
+          leftUri,
+          rightUri,
+          "AI Suggested Refactor (Class View)",
           { preview: true }
         );
 

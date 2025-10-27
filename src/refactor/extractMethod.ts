@@ -165,7 +165,7 @@ Reason:
 
 /* ---------------- Helper functions ---------------- */
 
-function extractClassBlock(fullCode: string, functionStart: number) {
+export function extractClassBlock(fullCode: string, functionStart: number) {
   const lines = fullCode.split(/\r?\n/);
   let classStart = -1;
   let classEnd = lines.length - 1;
