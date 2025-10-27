@@ -221,78 +221,6 @@ export function activate(context: vscode.ExtensionContext) {
         );
  */
 
-        // // 🧭 Ask user whether to apply
-        // const apply = await vscode.window.showQuickPick(
-        //   ["Apply refactor", "Cancel"],
-        //   {
-        //     placeHolder: "Apply Extract Method?",
-        //   }
-        // );
-
-        // if (apply !== "Apply refactor") {
-        //   // ✅ Find the diff preview safely
-        //   const previewEditor = vscode.window.visibleTextEditors.find((e) =>
-        //     e.document.uri.toString().includes("RefactorPreview.java")
-        //   );
-
-        //   if (previewEditor) {
-        //     const doc = previewEditor.document;
-
-        //     // 🧹 Discard all changes silently (no save popup)
-        //     await vscode.window.showTextDocument(doc, { preview: false });
-
-        //     // Try revert first (silently discards content)
-        //     await vscode.commands.executeCommand(
-        //       "workbench.action.revertAndCloseActiveEditor"
-        //     );
-
-        //     // Fallback in case revert isn't supported (untitled docs sometimes)
-        //     if (!doc.isClosed) {
-        //       await vscode.commands.executeCommand(
-        //         "workbench.action.closeActiveEditor"
-        //       );
-        //     }
-        //   }
-
-        //   vscode.window.showInformationMessage(
-        //     "❌ Refactor canceled — preview closed without saving."
-        //   );
-        //   return;
-        // }
-
-        // // ✅ Close the preview completely (no save popup)
-        // const previewEditor = vscode.window.visibleTextEditors.find((e) =>
-        //   e.document.uri.toString().includes("Preview")
-        // );
-        // if (previewEditor) {
-        //   await vscode.window.showTextDocument(previewEditor.document, {
-        //     preview: false,
-        //   });
-
-        //   // Force discard unsaved buffer (since revert doesn’t work on untitled)
-        //   await vscode.commands.executeCommand(
-        //     "workbench.action.revertAndCloseActiveEditor"
-        //   );
-        // }
-
-        // // ✅ Apply the patch to the original file
-        // const we = new vscode.WorkspaceEdit();
-        // const fullRange = new vscode.Range(
-        //   new vscode.Position(0, 0),
-        //   new vscode.Position(refreshedDoc.lineCount, 0)
-        // );
-        // we.replace(originalUri, fullRange, patch.preview);
-
-        // const applied = await vscode.workspace.applyEdit(we);
-        // if (!applied) {
-        //   vscode.window.showErrorMessage("Failed to apply refactor edits.");
-        //   return;
-        // }
-
-        // await vscode.commands.executeCommand("editor.action.formatDocument");
-        // await vscode.window.showTextDocument(originalUri, { preview: false });
-        // await refreshedDoc.save();
-
         // 🧹 Close any old preview
         const oldDoc = vscode.workspace.textDocuments.find(
           (d) => d.uri.toString() === "untitled:RefactorPreview.java"
@@ -396,6 +324,9 @@ export function activate(context: vscode.ExtensionContext) {
         await vscode.commands.executeCommand("editor.action.formatDocument");
         await vscode.window.showTextDocument(originalUri, { preview: false });
         await refreshedDoc.save();
+        vscode.window.showInformationMessage(
+          "✅ Refactor applied successfully!"
+        );
 
         // re-run to get "after" metrics
         const after = await runLizard(filePath);
