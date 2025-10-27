@@ -1,7 +1,4 @@
-import java.util.Arrays;
-import java.util.List;
-
-public class complexsample {
+public class UserProcessor {
 
     public static void main(String[] args) {
         List<User> users = Arrays.asList(
@@ -11,7 +8,7 @@ public class complexsample {
                 new User("Dina", 15, false),
                 new User("Ethan", 40, true));
 
-        complexsample processor = new complexsample();
+        UserProcessor processor = new UserProcessor();
         processor.processUsers(users);
     }
 
@@ -35,21 +32,7 @@ public class complexsample {
                 totalActive++;
             }
 
-            // 👇 Complex scoring logic – perfect for "Extract Method" refactor
-            int score = 0;
-            if (isAdult && user.isActive()) {
-                score += 10;
-            } else if (isAdult) {
-                score += 5;
-            } else if (user.isActive()) {
-                score += 3;
-            } else {
-                score += 1;
-            }
-
-            if (user.getName().startsWith("A") || user.getName().startsWith("E")) {
-                score += 2;
-            }
+            int score = calculateUserScore(user, isAdult);
 
             totalScore += score;
             System.out.println("User " + user.getName() + " has score: " + score);
@@ -60,6 +43,24 @@ public class complexsample {
         System.out.println("Active users: " + totalActive);
         System.out.println("Adult users: " + totalAdults);
         System.out.println("Average score: " + avgScore);
+    }
+
+    private int calculateUserScore(User user, boolean isAdult) {
+        int score = 0;
+        if (isAdult && user.isActive()) {
+            score += 10;
+        } else if (isAdult) {
+            score += 5;
+        } else if (user.isActive()) {
+            score += 3;
+        } else {
+            score += 1;
+        }
+
+        if (user.getName().startsWith("A") || user.getName().startsWith("E")) {
+            score += 2;
+        }
+        return score;
     }
 
     // Simple data model

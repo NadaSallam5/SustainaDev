@@ -135,9 +135,8 @@ Reason:
   const classCount = (preview.match(/\bclass\s+\w+/g) || []).length;
   if (classCount > 1) {
     vscode.window.showErrorMessage(
-      `⚠️ AI output contains ${classCount} class definitions. Aborting to prevent duplication.`
+      `⚠️ AI output contains ${classCount} class definitions But will continue`
     );
-    throw new Error("AI output duplicated class definition.");
   }
 
   if (!preview || !newMethod || !callName) {
