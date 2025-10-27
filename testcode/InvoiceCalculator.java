@@ -22,6 +22,7 @@ public class InvoiceCalculator {
 
             calculateAndPrintAverage(total, count);
         }
+
     }
 
     private void calculateAndPrintAverage(int total, int count) {
