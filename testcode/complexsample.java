@@ -2,6 +2,22 @@ public class complexsample {
 
     // Function 1 - intentionally complex
     public void processOrder(int[] prices) {
+        int[] results = processPrices(prices);
+        int total = results[0];
+        int count = results[1];
+
+        if (count > 0) {
+            double avg = calculateAverage(total, count);
+            System.out.println("Average price: " + avg);
+        } else {
+            System.out.println("No valid prices found.");
+        }
+
+        // simulate nested complexity
+        printPriceCategories(prices);
+    }
+
+    private int[] processPrices(int[] prices) {
         int total = 0;
         int count = 0;
 
@@ -13,16 +29,7 @@ public class complexsample {
                 System.out.println("Invalid price: " + price);
             }
         }
-
-        if (count > 0) {
-            double avg = calculateAverage(total, count);
-            System.out.println("Average price: " + avg);
-        } else {
-            System.out.println("No valid prices found.");
-        }
-
-        // simulate nested complexity
-        printPriceCategories(prices);
+        return new int[] { total, count };
     }
 
     private void printPriceCategories(int[] prices) {
