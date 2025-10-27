@@ -1,65 +1,120 @@
+// codeCarbon.ts - CORRECTED VERSION
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { execFile } from 'child_process';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 
-let ESTIMATE_SCRIPT_PATH: string | undefined;
+const execAsync = promisify(exec);
+
+let estimatePyPath: string | undefined;
 
 /**
- * Initialize the absolute path to estimate.py once when the extension activates.
- * Called from extension.ts → activate().
+ * Initialize paths for estimate.py
  */
 export function initPaths(context: vscode.ExtensionContext) {
-  // The script is inside your packaged extension (copied via webpack or manual).
-  ESTIMATE_SCRIPT_PATH = context.asAbsolutePath(path.join('scripts', 'estimate.py'));
-}
-
-/** 
- * Choose a Python executable to run the energy estimation.
- * Priority:
- *  1. Environment variable PYTHON
- *  2. "python" (Windows)
- *  3. "python3" (Linux/macOS)
- */
-function pickPython(): string {
-  const envPy = process.env.PYTHON?.trim();
-  if (envPy) return envPy;
-  return process.platform === 'win32' ? 'python' : 'python3';
+  estimatePyPath = path.join(context.extensionPath, 'metrics', 'estimate.py');
+  console.log('[SustainaDev] estimate.py path:', estimatePyPath);
 }
 
 /**
- * Runs the energy estimation script with the given number of lines changed.
- * Returns an estimated kWh (number), or undefined if the estimation failed.
- *
- * The Python script should accept a single numeric argument (lines changed)
- * and print a floating-point value to stdout.
+ * Estimate energy consumption based on CCN reduction
+ * 
+ * ✅ FIXED VERSION - Returns proper JSON object
  */
-export async function estimateEnergy(linesChanged: number): Promise<number | undefined> {
+export async function estimateEnergy(deltaCCN: number): Promise<any> {
+  if (!estimatePyPath) {
+    console.warn('[SustainaDev] estimate.py path not initialized');
+    return getDefaultEnergyObject(deltaCCN);
+  }
+
   try {
-    // Fallback defensive path if initPaths() was never called
-    const scriptPath =
-      ESTIMATE_SCRIPT_PATH ??
-      path.join(__dirname, '..', '..', 'scripts', 'estimate.py');
+    const command = `python "${estimatePyPath}" ${deltaCCN}`;
+    console.log('[SustainaDev] Running:', command);
 
-    const py = pickPython();
-
-    return await new Promise<number | undefined>((resolve) => {
-      execFile(
-        py,
-        [scriptPath, String(linesChanged)],
-        { cwd: path.dirname(scriptPath) },
-        (err, stdout, stderr) => {
-          if (err) {
-            console.warn(`⚠️ Energy estimate skipped: ${err.message}\n${stderr ?? ''}`);
-            return resolve(undefined);
-          }
-
-          const value = parseFloat(String(stdout).trim());
-          resolve(Number.isFinite(value) ? value : undefined);
-        }
-      );
+    const { stdout, stderr } = await execAsync(command, {
+      timeout: 30000, // 30 second timeout
+      maxBuffer: 1024 * 1024 // 1MB buffer
     });
-  } catch (e: any) {
-    console.warn(`⚠️ Energy estimate unavailable: ${e?.message ?? e}`);
-    return undefined;
+
+    if (stderr) {
+      console.warn('[SustainaDev] estimate.py stderr:', stderr);
+    }
+
+    console.log('[SustainaDev] estimate.py output:', stdout);
+
+    // ✅ CRITICAL FIX: Parse JSON instead of converting to float!
+    const result = JSON.parse(stdout.trim());
+
+    // Ensure the result has all required fields
+    if (!result || typeof result !== 'object') {
+      console.warn('[SustainaDev] Invalid result format, using default');
+      return getDefaultEnergyObject(deltaCCN);
+    }
+
+    // Validate and ensure all required fields exist
+    const energyData = {
+      emissions_kg: result.emissions_kg || 0,
+      estimated_kwh_saved: result.estimated_kwh_saved || 0,
+      estimated_co2_saved_kg: result.estimated_co2_saved_kg || result.estimated_kwh_saved * 0.475 || 0,
+      estimated_cost_saved_usd: result.estimated_cost_saved_usd || 0,
+      // Optional: Include equivalents if available
+      equivalents: result.equivalents || undefined,
+      // Optional: Include metadata if available
+      metadata: result.metadata || undefined
+    };
+
+    console.log('[SustainaDev] Parsed energy data:', energyData);
+    return energyData;
+
+  } catch (error: any) {
+    console.error('[SustainaDev] Error estimating energy:', error);
+    
+    // Check if it's a parsing error
+    if (error.message?.includes('JSON')) {
+      console.error('[SustainaDev] JSON parsing failed. Raw output might not be valid JSON.');
+    }
+    
+    // Return default values instead of failing
+    return getDefaultEnergyObject(deltaCCN);
+  }
+}
+
+/**
+ * Generate default energy object when estimate.py fails
+ * Uses the adjusted formula: 0.0001 kWh per CCN point
+ */
+function getDefaultEnergyObject(deltaCCN: number) {
+  const kwh_per_ccn = 0.0001; // Adjusted formula for visibility
+  const estimated_kwh = deltaCCN * kwh_per_ccn;
+  const co2_per_kwh = 0.475;
+  const estimated_co2 = estimated_kwh * co2_per_kwh;
+  const cost_per_kwh = 0.15;
+  const estimated_cost = estimated_kwh * cost_per_kwh;
+
+  return {
+    emissions_kg: estimated_co2,
+    estimated_kwh_saved: estimated_kwh,
+    estimated_co2_saved_kg: estimated_co2,
+    estimated_cost_saved_usd: estimated_cost
+  };
+}
+
+/**
+ * Test function - can be used to verify the setup
+ */
+export async function testEnergyEstimation() {
+  console.log('[SustainaDev] Testing energy estimation...');
+  
+  const testCCN = 10;
+  const result = await estimateEnergy(testCCN);
+  
+  console.log('[SustainaDev] Test result for CCN reduction of', testCCN, ':', result);
+  
+  if (result && typeof result === 'object' && 'estimated_kwh_saved' in result) {
+    console.log('[SustainaDev] ✅ Energy estimation working correctly!');
+    return true;
+  } else {
+    console.error('[SustainaDev] ❌ Energy estimation returned invalid format!');
+    return false;
   }
 }

@@ -8,13 +8,16 @@
                  style-src 'unsafe-inline';
                  script-src 'unsafe-inline'">
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>SustainaDev Dashboard</title>
+  <title>SustainaDev Dashboard - Enhanced</title>
   <style>
     :root{
       --bg:#1b1d20; --panel:#202329; --muted:#9aa4ad; --text:#e9eef3;
       --accent:#4fc3f7; --accent-2:#5fb3df; --line:#ffcf5a;
       --grid:#ffffff22; --grid-soft:#ffffff12; --border:#ffffff18;
       --chip:#ffffff12; --shadow:0 0 0 1px var(--border) inset;
+      --success:#4caf50; --warning:#ff9800; --danger:#f44336;
+      --purple:#9c27b0; --green:#4caf50; --red:#f44336;
+      --blue:#2196f3; --orange:#ff9800; --cyan:#00bcd4;
     }
     @media (prefers-color-scheme: light){
       :root{
@@ -23,350 +26,1281 @@
         --chip:#3a3f4410; --shadow:0 0 0 1px var(--border) inset;
       }
     }
-    *{box-sizing:border-box}
-    body{margin:0;padding:20px;background:var(--bg);color:var(--text);
+    *{box-sizing:border-box; margin:0; padding:0;}
+    body{padding:20px;background:var(--bg);color:var(--text);
          font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
-    h1{margin:0 0 12px;color:var(--accent);font-size:20px;font-weight:800;letter-spacing:.2px}
+    h1{margin:0 0 16px;color:var(--accent);font-size:28px;font-weight:800;letter-spacing:.3px}
+    h2{margin:20px 0 14px;color:var(--accent-2);font-size:20px;font-weight:700}
+    h3{margin:14px 0 10px;color:var(--text);font-size:16px;font-weight:600}
     .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
     .grow{flex:1 1 auto}
-    button{border:none;border-radius:10px;padding:9px 12px;font-weight:700;cursor:pointer;
-           background:var(--accent);color:#0b1116;box-shadow:var(--shadow)}
+    
+    /* Buttons */
+    button{border:none;border-radius:10px;padding:10px 16px;font-weight:700;cursor:pointer;
+           background:var(--accent);color:#0b1116;box-shadow:var(--shadow);font-size:13px}
     button.secondary{background:#3fb3e8}
+    button.success{background:var(--success);color:white}
+    button.warning{background:var(--warning);color:white}
+    button.danger{background:var(--danger);color:white}
     button.ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
-    button:hover{filter:brightness(1.05)}
+    button:hover{filter:brightness(1.1); transform:translateY(-1px)}
     button:active{transform:translateY(1px)}
+    
+    /* Input */
     input[type="search"]{background:var(--chip);color:var(--text);border:1px solid var(--border);
-                         border-radius:10px;padding:9px 12px;min-width:260px;outline:none}
-    .card{margin-top:16px;padding:14px;border-radius:14px;background:var(--panel);box-shadow:var(--shadow)}
+                         border-radius:10px;padding:10px 14px;min-width:280px;outline:none}
+    input[type="search"]:focus{border-color:var(--accent)}
+    
+    /* Cards */
+    .card{margin-top:18px;padding:18px;border-radius:16px;background:var(--panel);
+          box-shadow:var(--shadow); transition: transform 0.2s ease}
+    .card:hover{transform:translateY(-2px)}
+    .card.highlight{border:2px solid var(--accent)}
+    
     .muted{color:var(--muted)}
-    .grid{display:grid;gap:12px}
-    .kpi{grid-template-columns:repeat(3,1fr)}
-    .kpi>div{background:var(--panel);padding:14px;border-radius:14px;box-shadow:var(--shadow)}
-    .kpi .num{font-size:26px;font-weight:900;letter-spacing:.3px}
-    pre{background:var(--chip);padding:10px;border-radius:10px;white-space:pre-wrap;overflow:auto}
-    table{width:100%;border-collapse:collapse}
-    th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--grid-soft);vertical-align:middle}
-    th{color:var(--muted);font-weight:800;font-size:12px;letter-spacing:.4px;text-transform:uppercase}
+    .grid{display:grid;gap:14px}
+    
+    /* KPI Cards */
+    .kpi{grid-template-columns:repeat(auto-fit, minmax(200px, 1fr))}
+    .kpi>div{background:linear-gradient(135deg, var(--panel) 0%, var(--chip) 100%);
+             padding:20px;border-radius:14px;box-shadow:var(--shadow);
+             border-left:4px solid var(--accent);transition:all 0.3s ease}
+    .kpi>div:hover{transform:translateY(-4px);box-shadow:0 8px 24px rgba(0,0,0,0.3)}
+    .kpi .num{font-size:32px;font-weight:900;letter-spacing:.4px;margin:8px 0;
+              background:linear-gradient(135deg, var(--accent), var(--accent-2));
+              -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .kpi .label{font-size:13px;text-transform:uppercase;letter-spacing:1px;font-weight:700}
+    .kpi .icon{font-size:24px;margin-bottom:8px}
+    
+    /* Tables */
+    pre{background:var(--chip);padding:14px;border-radius:12px;white-space:pre-wrap;
+        overflow:auto;max-height:400px;border:1px solid var(--border)}
+    table{width:100%;border-collapse:collapse;margin-top:12px}
+    th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--grid-soft);vertical-align:middle}
+    th{color:var(--muted);font-weight:800;font-size:12px;letter-spacing:.5px;text-transform:uppercase;
+       background:var(--chip)}
+    tbody tr{transition:background 0.2s ease}
     tbody tr:hover{background:var(--chip)}
-    tr.selected{background:color-mix(in oklab, var(--accent) 16%, transparent)}
-    .pill{display:inline-flex;gap:6px;align-items:center;padding:2px 10px;border-radius:999px;
-          font-size:12px;background:var(--chip);border:1px solid var(--border)}
-    .panel-2col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-    .chart-wrap{position:relative;height:260px}
-    canvas{width:100%;height:100%;background:var(--chip);border-radius:12px}
-    .legend{display:flex;gap:10px;align-items:center}
-    .legend .chip{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:8px;
-                  border:1px solid var(--border);background:var(--chip);font-size:12px}
-    .swatch{display:inline-block;width:10px;height:10px;border-radius:2px}
+    tr.selected{background:color-mix(in oklab, var(--accent) 20%, transparent);
+                border-left:4px solid var(--accent)}
+    
+    /* Pills & Badges */
+    .pill{display:inline-flex;gap:6px;align-items:center;padding:4px 12px;border-radius:999px;
+          font-size:12px;background:var(--chip);border:1px solid var(--border);font-weight:600}
+    .badge{display:inline-block;padding:4px 10px;border-radius:6px;font-size:11px;
+           font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+    .badge.success{background:var(--success);color:white}
+    .badge.warning{background:var(--warning);color:white}
+    .badge.danger{background:var(--danger);color:white}
+    .badge.info{background:var(--blue);color:white}
+    
+    /* Layouts */
+    .panel-2col{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+    .panel-3col{display:grid;grid-template-columns:repeat(3, 1fr);gap:18px}
+    
+    /* Charts */
+    .chart-wrap{position:relative;height:300px;margin:12px 0}
+    canvas{width:100%;height:100%;background:var(--chip);border-radius:14px;border:1px solid var(--border)}
+    
+    /* Legend */
+    .legend{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .legend .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:10px;
+                  border:1px solid var(--border);background:var(--chip);font-size:12px;font-weight:600}
+    .swatch{display:inline-block;width:14px;height:14px;border-radius:3px}
     .swatch.ccn{background:var(--accent-2)}
     .swatch.energy{background:var(--line)}
-    .status{min-width:42px}
-    #tip{position:absolute;pointer-events:none;padding:8px 10px;border-radius:10px;
-         background:color-mix(in oklab, var(--bg) 70%, #000);color:var(--text);
-         border:1px solid var(--border);box-shadow:0 8px 24px #00000033;font-size:12px;display:none}
-    @media (max-width: 980px){ .panel-2col{grid-template-columns:1fr} }
+    .swatch.co2{background:var(--success)}
+    .swatch.before{background:var(--danger)}
+    .swatch.after{background:var(--success)}
+    
+    /* Tooltip */
+    #tip{position:absolute;pointer-events:none;padding:12px 16px;border-radius:12px;
+         background:color-mix(in oklab, var(--bg) 80%, #000);color:var(--text);
+         border:1px solid var(--border);box-shadow:0 12px 32px rgba(0,0,0,0.5);
+         font-size:13px;display:none;z-index:1000;max-width:300px}
+    #tip b{color:var(--accent)}
+    
+    /* Status indicator */
+    .status{min-width:60px;display:inline-flex;align-items:center;gap:6px}
+    .status-dot{width:8px;height:8px;border-radius:50%;background:var(--success);
+                animation:pulse 2s ease infinite}
+    @keyframes pulse{0%,100%{opacity:1} 50%{opacity:0.5}}
+    
+    /* Tabs */
+    .tabs{display:flex;gap:8px;margin-bottom:16px;border-bottom:2px solid var(--border)}
+    .tab{padding:12px 20px;cursor:pointer;border-radius:8px 8px 0 0;font-weight:600;
+         transition:all 0.3s ease;background:transparent;border:none;color:var(--muted)}
+    .tab:hover{background:var(--chip);color:var(--text)}
+    .tab.active{background:var(--accent);color:#0b1116;border-bottom:3px solid var(--accent)}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+    
+    /* Comparison View */
+    .comparison{display:grid;grid-template-columns:1fr auto 1fr;gap:20px;align-items:center;
+                padding:20px;background:var(--chip);border-radius:14px;margin:16px 0}
+    .comparison .side{text-align:center;padding:20px;border-radius:12px;background:var(--panel)}
+    .comparison .side.before{border:2px solid var(--danger)}
+    .comparison .side.after{border:2px solid var(--success)}
+    .comparison .arrow{font-size:32px;color:var(--accent)}
+    .comparison .metric-value{font-size:42px;font-weight:900;margin:12px 0}
+    .comparison .before .metric-value{color:var(--danger)}
+    .comparison .after .metric-value{color:var(--success)}
+    .comparison .metric-label{font-size:14px;font-weight:700;text-transform:uppercase;
+                              letter-spacing:1px;color:var(--muted)}
+    
+    /* Progress Bar */
+    .progress-bar{width:100%;height:8px;background:var(--chip);border-radius:4px;overflow:hidden;
+                  margin:8px 0}
+    .progress-fill{height:100%;background:linear-gradient(90deg, var(--accent), var(--accent-2));
+                   transition:width 0.5s ease;border-radius:4px}
+    
+    /* Analysis Report Section */
+    .analysis-section{margin:20px 0}
+    .method-card{background:var(--chip);padding:16px;border-radius:12px;margin:10px 0;
+                 border-left:4px solid var(--border);transition:all 0.3s ease}
+    .method-card:hover{border-left-color:var(--accent);transform:translateX(4px)}
+    .method-card.long-method{border-left-color:var(--danger)}
+    .method-name{font-size:16px;font-weight:700;color:var(--accent);margin-bottom:8px}
+    .method-stats{display:flex;gap:16px;flex-wrap:wrap}
+    .method-stat{display:flex;flex-direction:column}
+    .method-stat .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px}
+    .method-stat .value{font-size:18px;font-weight:700;margin-top:4px}
+    
+    /* Frequency Chart */
+    .freq-item{display:flex;align-items:center;gap:12px;padding:12px;
+               background:var(--chip);border-radius:10px;margin:8px 0}
+    .freq-bar{flex:1;height:32px;background:var(--chip);border-radius:6px;overflow:hidden;position:relative}
+    .freq-bar-fill{height:100%;background:linear-gradient(90deg, var(--accent), var(--accent-2));
+                   transition:width 0.8s ease;display:flex;align-items:center;padding:0 12px;
+                   font-weight:700;font-size:13px;color:white}
+    .freq-label{min-width:140px;font-weight:600}
+    .freq-count{min-width:60px;text-align:right;font-weight:700;color:var(--accent)}
+    
+    /* Individual Log Card */
+    .log-detail-card{background:var(--panel);padding:20px;border-radius:14px;
+                     border:2px solid var(--border);margin:16px 0}
+    .log-detail-card.selected{border-color:var(--accent);box-shadow:0 8px 32px rgba(79,195,247,0.3)}
+    
+    /* Responsive */
+    @media (max-width: 980px){ 
+      .panel-2col, .panel-3col{grid-template-columns:1fr}
+      .comparison{grid-template-columns:1fr;gap:12px}
+      .comparison .arrow{transform:rotate(90deg)}
+    }
   </style>
 </head>
 <body>
-  <h1 aria-label="SustainaDev Dashboard">SustainaDev Dashboard</h1>
+  <h1>🌱 SustainaDev Dashboard</h1>
 
+  <!-- Control Bar -->
   <div class="row">
-    <button id="load-analysis" aria-label="Load analysis report">Load analysis-report.json</button>
-    <button id="load-log" class="secondary" aria-label="Load refactor log">Load .sustainadev/log.jsonl</button>
-    <input id="filter" type="search" placeholder="Filter (file, refactor, commit)…" aria-label="Filter log entries"/>
-    <span id="status" class="muted status">Idle</span>
+    <button id="load-analysis" class="success">📊 Load Analysis Report</button>
+    <button id="load-log" class="secondary">📜 Load Refactor Logs</button>
+    <input id="filter" type="search" placeholder="Filter by file, refactor type, or commit..."/>
     <span class="grow"></span>
-    <button id="export-png" class="ghost" title="Save chart as PNG" aria-label="Export chart">Export PNG</button>
+    <span id="status" class="status muted">
+      <span class="status-dot" style="background:var(--muted)"></span>
+      Idle
+    </span>
+    <button id="export-png" class="ghost">💾 Export Chart</button>
   </div>
 
-  <div class="grid kpi" role="group" aria-label="Key performance indicators">
-    <div><div class="muted">Refactors</div><div id="kpi-refactors" class="num">0</div></div>
-    <div><div class="muted">Avg ΔCCN</div><div id="kpi-delta" class="num">0</div></div>
-    <div><div class="muted">Energy (est.)</div><div id="kpi-energy" class="num">0</div></div>
-  </div>
-
-  <div class="panel-2col">
-    <div class="card">
-      <div class="muted" style="margin-bottom:6px">Last Analysis</div>
-      <pre id="analysis-pre">Click “Load analysis-report.json”.</pre>
+  <!-- KPI Cards -->
+  <div class="grid kpi">
+    <div>
+      <div class="icon">🔄</div>
+      <div class="label muted">Total Refactors</div>
+      <div id="kpi-refactors" class="num">0</div>
     </div>
+    <div>
+      <div class="icon">📉</div>
+      <div class="label muted">Avg Complexity Reduction</div>
+      <div id="kpi-delta" class="num">0</div>
+    </div>
+    <div>
+      <div class="icon">⚡</div>
+      <div class="label muted">Total Energy Saved</div>
+      <div id="kpi-energy" class="num">0 kWh</div>
+    </div>
+    <div>
+      <div class="icon">🌍</div>
+      <div class="label muted">CO₂ Emissions Saved</div>
+      <div id="kpi-co2" class="num">0 kg</div>
+    </div>
+    <div>
+      <div class="icon">💰</div>
+      <div class="label muted">Cost Saved</div>
+      <div id="kpi-cost" class="num">$0.00</div>
+    </div>
+  </div>
 
-    <div class="card">
-      <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px">
-        <div class="muted">Details</div>
-        <div class="legend">
-          <span class="chip"><span class="swatch ccn"></span> Δ CCN</span>
-          <span class="chip"><span class="swatch energy"></span> Energy</span>
+  <!-- Tabs Navigation -->
+  <div class="tabs">
+    <button class="tab active" data-tab="overview">📊 Overview</button>
+    <button class="tab" data-tab="analysis">📋 Analysis Report</button>
+    <button class="tab" data-tab="refactors">🔧 Refactor History</button>
+    <button class="tab" data-tab="frequency">📈 Frequency Analysis</button>
+    <button class="tab" data-tab="energy">⚡ Energy & CO₂</button>
+    <button class="tab" data-tab="individual">🔍 Individual Logs</button>
+  </div>
+
+  <!-- TAB 1: Overview -->
+  <div id="tab-overview" class="tab-content active">
+    <div class="panel-2col">
+      <!-- Main Chart -->
+      <div class="card">
+        <h3>📊 Refactoring Impact Over Time</h3>
+        <div class="row" style="justify-content:space-between;margin:12px 0">
+          <div class="legend">
+            <span class="chip"><span class="swatch ccn"></span> Δ CCN</span>
+            <span class="chip"><span class="swatch energy"></span> Energy Saved</span>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="chart-main" width="900" height="360"></canvas>
+          <div id="tip"></div>
         </div>
       </div>
-      <div id="details" class="stack" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">
-        <div class="muted">Select a row to see details and highlight it on the chart.</div>
-      </div>
-      <div class="chart-wrap">
-        <canvas id="chart" width="900" height="360" role="img" aria-label="Refactor impact chart"></canvas>
-        <div id="tip" aria-hidden="true"></div>
-      </div>
-      <div class="row" style="margin-top:10px">
-        <button id="clear-selection" class="ghost">Clear selection</button>
+
+      <!-- Quick Stats -->
+      <div class="card">
+        <h3>🎯 Quick Statistics</h3>
+        <div id="quick-stats" style="margin-top:12px">
+          <div class="muted">Load refactor logs to see statistics</div>
+        </div>
       </div>
     </div>
   </div>
 
-  <div class="card">
-    <div class="row" style="justify-content:space-between;">
-      <div class="muted">Log Entries</div>
-      <div class="muted" id="count"></div>
+  <!-- TAB 2: Analysis Report -->
+  <div id="tab-analysis" class="tab-content">
+    <div class="card">
+      <h2>📋 Analysis Report</h2>
+      <div class="muted" style="margin-bottom:16px">Shows code smells detected by the Java analyzer</div>
+      <div id="analysis-content">
+        <div class="muted">Click "Load Analysis Report" to view detected code smells</div>
+      </div>
     </div>
-    <table aria-label="Refactor history table">
-      <thead>
-        <tr>
-          <th style="width:150px">Time</th>
-          <th>File</th>
-          <th>Refactor</th>
-          <th style="width:90px">Δ CCN</th>
-          <th style="width:120px">Energy</th>
-          <th>Commit</th>
-          <th style="width:130px">Action</th>
-        </tr>
-      </thead>
-      <tbody id="log-tbody">
-        <tr><td class="muted" colspan="7">Click “Load log.jsonl”.</td></tr>
-      </tbody>
-    </table>
+  </div>
+
+  <!-- TAB 3: Refactor History -->
+  <div id="tab-refactors" class="tab-content">
+    <div class="card">
+      <h2>🔧 Refactoring History</h2>
+      <div class="row" style="justify-content:space-between;margin-bottom:12px">
+        <div class="muted">Complete refactoring timeline</div>
+        <div class="muted" id="count">0 items</div>
+      </div>
+      
+      <!-- Before/After Comparison for Selected -->
+      <div id="comparison-view" style="display:none">
+        <h3>Detailed Comparison</h3>
+        <div class="comparison">
+          <div class="side before">
+            <div class="metric-label">Before Refactoring</div>
+            <div class="metric-value" id="compare-before-ccn">0</div>
+            <div class="muted">Cyclomatic Complexity</div>
+            <div style="margin-top:12px">
+              <div class="pill">Lines: <span id="compare-before-nloc">0</span></div>
+            </div>
+          </div>
+          <div class="arrow">→</div>
+          <div class="side after">
+            <div class="metric-label">After Refactoring</div>
+            <div class="metric-value" id="compare-after-ccn">0</div>
+            <div class="muted">Cyclomatic Complexity</div>
+            <div style="margin-top:12px">
+              <div class="pill">Lines: <span id="compare-after-nloc">0</span></div>
+            </div>
+          </div>
+        </div>
+        <div style="text-align:center;margin-top:12px">
+          <div class="badge success" id="improvement-badge">0% Improvement</div>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>File</th>
+            <th>Refactor Type</th>
+            <th>Δ CCN</th>
+            <th>Δ Lines</th>
+            <th>Energy</th>
+            <th>CO₂</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="log-tbody">
+          <tr><td class="muted" colspan="8">Click "Load Refactor Logs" to view history</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TAB 4: Frequency Analysis -->
+  <div id="tab-frequency" class="tab-content">
+    <div class="card">
+      <h2>📈 Refactoring Type Frequency</h2>
+      <div class="muted" style="margin-bottom:20px">Most commonly used refactoring patterns</div>
+      <div id="frequency-chart">
+        <div class="muted">Load refactor logs to see frequency analysis</div>
+      </div>
+    </div>
+
+    <div class="panel-2col" style="margin-top:20px">
+      <div class="card">
+        <h3>📊 Distribution Chart</h3>
+        <div class="chart-wrap" style="height:250px">
+          <canvas id="chart-frequency" width="600" height="300"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>🎯 Top Patterns</h3>
+        <div id="top-patterns">
+          <div class="muted">No data available</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 5: Energy & CO2 -->
+  <div id="tab-energy" class="tab-content">
+    <div class="card">
+      <h2>⚡ Energy Consumption & CO₂ Emissions</h2>
+      <div class="muted" style="margin-bottom:20px">Environmental impact of refactoring activities</div>
+      
+      <!-- Before/After Energy Comparison -->
+      <div class="comparison">
+        <div class="side before">
+          <div class="metric-label">Before Optimization</div>
+          <div class="metric-value" id="energy-before">~0.0</div>
+          <div class="muted">kWh (estimated)</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="side after">
+          <div class="metric-label">After Optimization</div>
+          <div class="metric-value" id="energy-after">~0.0</div>
+          <div class="muted">kWh (saved)</div>
+        </div>
+      </div>
+
+      <div class="panel-2col" style="margin-top:20px">
+        <div class="card">
+          <h3>⚡ Energy Savings Over Time</h3>
+          <div class="chart-wrap">
+            <canvas id="chart-energy" width="600" height="300"></canvas>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>🌍 CO₂ Emissions Reduction</h3>
+          <div class="chart-wrap">
+            <canvas id="chart-co2" width="600" height="300"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:20px">
+        <h3>💡 Environmental Impact Summary</h3>
+        <div id="env-impact">
+          <div class="muted">Load logs to see environmental impact</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 6: Individual Logs -->
+  <div id="tab-individual" class="tab-content">
+    <div class="card">
+      <h2>🔍 Individual Refactoring Details</h2>
+      <div class="muted" style="margin-bottom:20px">Detailed view of each refactoring operation</div>
+      <div id="individual-logs">
+        <div class="muted">Load refactor logs to view individual entries</div>
+      </div>
+    </div>
   </div>
 
   <script>
-    // --- VS Code webview bridge ---
+    // =====================================================
+    // VS Code API & DOM Setup
+    // =====================================================
     const vscode = (typeof acquireVsCodeApi === 'function') ? acquireVsCodeApi() : null;
 
-    // --- DOM helpers (safe) ---
-    function byId(id){ const el=document.getElementById(id); if(!el){ console.error('#'+id+' not found'); } return el; }
+    function byId(id){ 
+      const el=document.getElementById(id); 
+      if(!el) console.error('#'+id+' not found'); 
+      return el; 
+    }
+
     const statusEl = byId('status');
-    const analysisPre = byId('analysis-pre');
     const filterInput = byId('filter');
-    const kpiRefactors = byId('kpi-refactors');
-    const kpiDelta = byId('kpi-delta');
-    const kpiEnergy = byId('kpi-energy');
     const tbody = byId('log-tbody');
-    const detailsBox = byId('details');
     const tip = byId('tip');
 
-    const canvas = /** @type {HTMLCanvasElement|null} */ (byId('chart'));
-    if(!canvas){ throw new Error('Chart canvas missing'); }
-    const ctx = canvas.getContext('2d');
-    if(!ctx){ throw new Error('2D context not available'); }
+    // Canvas elements
+    const canvasMain = byId('chart-main');
+    const canvasFreq = byId('chart-frequency');
+    const canvasEnergy = byId('chart-energy');
+    const canvasCO2 = byId('chart-co2');
 
-    // --- State ---
+    const ctxMain = canvasMain?.getContext('2d');
+    const ctxFreq = canvasFreq?.getContext('2d');
+    const ctxEnergy = canvasEnergy?.getContext('2d');
+    const ctxCO2 = canvasCO2?.getContext('2d');
+
+    // =====================================================
+    // State Management
+    // =====================================================
     let allRows = [];
     let viewRows = [];
     let selectedIndex = -1;
-    let anim = 0; // smooth animation 0..1
+    let anim = 0;
+    let analysisData = null;
 
-    // --- Controls ---
+    // =====================================================
+    // Tab System
+    // =====================================================
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const targetTab = tab.dataset.tab;
+        
+        // Update active tab
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        
+        // Update active content
+        document.querySelectorAll('.tab-content').forEach(content => {
+          content.classList.remove('active');
+        });
+        byId('tab-' + targetTab).classList.add('active');
+      });
+    });
+
+    // =====================================================
+    // Event Listeners
+    // =====================================================
     byId('load-analysis').addEventListener('click', () => {
-      setStatus('Reading analysis-report.json…');
+      setStatus('Reading analysis-report.json…', true);
       vscode && vscode.postMessage({ type:'readAnalysis' });
     });
+
     byId('load-log').addEventListener('click', () => {
-      setStatus('Reading .sustainadev/log.jsonl…');
+      setStatus('Reading log.jsonl…', true);
       vscode && vscode.postMessage({ type:'readLog' });
     });
-    byId('clear-selection').addEventListener('click', () => {
-      selectedIndex = -1; markSelected(); drawChart(); renderDetails();
+
+    filterInput.addEventListener('input', (e) => {
+      applyFilter(e.target.value);
+      renderTable();
+      drawAllCharts();
     });
+
     byId('export-png').addEventListener('click', () => {
-      const a = document.createElement('a');
-      a.download = 'sustainadev-chart.png';
-      a.href = canvas.toDataURL('image/png');
-      a.click();
-    });
-    // Debounced filter
-    let fTimer = 0;
-    filterInput.addEventListener('input', () => {
-      clearTimeout(fTimer);
-      fTimer = setTimeout(() => { applyFilter(filterInput.value.trim()); renderTable(); restartAnim(); drawChart(); }, 150);
+      const link = document.createElement('a');
+      link.download = 'sustainadev-chart.png';
+      link.href = canvasMain.toDataURL();
+      link.click();
     });
 
-    // --- Webview messaging ---
+    // =====================================================
+    // Message Handler from VS Code
+    // =====================================================
     window.addEventListener('message', (event) => {
-      const msg = event.data; if (!msg) return;
+      const msg = event.data;
+
+      // Analysis Report
       if (msg.type === 'analysisContent') {
-        renderAnalysis(msg.content); setStatus('Analysis loaded ✓');
-      } else if (msg.type === 'analysisError') {
-        analysisPre.textContent = '⚠ ' + msg.error; setStatus('Error loading analysis');
-      } else if (msg.type === 'logContent') {
-        allRows = []; for (const line of msg.lines || []) { try { allRows.push(JSON.parse(line)); } catch {} }
-        applyFilter(filterInput.value.trim()); renderTable(); restartAnim(); drawChart(); setStatus('Log loaded ✓');
-      } else if (msg.type === 'logError') {
-        tbody.innerHTML = '<tr><td colspan="7" class="muted">No log found.</td></tr>'; setStatus('Error loading log');
+        try {
+          analysisData = JSON.parse(msg.content);
+          renderAnalysisReport(analysisData);
+          setStatus('Analysis loaded ✓', false);
+        } catch (e) {
+          byId('analysis-content').innerHTML = `<pre>${msg.content}</pre>`;
+          setStatus('Analysis loaded (raw) ✓', false);
+        }
       }
-      // legacy
-      if (msg.type === 'fileContent') { renderAnalysis(msg.content); setStatus('Loaded ✓'); }
-      if (msg.type === 'fileError') { analysisPre.textContent = '⚠ ' + msg.error; setStatus('Error'); }
+      if (msg.type === 'analysisError') {
+        byId('analysis-content').innerHTML = `<div class="muted">⚠ ${esc(msg.error)}</div>`;
+        setStatus('Error loading analysis', false);
+      }
+
+      // Log Data
+      if (msg.type === 'logContent') {
+        try {
+          allRows = msg.lines.map(line => JSON.parse(line));
+          applyFilter(filterInput.value);
+          renderTable();
+          renderFrequencyAnalysis();
+          renderEnergyCharts();
+          renderIndividualLogs();
+          drawAllCharts();
+          setStatus(`Loaded ${allRows.length} logs ✓`, false);
+        } catch (e) {
+          setStatus('Error parsing logs', false);
+          console.error(e);
+        }
+      }
+      if (msg.type === 'logError') {
+        tbody.innerHTML = '<tr><td class="muted" colspan="8">⚠ ' + esc(msg.error) + '</td></tr>';
+        setStatus('Error loading logs', false);
+      }
+
+      // Legacy support
+      if (msg.type === 'fileContent') {
+        try {
+          analysisData = JSON.parse(msg.content);
+          renderAnalysisReport(analysisData);
+          setStatus('Loaded ✓', false);
+        } catch {
+          byId('analysis-content').innerHTML = `<pre>${msg.content}</pre>`;
+        }
+      }
+      if (msg.type === 'fileError') {
+        byId('analysis-content').innerHTML = `<div class="muted">⚠ ${esc(msg.error)}</div>`;
+      }
     });
 
-    // --- Renderers & helpers ---
-    function setStatus(t){ statusEl.textContent = t; }
-    function renderAnalysis(content){
-      try { analysisPre.textContent = JSON.stringify(JSON.parse(content), null, 2); }
-      catch { analysisPre.textContent = content; }
+    // =====================================================
+    // Status & Helper Functions
+    // =====================================================
+    function setStatus(text, loading = false) {
+      statusEl.innerHTML = loading 
+        ? `<span class="status-dot"></span>${text}`
+        : `<span class="status-dot" style="background:var(--success)"></span>${text}`;
     }
-    function applyFilter(q){
-      if (!q) viewRows = [...allRows];
-      else {
-        const s = q.toLowerCase();
+
+    function esc(s) { 
+      return String(s).replace(/[&<>"']/g, m => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[m])); 
+    }
+
+    function nf(n, dec = 3) { 
+      return Number(n || 0).toFixed(dec); 
+    }
+
+    function getVar(name) { 
+      return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); 
+    }
+
+    // =====================================================
+    // Filter & Data Processing
+    // =====================================================
+    function applyFilter(query) {
+      if (!query) {
+        viewRows = [...allRows];
+      } else {
+        const s = query.toLowerCase();
         viewRows = allRows.filter(r =>
-          (r.file||'').toLowerCase().includes(s) ||
-          (r.refactor||'').toLowerCase().includes(s) ||
-          (r.commit?.message||'').toLowerCase().includes(s)
+          (r.file || '').toLowerCase().includes(s) ||
+          (r.refactor || '').toLowerCase().includes(s) ||
+          (r.commit?.message || '').toLowerCase().includes(s)
         );
       }
-      byId('count').textContent = `${viewRows.length} item${viewRows.length===1?'':'s'}`;
+      byId('count').textContent = `${viewRows.length} item${viewRows.length === 1 ? '' : 's'}`;
       selectedIndex = -1;
     }
-    function renderTable(){
-      tbody.innerHTML = '';
-      if (!viewRows.length){
-        tbody.innerHTML = '<tr><td class="muted" colspan="7">No entries.</td></tr>';
-        setKPIs(0,0,0); return;
-      }
-      let count=0,sumDelta=0,sumEnergy=0;
-      viewRows.forEach((row,i) => {
-        const delta = Number(row?.delta?.ccn ?? 0);
-        const energy = Number(row?.energy ?? 0);
-        sumDelta += delta; sumEnergy += energy; count++;
 
-        const tr = document.createElement('tr'); tr.dataset.index = String(i);
+    // =====================================================
+    // Analysis Report Rendering
+    // =====================================================
+    function renderAnalysisReport(data) {
+      const container = byId('analysis-content');
+      if (!data || !Array.isArray(data) || data.length === 0) {
+        container.innerHTML = '<div class="muted">No analysis data available</div>';
+        return;
+      }
+
+      let html = '';
+      let totalMethods = 0;
+      let totalLongMethods = 0;
+
+      data.forEach(fileData => {
+        const fileName = fileData.file.split('\\').pop() || fileData.file;
+        const methods = fileData.methods || [];
+        totalMethods += methods.length;
+        
+        html += `<div class="analysis-section">`;
+        html += `<h3>📄 ${esc(fileName)}</h3>`;
+        html += `<div class="muted" style="margin-bottom:12px">${methods.length} method(s) analyzed</div>`;
+
+        methods.forEach(method => {
+          const isLong = method.isLongMethod;
+          if (isLong) totalLongMethods++;
+          
+          html += `<div class="method-card ${isLong ? 'long-method' : ''}">`;
+          html += `<div class="method-name">🔧 ${esc(method.name)}()`;
+          if (isLong) html += ` <span class="badge danger">Long Method</span>`;
+          html += `</div>`;
+          html += `<div class="method-stats">`;
+          html += `<div class="method-stat"><div class="label">Lines</div><div class="value">${method.lines}</div></div>`;
+          html += `<div class="method-stat"><div class="label">Parameters</div><div class="value">${method.params}</div></div>`;
+          html += `<div class="method-stat"><div class="label">If Statements</div><div class="value">${method.ifCount}</div></div>`;
+          html += `<div class="method-stat"><div class="label">For Loops</div><div class="value">${method.forCount}</div></div>`;
+          html += `</div></div>`;
+        });
+
+        html += `</div>`;
+      });
+
+      // Summary at top
+      let summary = `<div class="card highlight" style="margin-bottom:20px">`;
+      summary += `<h3>📊 Analysis Summary</h3>`;
+      summary += `<div class="method-stats" style="margin-top:12px">`;
+      summary += `<div class="method-stat"><div class="label">Files Analyzed</div><div class="value">${data.length}</div></div>`;
+      summary += `<div class="method-stat"><div class="label">Total Methods</div><div class="value">${totalMethods}</div></div>`;
+      summary += `<div class="method-stat"><div class="label">Long Methods</div><div class="value" style="color:var(--danger)">${totalLongMethods}</div></div>`;
+      summary += `<div class="method-stat"><div class="label">Health Score</div><div class="value" style="color:var(--success)">${Math.round((1 - totalLongMethods / totalMethods) * 100)}%</div></div>`;
+      summary += `</div></div>`;
+
+      container.innerHTML = summary + html;
+    }
+
+    // =====================================================
+    // Table Rendering
+    // =====================================================
+    function renderTable() {
+      tbody.innerHTML = '';
+      
+      if (!viewRows.length) {
+        tbody.innerHTML = '<tr><td class="muted" colspan="8">No entries match filter</td></tr>';
+        setKPIs(0, 0, 0, 0, 0);
+        return;
+      }
+
+      let count = 0, sumDelta = 0, sumEnergy = 0, sumCO2 = 0, sumCost = 0;
+
+      viewRows.forEach((row, i) => {
+        const delta = Number(row?.delta?.ccn ?? 0);
+        const deltaLines = Number(row?.delta?.nloc ?? 0);
+        const energy = Number(row?.energy?.estimated_kwh_saved ?? 0);
+        const co2 = Number(row?.energy?.emissions_kg ?? 0);
+        const cost = Number(row?.energy?.estimated_cost_saved_usd ?? 0);
+
+        sumDelta += delta;
+        sumEnergy += energy;
+        sumCO2 += co2;
+        sumCost += cost;
+        count++;
+
+        const tr = document.createElement('tr');
+        tr.dataset.index = String(i);
         if (i === selectedIndex) tr.classList.add('selected');
 
-        const cells = [
-          row.timestamp ?? '', row.file ?? '', row.refactor ?? '',
-          String(delta), energy ? nf(energy,3)+' kWh' : '', row.commit?.message ?? ''
-        ];
-        for (const v of cells){ const td=document.createElement('td'); td.textContent=v; tr.appendChild(td); }
+        const fileName = row.file ? row.file.split('\\').pop() : '';
+        
+        tr.innerHTML = `
+          <td>${row.timestamp ? new Date(row.timestamp).toLocaleString() : ''}</td>
+          <td><span class="pill">${esc(fileName)}</span></td>
+          <td><span class="badge info">${esc(row.refactor || '')}</span></td>
+          <td><span style="color:var(--success);font-weight:700">-${delta}</span></td>
+          <td><span style="color:var(--success);font-weight:700">-${Math.abs(deltaLines)}</span></td>
+          <td>${nf(energy, 6)} kWh</td>
+          <td>${nf(co2, 6)} kg</td>
+          <td>
+            <button class="ghost" onclick="selectRow(${i})">View</button>
+          </td>
+        `;
 
-        const actionTd = document.createElement('td');
-        const btnView = document.createElement('button'); btnView.className='ghost'; btnView.textContent='View';
-        btnView.addEventListener('click', () => { selectedIndex=i; markSelected(); renderDetails(); drawChart(); });
-        const btnOpen = document.createElement('button'); btnOpen.className='ghost'; btnOpen.textContent='Open';
-        btnOpen.addEventListener('click', () => { vscode && vscode.postMessage({ type:'openFile', file: row.file }); });
-        actionTd.appendChild(btnView); actionTd.appendChild(document.createTextNode(' ')); actionTd.appendChild(btnOpen);
-        tr.appendChild(actionTd); tbody.appendChild(tr);
+        tbody.appendChild(tr);
       });
-      setKPIs(count, sumDelta, sumEnergy);
+
+      setKPIs(count, sumDelta, sumEnergy, sumCO2, sumCost);
+      updateQuickStats();
     }
-    function setKPIs(count,sumDelta,sumEnergy){
-      kpiRefactors.textContent = String(count);
-      kpiDelta.textContent = count ? (sumDelta/count).toFixed(2) : '0';
-      kpiEnergy.textContent = nf(sumEnergy,3)+' kWh';
+
+    function selectRow(index) {
+      selectedIndex = index;
+      renderTable();
+      showComparison(viewRows[index]);
+      drawAllCharts();
+      
+      // Scroll to comparison
+      byId('comparison-view').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
-    function markSelected(){
-      document.querySelectorAll('#log-tbody tr').forEach((tr,i)=>{
-        if (i===selectedIndex) tr.classList.add('selected'); else tr.classList.remove('selected');
+
+    function showComparison(row) {
+      const compView = byId('comparison-view');
+      compView.style.display = 'block';
+
+      byId('compare-before-ccn').textContent = row.before?.ccn ?? 0;
+      byId('compare-before-nloc').textContent = row.before?.nloc ?? 0;
+      byId('compare-after-ccn').textContent = row.after?.ccn ?? 0;
+      byId('compare-after-nloc').textContent = row.after?.nloc ?? 0;
+
+      const improvement = row.before?.ccn > 0 
+        ? ((row.before.ccn - row.after.ccn) / row.before.ccn * 100).toFixed(1)
+        : 0;
+      byId('improvement-badge').textContent = `${improvement}% Complexity Reduction`;
+    }
+
+    // =====================================================
+    // KPI Updates
+    // =====================================================
+    function setKPIs(count, sumDelta, sumEnergy, sumCO2, sumCost) {
+      byId('kpi-refactors').textContent = count;
+      byId('kpi-delta').textContent = count ? (sumDelta / count).toFixed(1) : '0';
+      byId('kpi-energy').textContent = nf(sumEnergy, 4) + ' kWh';
+      byId('kpi-co2').textContent = nf(sumCO2, 6) + ' kg';
+      byId('kpi-cost').textContent = '$' + nf(sumCost, 2);
+    }
+
+    function updateQuickStats() {
+      const container = byId('quick-stats');
+      if (!viewRows.length) {
+        container.innerHTML = '<div class="muted">No data</div>';
+        return;
+      }
+
+      const avgCCN = viewRows.reduce((sum, r) => sum + (r.delta?.ccn ?? 0), 0) / viewRows.length;
+      const avgEnergy = viewRows.reduce((sum, r) => sum + (r.energy?.estimated_kwh_saved ?? 0), 0) / viewRows.length;
+      const totalFiles = new Set(viewRows.map(r => r.file)).size;
+
+      container.innerHTML = `
+        <div class="method-stats">
+          <div class="method-stat">
+            <div class="label">Avg CCN Reduction</div>
+            <div class="value" style="color:var(--success)">${nf(avgCCN, 2)}</div>
+          </div>
+          <div class="method-stat">
+            <div class="label">Avg Energy Saved</div>
+            <div class="value" style="color:var(--accent)">${nf(avgEnergy, 6)} kWh</div>
+          </div>
+          <div class="method-stat">
+            <div class="label">Files Refactored</div>
+            <div class="value">${totalFiles}</div>
+          </div>
+          <div class="method-stat">
+            <div class="label">Total Operations</div>
+            <div class="value">${viewRows.length}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    // =====================================================
+    // Frequency Analysis
+    // =====================================================
+    function renderFrequencyAnalysis() {
+      const freqMap = {};
+      viewRows.forEach(row => {
+        const type = row.refactor || 'Unknown';
+        freqMap[type] = (freqMap[type] || 0) + 1;
+      });
+
+      const sorted = Object.entries(freqMap).sort((a, b) => b[1] - a[1]);
+      const maxCount = sorted[0]?.[1] || 1;
+
+      // Bar chart
+      let html = '';
+      sorted.forEach(([type, count]) => {
+        const percentage = (count / maxCount * 100);
+        html += `<div class="freq-item">`;
+        html += `<div class="freq-label">${esc(type)}</div>`;
+        html += `<div class="freq-bar">`;
+        html += `<div class="freq-bar-fill" style="width:${percentage}%">${count}</div>`;
+        html += `</div>`;
+        html += `<div class="freq-count">${count}x</div>`;
+        html += `</div>`;
+      });
+
+      byId('frequency-chart').innerHTML = html;
+
+      // Top patterns
+      let topHtml = '';
+      sorted.slice(0, 5).forEach(([type, count], i) => {
+        const percentage = (count / viewRows.length * 100).toFixed(1);
+        topHtml += `<div class="method-card">`;
+        topHtml += `<div class="method-name">${i + 1}. ${esc(type)}</div>`;
+        topHtml += `<div class="method-stats">`;
+        topHtml += `<div class="method-stat"><div class="label">Count</div><div class="value">${count}</div></div>`;
+        topHtml += `<div class="method-stat"><div class="label">Percentage</div><div class="value">${percentage}%</div></div>`;
+        topHtml += `</div>`;
+        topHtml += `<div class="progress-bar"><div class="progress-fill" style="width:${percentage}%"></div></div>`;
+        topHtml += `</div>`;
+      });
+
+      byId('top-patterns').innerHTML = topHtml;
+
+      // Pie chart
+      drawFrequencyChart(sorted);
+    }
+
+    function drawFrequencyChart(data) {
+      if (!ctxFreq || !data.length) return;
+
+      const W = canvasFreq.width;
+      const H = canvasFreq.height;
+      ctxFreq.clearRect(0, 0, W, H);
+
+      const colors = ['#4fc3f7', '#5fb3df', '#ffcf5a', '#4caf50', '#ff9800', '#9c27b0', '#f44336'];
+      const total = data.reduce((sum, [_, count]) => sum + count, 0);
+      const centerX = W / 2;
+      const centerY = H / 2;
+      const radius = Math.min(W, H) / 2 - 40;
+
+      let currentAngle = -Math.PI / 2;
+
+      data.forEach(([type, count], i) => {
+        const sliceAngle = (count / total) * 2 * Math.PI;
+        
+        ctxFreq.beginPath();
+        ctxFreq.moveTo(centerX, centerY);
+        ctxFreq.arc(centerX, centerY, radius, currentAngle, currentAngle + sliceAngle);
+        ctxFreq.closePath();
+        ctxFreq.fillStyle = colors[i % colors.length];
+        ctxFreq.fill();
+        ctxFreq.strokeStyle = getVar('--bg');
+        ctxFreq.lineWidth = 3;
+        ctxFreq.stroke();
+
+        // Label
+        const midAngle = currentAngle + sliceAngle / 2;
+        const labelX = centerX + Math.cos(midAngle) * (radius * 0.7);
+        const labelY = centerY + Math.sin(midAngle) * (radius * 0.7);
+        const percentage = ((count / total) * 100).toFixed(0);
+
+        ctxFreq.fillStyle = '#ffffff';
+        ctxFreq.font = 'bold 14px system-ui';
+        ctxFreq.textAlign = 'center';
+        ctxFreq.textBaseline = 'middle';
+        ctxFreq.fillText(`${percentage}%`, labelX, labelY);
+
+        currentAngle += sliceAngle;
       });
     }
-    function renderDetails(){
-      if (selectedIndex<0 || !viewRows[selectedIndex]){ detailsBox.innerHTML = '<div class="muted">Select a row to see details.</div>'; return; }
-      const r=viewRows[selectedIndex];
-      detailsBox.innerHTML = `
-        <div><span class="muted">Time:</span> ${esc(r.timestamp||'')}</div>
-        <div><span class="muted">File:</span> <span class="pill">${esc(r.file||'')}</span></div>
-        <div><span class="muted">Refactor:</span> ${esc(r.refactor||'')}</div>
-        <div><span class="muted">Δ CCN:</span> ${Number(r?.delta?.ccn ?? 0)}</div>
-        <div><span class="muted">Energy:</span> ${nf(Number(r.energy||0),6)} kWh</div>
-        <div><span class="muted">Commit:</span> ${esc(r.commit?.message||'')}</div>`;
+
+    // =====================================================
+    // Energy Charts
+    // =====================================================
+    function renderEnergyCharts() {
+      // Calculate total energy before and after
+      const totalEnergyBefore = viewRows.length * 0.001; // Rough estimate
+      const totalEnergySaved = viewRows.reduce((sum, r) => sum + (r.energy?.estimated_kwh_saved ?? 0), 0);
+      const totalEnergyAfter = Math.max(0, totalEnergyBefore - totalEnergySaved);
+
+      byId('energy-before').textContent = nf(totalEnergyBefore, 4);
+      byId('energy-after').textContent = nf(totalEnergySaved, 4);
+
+      // Environmental impact
+      const totalCO2 = viewRows.reduce((sum, r) => sum + (r.energy?.emissions_kg ?? 0), 0);
+      const treesEquivalent = (totalCO2 * 50).toFixed(1); // 1 tree absorbs ~20kg CO2/year
+      const milesNotDriven = (totalCO2 * 2.5).toFixed(1); // 1 kg CO2 = ~2.5 miles not driven
+
+      byId('env-impact').innerHTML = `
+        <div class="method-stats">
+          <div class="method-stat">
+            <div class="label">Total CO₂ Saved</div>
+            <div class="value" style="color:var(--success)">${nf(totalCO2, 6)} kg</div>
+          </div>
+          <div class="method-stat">
+            <div class="label">🌳 Trees Equivalent</div>
+            <div class="value">${treesEquivalent} trees</div>
+            <div class="muted" style="margin-top:4px;font-size:10px">annually</div>
+          </div>
+          <div class="method-stat">
+            <div class="label">🚗 Miles Not Driven</div>
+            <div class="value">${milesNotDriven} miles</div>
+            <div class="muted" style="margin-top:4px;font-size:10px">equivalent</div>
+          </div>
+          <div class="method-stat">
+            <div class="label">💡 Lightbulbs Powered</div>
+            <div class="value">${(totalEnergySaved * 1000 / 100).toFixed(1)} hours</div>
+            <div class="muted" style="margin-top:4px;font-size:10px">100W bulb</div>
+          </div>
+        </div>
+      `;
+
+      drawEnergyLineChart();
+      drawCO2LineChart();
     }
 
-    // --- Chart ---
-    function restartAnim(){ anim=0; }
-    function drawChart(){
-      const W=canvas.width,H=canvas.height; ctx.clearRect(0,0,W,H);
-      const padL=48,padR=24,padT=16,padB=32, plotW=W-padL-padR, plotH=H-padT-padB;
+    function drawEnergyLineChart() {
+      if (!ctxEnergy || !viewRows.length) return;
 
-      // background grid
-      ctx.strokeStyle=getVar('--grid'); ctx.lineWidth=1; ctx.setLineDash([3,3]);
-      for(let gy=0;gy<=4;gy++){ const y=padT+(plotH*gy/4); ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(padL+plotW,y); ctx.stroke(); }
-      ctx.setLineDash([]);
+      const W = canvasEnergy.width;
+      const H = canvasEnergy.height;
+      ctxEnergy.clearRect(0, 0, W, H);
 
-      // axes
-      ctx.strokeStyle=getVar('--grid'); ctx.beginPath();
-      ctx.moveTo(padL,padT); ctx.lineTo(padL,padT+plotH); ctx.lineTo(padL+plotW,padT+plotH); ctx.stroke();
+      const padL = 60, padR = 24, padT = 20, padB = 40;
+      const plotW = W - padL - padR;
+      const plotH = H - padT - padB;
 
-      if(!viewRows.length){ label('No data', padL+8,padT+16); return; }
+      // Grid
+      ctxEnergy.strokeStyle = getVar('--grid');
+      ctxEnergy.lineWidth = 1;
+      ctxEnergy.setLineDash([3, 3]);
+      for (let i = 0; i <= 4; i++) {
+        const y = padT + (plotH * i / 4);
+        ctxEnergy.beginPath();
+        ctxEnergy.moveTo(padL, y);
+        ctxEnergy.lineTo(padL + plotW, y);
+        ctxEnergy.stroke();
+      }
+      ctxEnergy.setLineDash([]);
 
-      const deltas=viewRows.map(r=>Number(r?.delta?.ccn ?? 0));
-      const energy=viewRows.map(r=>Number(r?.energy ?? 0));
-      const maxDelta=Math.max(1, ...deltas);
-      const maxEnergy=Math.max(1e-9, ...energy);
+      // Axes
+      ctxEnergy.beginPath();
+      ctxEnergy.moveTo(padL, padT);
+      ctxEnergy.lineTo(padL, padT + plotH);
+      ctxEnergy.lineTo(padL + plotW, padT + plotH);
+      ctxEnergy.stroke();
 
-      labelLeft(maxDelta.toFixed(0), padL-36,padT+10);
-      labelLeft('0', padL-24, padT+plotH+12);
-      labelRight(`${nf(maxEnergy,3)} kWh`, padL+plotW-80, padT+10);
-      label('refactor index →', padL+plotW/2-50, H-8);
+      const energyData = viewRows.map(r => r.energy?.estimated_kwh_saved ?? 0);
+      const maxEnergy = Math.max(0.0001, ...energyData);
 
-      // bars
-      const n=deltas.length; const gap=2;
-      const barW=Math.max(2, Math.floor(plotW/Math.max(n,1)) - gap);
-      anim=Math.min(1, anim+0.15);
+      // Labels
+      ctxEnergy.fillStyle = getVar('--muted');
+      ctxEnergy.font = '12px system-ui';
+      ctxEnergy.textAlign = 'right';
+      ctxEnergy.fillText(nf(maxEnergy, 6), padL - 8, padT + 12);
+      ctxEnergy.fillText('0', padL - 8, padT + plotH);
 
-      const hits=[]; // {x1,x2,y1,y2,i}
-      for(let i=0;i<n;i++){
-        const x=padL + i*(barW+gap);
-        const h=((deltas[i]/maxDelta)*plotH)*anim;
-        const y=padT + plotH - h;
-        ctx.fillStyle = (i===selectedIndex) ? getVar('--accent') : getVar('--accent-2');
-        ctx.fillRect(x,y,barW,h);
-        hits.push({x1:x,x2:x+barW,y1:y,y2:padT+plotH,i});
+      ctxEnergy.textAlign = 'center';
+      ctxEnergy.fillText('Refactoring Timeline →', padL + plotW / 2, H - 10);
+
+      // Line
+      ctxEnergy.strokeStyle = getVar('--line');
+      ctxEnergy.lineWidth = 3;
+      ctxEnergy.beginPath();
+
+      const gap = plotW / Math.max(energyData.length - 1, 1);
+      energyData.forEach((val, i) => {
+        const x = padL + (i * gap);
+        const y = padT + plotH - ((val / maxEnergy) * plotH);
+        if (i === 0) ctxEnergy.moveTo(x, y);
+        else ctxEnergy.lineTo(x, y);
+      });
+
+      ctxEnergy.stroke();
+
+      // Points
+      ctxEnergy.fillStyle = getVar('--line');
+      energyData.forEach((val, i) => {
+        const x = padL + (i * gap);
+        const y = padT + plotH - ((val / maxEnergy) * plotH);
+        ctxEnergy.beginPath();
+        ctxEnergy.arc(x, y, 4, 0, Math.PI * 2);
+        ctxEnergy.fill();
+      });
+    }
+
+    function drawCO2LineChart() {
+      if (!ctxCO2 || !viewRows.length) return;
+
+      const W = canvasCO2.width;
+      const H = canvasCO2.height;
+      ctxCO2.clearRect(0, 0, W, H);
+
+      const padL = 60, padR = 24, padT = 20, padB = 40;
+      const plotW = W - padL - padR;
+      const plotH = H - padT - padB;
+
+      // Grid
+      ctxCO2.strokeStyle = getVar('--grid');
+      ctxCO2.lineWidth = 1;
+      ctxCO2.setLineDash([3, 3]);
+      for (let i = 0; i <= 4; i++) {
+        const y = padT + (plotH * i / 4);
+        ctxCO2.beginPath();
+        ctxCO2.moveTo(padL, y);
+        ctxCO2.lineTo(padL + plotW, y);
+        ctxCO2.stroke();
+      }
+      ctxCO2.setLineDash([]);
+
+      // Axes
+      ctxCO2.beginPath();
+      ctxCO2.moveTo(padL, padT);
+      ctxCO2.lineTo(padL, padT + plotH);
+      ctxCO2.lineTo(padL + plotW, padT + plotH);
+      ctxCO2.stroke();
+
+      const co2Data = viewRows.map(r => r.energy?.emissions_kg ?? 0);
+      const maxCO2 = Math.max(0.0001, ...co2Data);
+
+      // Labels
+      ctxCO2.fillStyle = getVar('--muted');
+      ctxCO2.font = '12px system-ui';
+      ctxCO2.textAlign = 'right';
+      ctxCO2.fillText(nf(maxCO2, 6) + ' kg', padL - 8, padT + 12);
+      ctxCO2.fillText('0', padL - 8, padT + plotH);
+
+      ctxCO2.textAlign = 'center';
+      ctxCO2.fillText('Refactoring Timeline →', padL + plotW / 2, H - 10);
+
+      // Line
+      ctxCO2.strokeStyle = getVar('--success');
+      ctxCO2.lineWidth = 3;
+      ctxCO2.beginPath();
+
+      const gap = plotW / Math.max(co2Data.length - 1, 1);
+      co2Data.forEach((val, i) => {
+        const x = padL + (i * gap);
+        const y = padT + plotH - ((val / maxCO2) * plotH);
+        if (i === 0) ctxCO2.moveTo(x, y);
+        else ctxCO2.lineTo(x, y);
+      });
+
+      ctxCO2.stroke();
+
+      // Points
+      ctxCO2.fillStyle = getVar('--success');
+      co2Data.forEach((val, i) => {
+        const x = padL + (i * gap);
+        const y = padT + plotH - ((val / maxCO2) * plotH);
+        ctxCO2.beginPath();
+        ctxCO2.arc(x, y, 4, 0, Math.PI * 2);
+        ctxCO2.fill();
+      });
+    }
+
+    // =====================================================
+    // Individual Logs
+    // =====================================================
+    function renderIndividualLogs() {
+      const container = byId('individual-logs');
+      if (!viewRows.length) {
+        container.innerHTML = '<div class="muted">No logs available</div>';
+        return;
       }
 
-      // energy line
-      ctx.strokeStyle=getVar('--line'); ctx.lineWidth=2; ctx.beginPath();
-      for(let i=0;i<n;i++){
-        const x=padL + i*(barW+gap) + barW/2;
-        const y=padT + plotH - ((energy[i]/maxEnergy)*plotH)*anim;
-        if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-      }
-      ctx.stroke();
+      let html = '';
+      viewRows.forEach((row, i) => {
+        const fileName = row.file ? row.file.split('\\').pop() : 'Unknown';
+        const improvement = row.before?.ccn > 0 
+          ? ((row.before.ccn - row.after.ccn) / row.before.ccn * 100).toFixed(1)
+          : 0;
 
-      // selection marker
-      if(selectedIndex>=0 && selectedIndex<n){
-        const x=padL + selectedIndex*(barW+gap) + barW/2;
-        ctx.strokeStyle='#ffffffaa'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x,padT); ctx.lineTo(x,padT+plotH); ctx.stroke();
+        html += `<div class="log-detail-card" id="log-card-${i}">`;
+        html += `<div class="row" style="justify-content:space-between;margin-bottom:16px">`;
+        html += `<h3>🔧 Refactoring #${i + 1}</h3>`;
+        html += `<span class="badge info">${esc(row.refactor || 'Unknown')}</span>`;
+        html += `</div>`;
+
+        html += `<div class="method-stats" style="margin-bottom:16px">`;
+        html += `<div class="method-stat"><div class="label">File</div><div class="value" style="font-size:14px">${esc(fileName)}</div></div>`;
+        html += `<div class="method-stat"><div class="label">Timestamp</div><div class="value" style="font-size:14px">${row.timestamp ? new Date(row.timestamp).toLocaleString() : 'N/A'}</div></div>`;
+        html += `<div class="method-stat"><div class="label">Improvement</div><div class="value" style="color:var(--success)">${improvement}%</div></div>`;
+        html += `</div>`;
+
+        html += `<div class="comparison">`;
+        html += `<div class="side before">`;
+        html += `<div class="metric-label">Before</div>`;
+        html += `<div class="metric-value">${row.before?.ccn ?? 0}</div>`;
+        html += `<div class="muted">CCN</div>`;
+        html += `<div style="margin-top:8px"><span class="pill">Lines: ${row.before?.nloc ?? 0}</span></div>`;
+        html += `</div>`;
+        html += `<div class="arrow">→</div>`;
+        html += `<div class="side after">`;
+        html += `<div class="metric-label">After</div>`;
+        html += `<div class="metric-value">${row.after?.ccn ?? 0}</div>`;
+        html += `<div class="muted">CCN</div>`;
+        html += `<div style="margin-top:8px"><span class="pill">Lines: ${row.after?.nloc ?? 0}</span></div>`;
+        html += `</div>`;
+        html += `</div>`;
+
+        html += `<div class="method-stats" style="margin-top:16px">`;
+        html += `<div class="method-stat"><div class="label">⚡ Energy Saved</div><div class="value">${nf(row.energy?.estimated_kwh_saved ?? 0, 6)} kWh</div></div>`;
+        html += `<div class="method-stat"><div class="label">🌍 CO₂ Reduced</div><div class="value">${nf(row.energy?.emissions_kg ?? 0, 6)} kg</div></div>`;
+        html += `<div class="method-stat"><div class="label">💰 Cost Saved</div><div class="value">$${nf(row.energy?.estimated_cost_saved_usd ?? 0, 4)}</div></div>`;
+        html += `</div>`;
+
+        if (row.commit?.message) {
+          html += `<div style="margin-top:12px">`;
+          html += `<div class="muted" style="font-size:11px">COMMIT MESSAGE</div>`;
+          html += `<div class="pill" style="margin-top:4px">${esc(row.commit.message)}</div>`;
+          html += `</div>`;
+        }
+
+        html += `</div>`;
+      });
+
+      container.innerHTML = html;
+    }
+
+    // =====================================================
+    // Main Chart Drawing
+    // =====================================================
+    function drawMainChart() {
+      if (!ctxMain) return;
+
+      const W = canvasMain.width;
+      const H = canvasMain.height;
+      ctxMain.clearRect(0, 0, W, H);
+
+      const padL = 60, padR = 24, padT = 20, padB = 40;
+      const plotW = W - padL - padR;
+      const plotH = H - padT - padB;
+
+      // Grid
+      ctxMain.strokeStyle = getVar('--grid');
+      ctxMain.lineWidth = 1;
+      ctxMain.setLineDash([3, 3]);
+      for (let i = 0; i <= 4; i++) {
+        const y = padT + (plotH * i / 4);
+        ctxMain.beginPath();
+        ctxMain.moveTo(padL, y);
+        ctxMain.lineTo(padL + plotW, y);
+        ctxMain.stroke();
+      }
+      ctxMain.setLineDash([]);
+
+      // Axes
+      ctxMain.strokeStyle = getVar('--grid');
+      ctxMain.beginPath();
+      ctxMain.moveTo(padL, padT);
+      ctxMain.lineTo(padL, padT + plotH);
+      ctxMain.lineTo(padL + plotW, padT + plotH);
+      ctxMain.stroke();
+
+      if (!viewRows.length) {
+        ctxMain.fillStyle = getVar('--muted');
+        ctxMain.font = '14px system-ui';
+        ctxMain.textAlign = 'center';
+        ctxMain.fillText('No data to display', W / 2, H / 2);
+        return;
       }
 
-      // hover tooltips
-      canvas.onmousemove = (ev)=>{
-        const r=canvas.getBoundingClientRect(), mx=ev.clientX-r.left, my=ev.clientY-r.top;
+      const deltas = viewRows.map(r => Number(r?.delta?.ccn ?? 0));
+      const energy = viewRows.map(r => Number(r?.energy?.estimated_kwh_saved ?? 0));
+      const maxDelta = Math.max(1, ...deltas);
+      const maxEnergy = Math.max(1e-9, ...energy);
+
+      // Labels
+      ctxMain.fillStyle = getVar('--muted');
+      ctxMain.font = '12px system-ui';
+      ctxMain.textAlign = 'right';
+      ctxMain.fillText(maxDelta.toFixed(0), padL - 8, padT + 12);
+      ctxMain.fillText('0', padL - 8, padT + plotH);
+      
+      ctxMain.textAlign = 'left';
+      ctxMain.fillText(nf(maxEnergy, 6) + ' kWh', padL + plotW + 8, padT + 12);
+
+      ctxMain.textAlign = 'center';
+      ctxMain.fillText('Refactor Index →', padL + plotW / 2, H - 10);
+
+      // Bars
+      const n = deltas.length;
+      const gap = 3;
+      const barW = Math.max(4, Math.floor(plotW / n) - gap);
+
+      anim = Math.min(1, anim + 0.15);
+
+      const hits = [];
+      for (let i = 0; i < n; i++) {
+        const x = padL + i * (barW + gap);
+        const h = ((deltas[i] / maxDelta) * plotH) * anim;
+        const y = padT + plotH - h;
+
+        ctxMain.fillStyle = (i === selectedIndex) ? getVar('--accent') : getVar('--accent-2');
+        ctxMain.fillRect(x, y, barW, h);
+
+        hits.push({ x1: x, x2: x + barW, y1: y, y2: padT + plotH, i });
+      }
+
+      // Energy line
+      ctxMain.strokeStyle = getVar('--line');
+      ctxMain.lineWidth = 3;
+      ctxMain.beginPath();
+
+      for (let i = 0; i < n; i++) {
+        const x = padL + i * (barW + gap) + barW / 2;
+        const y = padT + plotH - ((energy[i] / maxEnergy) * plotH) * anim;
+        if (i === 0) ctxMain.moveTo(x, y);
+        else ctxMain.lineTo(x, y);
+      }
+
+      ctxMain.stroke();
+
+      // Energy points
+      ctxMain.fillStyle = getVar('--line');
+      for (let i = 0; i < n; i++) {
+        const x = padL + i * (barW + gap) + barW / 2;
+        const y = padT + plotH - ((energy[i] / maxEnergy) * plotH) * anim;
+        ctxMain.beginPath();
+        ctxMain.arc(x, y, 4, 0, Math.PI * 2);
+        ctxMain.fill();
+      }
+
+      // Selection marker
+      if (selectedIndex >= 0 && selectedIndex < n) {
+        const x = padL + selectedIndex * (barW + gap) + barW / 2;
+        ctxMain.strokeStyle = '#ffffffaa';
+        ctxMain.lineWidth = 2;
+        ctxMain.setLineDash([5, 5]);
+        ctxMain.beginPath();
+        ctxMain.moveTo(x, padT);
+        ctxMain.lineTo(x, padT + plotH);
+        ctxMain.stroke();
+        ctxMain.setLineDash([]);
+      }
+
+      // Hover
+      canvasMain.onmousemove = (ev) => {
+        const r = canvasMain.getBoundingClientRect();
+        const mx = ev.clientX - r.left;
+        const my = ev.clientY - r.top;
         hideTip();
-        for(const h of hits){
-          if(mx>=h.x1 && mx<=h.x2 && my>=h.y1 && my<=h.y2){
-            const i=h.i; showTip(mx+12, my-12, i, deltas[i], energy[i], viewRows[i]?.timestamp); return;
+        for (const h of hits) {
+          if (mx >= h.x1 && mx <= h.x2 && my >= h.y1 && my <= h.y2) {
+            showTip(mx + 12, my - 12, h.i, deltas[h.i], energy[h.i], viewRows[h.i]);
+            return;
           }
         }
       };
-      canvas.onmouseleave = hideTip;
 
-      if(anim<1) requestAnimationFrame(drawChart);
+      canvasMain.onmouseleave = hideTip;
+
+      if (anim < 1) requestAnimationFrame(drawMainChart);
     }
 
-    // labels & utils
-    function label(t,x,y){ ctx.fillStyle=getVar('--muted'); ctx.font='12px system-ui'; ctx.fillText(t,x,y); }
-    function labelLeft(t,x,y){ label(t,x,y); }
-    function labelRight(t,x,y){ label(t,x,y); }
-    function getVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
-    function esc(s){ return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-    function nf(n,dec=3){ return Number(n||0).toFixed(dec); }
-
-    function showTip(x,y,i,delta,ener,ts){
-      tip.style.left=x+'px'; tip.style.top=y+'px'; tip.style.display='block';
-      tip.innerHTML = `<b>Refactor #${i}</b><div class="muted">${esc(ts||'')}</div>
-                       <div>Δ CCN: <b>${delta}</b></div>
-                       <div>Energy: <b>${nf(ener,6)} kWh</b></div>`;
+    function showTip(x, y, i, delta, ener, row) {
+      tip.style.left = x + 'px';
+      tip.style.top = y + 'px';
+      tip.style.display = 'block';
+      
+      const fileName = row.file ? row.file.split('\\').pop() : 'Unknown';
+      
+      tip.innerHTML = `
+        <b>Refactoring #${i + 1}</b>
+        <div class="muted" style="margin-top:4px">${esc(fileName)}</div>
+        <div style="margin-top:8px">
+          <div>🔧 ${esc(row.refactor || 'Unknown')}</div>
+          <div>📉 Δ CCN: <b style="color:var(--success)">-${delta}</b></div>
+          <div>⚡ Energy: <b>${nf(ener, 6)} kWh</b></div>
+          <div>🌍 CO₂: <b>${nf(row.energy?.emissions_kg ?? 0, 6)} kg</b></div>
+        </div>
+      `;
     }
-    function hideTip(){ tip.style.display='none'; }
 
-    // initial paint
-    drawChart();
+    function hideTip() {
+      tip.style.display = 'none';
+    }
+
+    function drawAllCharts() {
+      anim = 0;
+      drawMainChart();
+      drawFrequencyChart(
+        Object.entries(
+          viewRows.reduce((map, r) => {
+            const type = r.refactor || 'Unknown';
+            map[type] = (map[type] || 0) + 1;
+            return map;
+          }, {})
+        ).sort((a, b) => b[1] - a[1])
+      );
+      drawEnergyLineChart();
+      drawCO2LineChart();
+    }
+
+    // =====================================================
+    // Initial Draw
+    // =====================================================
+    drawAllCharts();
   </script>
 </body>
 </html>
