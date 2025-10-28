@@ -578,8 +578,18 @@
       }[m])); 
     }
 
-    function nf(n, dec = 3) { 
-      return Number(n || 0).toFixed(dec); 
+    function nf(n, dec = 3) {
+      const num = Number(n || 0);
+      
+      // Smart dynamic formatting based on value magnitude
+      if (num === 0) return '0';
+      if (num >= 1) return num.toFixed(Math.min(dec, 3));
+      if (num >= 0.01) return num.toFixed(4);
+      if (num >= 0.001) return num.toFixed(5);
+      if (num >= 0.0001) return num.toFixed(6);
+      
+      // For very small numbers, show 8 decimals
+      return num.toFixed(8);
     }
 
     function getVar(name) { 
@@ -745,7 +755,7 @@
       byId('kpi-delta').textContent = count ? (sumDelta / count).toFixed(1) : '0';
       byId('kpi-energy').textContent = nf(sumEnergy, 4) + ' kWh';
       byId('kpi-co2').textContent = nf(sumCO2, 6) + ' kg';
-      byId('kpi-cost').textContent = '$' + nf(sumCost, 2);
+      byId('kpi-cost').textContent = '$' + nf(sumCost, 6);  // Changed from 2 to 6 for better visibility
     }
 
     function updateQuickStats() {
@@ -887,8 +897,10 @@
 
       // Environmental impact
       const totalCO2 = viewRows.reduce((sum, r) => sum + (r.energy?.emissions_kg ?? 0), 0);
-      const treesEquivalent = (totalCO2 * 50).toFixed(1); // 1 tree absorbs ~20kg CO2/year
-      const milesNotDriven = (totalCO2 * 2.5).toFixed(1); // 1 kg CO2 = ~2.5 miles not driven
+      // Correct environmental equivalents with proper formulas
+      const treesEquivalent = totalCO2 / 21;  // 1 tree absorbs ~21kg CO2/year
+      const milesNotDriven = totalCO2 / 0.4;   // 1 mile = ~0.4kg CO2
+      const lightbulbHours = totalEnergySaved / 0.1; // 100W bulb = 0.1 kWh per hour
 
       byId('env-impact').innerHTML = `
         <div class="method-stats">
@@ -898,17 +910,17 @@
           </div>
           <div class="method-stat">
             <div class="label">🌳 Trees Equivalent</div>
-            <div class="value">${treesEquivalent} trees</div>
+            <div class="value">${nf(treesEquivalent, 6)} trees</div>
             <div class="muted" style="margin-top:4px;font-size:10px">annually</div>
           </div>
           <div class="method-stat">
             <div class="label">🚗 Miles Not Driven</div>
-            <div class="value">${milesNotDriven} miles</div>
+            <div class="value">${nf(milesNotDriven, 6)} miles</div>
             <div class="muted" style="margin-top:4px;font-size:10px">equivalent</div>
           </div>
           <div class="method-stat">
             <div class="label">💡 Lightbulbs Powered</div>
-            <div class="value">${(totalEnergySaved * 1000 / 100).toFixed(1)} hours</div>
+            <div class="value">${nf(lightbulbHours, 6)} hours</div>
             <div class="muted" style="margin-top:4px;font-size:10px">100W bulb</div>
           </div>
         </div>
@@ -1106,7 +1118,35 @@
         html += `<div class="method-stats" style="margin-top:16px">`;
         html += `<div class="method-stat"><div class="label">⚡ Energy Saved</div><div class="value">${nf(row.energy?.estimated_kwh_saved ?? 0, 6)} kWh</div></div>`;
         html += `<div class="method-stat"><div class="label">🌍 CO₂ Reduced</div><div class="value">${nf(row.energy?.emissions_kg ?? 0, 6)} kg</div></div>`;
-        html += `<div class="method-stat"><div class="label">💰 Cost Saved</div><div class="value">$${nf(row.energy?.estimated_cost_saved_usd ?? 0, 4)}</div></div>`;
+        html += `<div class="method-stat"><div class="label">💰 Cost Saved</div><div class="value">$${nf(row.energy?.estimated_cost_saved_usd ?? 0, 6)}</div></div>`;
+        html += `</div>`;
+
+        // Environmental equivalents for this individual refactoring
+        const co2 = row.energy?.emissions_kg ?? 0;
+        const energy = row.energy?.estimated_kwh_saved ?? 0;
+        const trees = co2 / 21;
+        const miles = co2 / 0.4;
+        const lightbulbHours = energy / 0.1;
+
+        html += `<div class="method-stats" style="margin-top:12px;background:var(--chip);padding:12px;border-radius:8px">`;
+        html += `<div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:8px">💡 ENVIRONMENTAL IMPACT</div>`;
+        html += `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">`;
+        html += `<div class="method-stat" style="background:transparent">`;
+        html += `<div class="label" style="font-size:10px">🌳 Trees</div>`;
+        html += `<div class="value" style="font-size:12px">${nf(trees, 6)}</div>`;
+        html += `<div class="muted" style="font-size:9px">annually</div>`;
+        html += `</div>`;
+        html += `<div class="method-stat" style="background:transparent">`;
+        html += `<div class="label" style="font-size:10px">🚗 Miles</div>`;
+        html += `<div class="value" style="font-size:12px">${nf(miles, 6)}</div>`;
+        html += `<div class="muted" style="font-size:9px">not driven</div>`;
+        html += `</div>`;
+        html += `<div class="method-stat" style="background:transparent">`;
+        html += `<div class="label" style="font-size:10px">💡 Lightbulb</div>`;
+        html += `<div class="value" style="font-size:12px">${nf(lightbulbHours, 6)}</div>`;
+        html += `<div class="muted" style="font-size:9px">hours (100W)</div>`;
+        html += `</div>`;
+        html += `</div>`;
         html += `</div>`;
 
         if (row.commit?.message) {
