@@ -109,7 +109,7 @@ export function activate(context: vscode.ExtensionContext) {
 
         // 🧠 Run Java Analyzer (same as runAnalyzer)
         const jarPath = path.join(
-          "C:\\Users\\MM\\Downloads\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
+          "C:\\Users\\mosta\\OneDrive - Misr International University\\Desktop\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
         );
         const projectPath = path.dirname(filePath);
         const analyzerCmd = `java -jar "${jarPath}" "${projectPath}"`;

@@ -10,10 +10,7 @@ public class InvoiceCalculator {
     }
 
     public void processOrder(int[] prices) {
-        int total = 0;
-        int count = 0;
-
-        calculateAndPrintTotals(prices);
+        int[] results = calculateAndPrintTotals(prices);
     }
 
     private void printOrderSummary(int total, int count) {
@@ -37,11 +34,12 @@ public class InvoiceCalculator {
         return new int[] { total, count };
     }
 
-    private void calculateAndPrintTotals(int[] prices) {
+    private int[] calculateAndPrintTotals(int[] prices) {
         int[] results = calculateTotals(prices);
         int total = results[0];
         int count = results[1];
 
         printOrderSummary(total, count);
+        return results;
     }
 }
