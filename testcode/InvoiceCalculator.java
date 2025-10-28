@@ -14,31 +14,20 @@ public class InvoiceCalculator {
         int count = 0;
 
         for (int price : prices) {
-            int[] results = handlePrice(price, total, count);
-            total = results[0];
-            count = results[1];
+            if (price > 0) {
+                total += price;
+                count++;
+            } else {
+                System.out.println("Invalid price skipped: ");
+            }
 
-            calculateAndPrintAverage(total, count);
+            printOrderSummary(total, count);
         }
     }
 
-    private void calculateAndPrintAverage(int total, int count) {
+    private void printOrderSummary(int total, int count) {
         double avg = (count == 0) ? 0 : (double) total / count;
         System.out.println("Average price: " + avg);
         System.out.println("Order processed successfully.");
-    }
-
-    private void handleInvalidPrice() {
-        System.out.println("Invalid price skipped: ");
-    }
-
-    private int[] handlePrice(int price, int total, int count) {
-        if (price > 0) {
-            total += price;
-            count++;
-        } else {
-            handleInvalidPrice();
-        }
-        return new int[] { total, count };
     }
 }
