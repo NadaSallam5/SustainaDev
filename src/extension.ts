@@ -26,11 +26,12 @@ export function activate(context: vscode.ExtensionContext) {
 
       // 👉 adjust these paths if needed (escaped backslashes for Windows)
       const jarPath = path.join(
-        "C:\\Users\\MM\\Downloads\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
+        "C:\\Users\\mosta\\OneDrive - Misr International University\\Desktop\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
       );
-      const projectPath = "C:\\Users\\MM\\Downloads\\SustainaDev\\testcode";
+      const projectPath = "C:\\Users\\mosta\\OneDrive - Misr International University\\Desktop\\SustainaDev\\testcode";
 
       const command = `java -jar "${jarPath}" "${projectPath}"`;
+      
 
       const terminal = vscode.window.createTerminal("SustainaDev Analyzer");
       terminal.show();
