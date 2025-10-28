@@ -13,7 +13,7 @@ public class InvoiceCalculator {
         int total = 0;
         int count = 0;
 
-        int[] results = calculateTotals(prices);
+        int[] results = calculateAndCountTotals(prices);
         total = results[0];
         count = results[1];
 
@@ -26,7 +26,7 @@ public class InvoiceCalculator {
         System.out.println("Order processed successfully.");
     }
 
-    private int[] calculateTotals(int[] prices) {
+    private int[] calculateAndCountTotals(int[] prices) {
         int total = 0;
         int count = 0;
 
