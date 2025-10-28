@@ -5,7 +5,7 @@
   "description": "My first VS Code extension",
   "version": "0.0.1",
   "engines": {
-    "vscode": "^1.100.2"
+    "vscode": "^1.104.0"
   },
   "categories": [
     "Other"
@@ -55,25 +55,24 @@
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
-    "lint": "eslint src",
+    "lint": "eslint src --ext .ts",
     "test": "vscode-test"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
-    "@types/node": "22.x",
-    "@types/vscode": "^1.104.0",
+    "@types/node": "^22.18.12",
+    "@types/vscode": "^1.105.0",
     "@typescript-eslint/eslint-plugin": "^8.42.0",
     "@typescript-eslint/parser": "^8.42.0",
     "@vscode/test-cli": "^0.0.11",
     "@vscode/test-electron": "^2.5.2",
     "eslint": "^9.34.0",
     "ts-loader": "^9.5.4",
-    "typescript": "^5.9.2",
-    "webpack": "^5.101.3",
-    "webpack-cli": "^6.0.1"
+    "typescript": "^5.9.3"
   },
   "dependencies": {
     "java-parser": "^3.0.1",
-    "openai": "^6.6.0"
+    "openai": "^6.6.0",
+    "vscode": "^1.1.37"
   }
 }
