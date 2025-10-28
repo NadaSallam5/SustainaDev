@@ -110,7 +110,7 @@ Reason:
 
   // ✅ Use a system message to reset model context
   const resp = await client.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-4o-mini",
     messages: [
       {
         role: "system",
