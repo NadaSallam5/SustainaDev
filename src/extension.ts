@@ -24,11 +24,14 @@ export function activate(context: vscode.ExtensionContext) {
         "🚀 Running SustainaDev Java Analyzer..."
       );
 
-      // 👉 adjust these paths if needed (escaped backslashes for Windows)
-      const jarPath = path.join(
-        "C:\\Users\\MM\\Downloads\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
-      );
-      const projectPath = "C:\\Users\\MM\\Downloads\\SustainaDev\\testcode";
+      // 👉 Adjusted for your machine
+const jarPath = path.join(
+  "C:\\Users\\Dell\\Desktop\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
+);
+
+// Example project path (you can modify this to your test project folder)
+const projectPath = "C:\\Users\\Dell\\Desktop\\SustainaDev\\testcode";
+
 
       const command = `java -jar "${jarPath}" "${projectPath}"`;
 
@@ -106,12 +109,12 @@ export function activate(context: vscode.ExtensionContext) {
           return;
         }
 
-        // 🧠 Run Java Analyzer (same as runAnalyzer)
         const jarPath = path.join(
-          "C:\\Users\\MM\\Downloads\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
-        );
-        const projectPath = path.dirname(filePath);
-        const analyzerCmd = `java -jar "${jarPath}" "${projectPath}"`;
+  "C:\\Users\\Dell\\Desktop\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
+);
+const projectPath = path.dirname(filePath);
+const analyzerCmd = `java -jar "${jarPath}" "${projectPath}"`;
+
 
         console.log("🔍 Running Analyzer:", analyzerCmd);
 
