@@ -33,6 +33,8 @@ You are a Java refactoring expert performing a **Rename Variable** operation.
 ### Task
 Rename the variable \`${oldName}\` to \`${newName}\` **safely** throughout the entire class, including the method, loops, and any references.
 
+In addition, you must **rename any related function names** that contain \`${oldName}\` to reflect the new variable name \`${newName}\`. For example, rename functions like \`calculateTotalAndCount\` to \`calculateSumAndCount\`.
+
 Make sure that you do not rename the variable in comments, strings, or other places where it shouldn't be modified. Only rename valid variable occurrences in the code.
 
 ### Selection Criteria

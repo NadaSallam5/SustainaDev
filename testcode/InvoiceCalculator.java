@@ -13,7 +13,7 @@ public class InvoiceCalculator {
         int sum = 0;
         int count = 0;
 
-        int[] results = calculateTotalAndCount(prices);
+        int[] results = calculateSumAndCount(prices);
         sum = results[0];
         count = results[1];
 
@@ -22,7 +22,7 @@ public class InvoiceCalculator {
         System.out.println("Order processed successfully.");
     }
 
-    private int[] calculateTotalAndCount(int[] prices) {
+    private int[] calculateSumAndCount(int[] prices) {
         int sum = 0;
         int count = 0;
 
@@ -31,9 +31,10 @@ public class InvoiceCalculator {
                 sum += price;
                 count++;
             } else {
-                System.out.println("Invalid price skipped: ");
+                System.out.println("Invalid price skipped: " + price);
             }
         }
+
         return new int[] { sum, count };
     }
 
