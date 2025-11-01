@@ -206,7 +206,7 @@ export function activate(context: vscode.ExtensionContext) {
 
         console.log("📦 Chosen Refactor:", chosenRefactor);
 
-        if (chosenRefactor === "Extract Method") {
+        /* if (chosenRefactor === "Extract Method") {
           strategy = new ExtractMethodStrategy();
           vscode.window.showInformationMessage(
             "🔧 Using ExtractMethodStrategy..."
@@ -277,8 +277,9 @@ export function activate(context: vscode.ExtensionContext) {
           `🚀 Executing ${chosenRefactor}...`
         );
 
-        const patch = await refactorContext.execute(input);
+        const patch = await refactorContext.execute(input); */
 
+        const patch = await handleRefactor(chosenRefactor, input);
         console.log("✅ Refactor patch output:", patch);
 
         vscode.window.showInformationMessage(
@@ -464,6 +465,87 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.showInformationMessage(
           "🟢 SustainaDev pipeline ready for next run."
         );
+      }
+      async function handleRefactor(refactorType: string, input: any) {
+        let strategy: RefactorStrategy | undefined;
+
+        if (refactorType === "Extract Method") {
+          strategy = new ExtractMethodStrategy();
+          vscode.window.showInformationMessage(
+            "🔧 Using ExtractMethodStrategy..."
+          );
+        } else if (refactorType === "Rename Variable") {
+          strategy = new RenameVariableStrategy();
+          vscode.window.showInformationMessage(
+            "✏️ Using RenameVariableStrategy..."
+          );
+
+          // Get rename details from the helper function
+          const renameDetails = await getRenameVariableDetails(
+            input.context.locals
+          );
+          if (!renameDetails) return; // Exit early if user cancels or provides invalid input
+
+          input.oldName = renameDetails.oldName;
+          input.newName = renameDetails.newName;
+
+          console.log("✏️ Rename details:", {
+            oldName: input.oldName,
+            newName: input.newName,
+          });
+          vscode.window.showInformationMessage(
+            `🪶 Rename '${input.oldName}' → '${input.newName}'`
+          );
+        }
+
+        if (!strategy) {
+          vscode.window.showErrorMessage(
+            "❌ No refactor strategy selected — aborting."
+          );
+          return;
+        }
+
+        // Execute the chosen refactor
+        const refactorContext = new RefactorContext(strategy);
+        const patch = await refactorContext.execute(input);
+        return patch;
+      }
+      async function getRenameVariableDetails(
+        locals: string[]
+      ): Promise<{ oldName: string; newName: string } | undefined> {
+        // Ask user to select the old variable name
+        const oldName = await vscode.window.showQuickPick(
+          locals.length > 0 ? locals : ["(type manually)"],
+          { placeHolder: "Select a variable to rename (from locals)" }
+        );
+
+        // Handle case where user types the old name manually
+        let finalOldName = oldName;
+        if (oldName === "(type manually)" || !oldName) {
+          finalOldName = await vscode.window.showInputBox({
+            prompt: "Enter the variable name to rename:",
+            placeHolder: "e.g., price",
+          });
+        }
+
+        if (!finalOldName) {
+          vscode.window.showErrorMessage("❌ No variable name provided.");
+          return;
+        }
+
+        // Ask user for the new variable name
+        const newName = await vscode.window.showInputBox({
+          prompt: `Enter the new name for '${finalOldName}':`,
+          placeHolder: "e.g., itemPrice",
+        });
+
+        if (!newName) {
+          vscode.window.showErrorMessage("❌ No new name provided.");
+          return;
+        }
+
+        // Return the old and new names
+        return { oldName: finalOldName, newName };
       }
     }
   );
