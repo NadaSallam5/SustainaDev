@@ -3,6 +3,7 @@ export interface BaseRefactorInput {
   fileName: string;
   range: { from: number; to: number };
   context?: { methodBody?: string; locals?: string[] };
+  [key: string]: any;
 }
 
 export interface RefactorResult {

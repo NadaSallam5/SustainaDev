@@ -16,6 +16,9 @@ import * as fsp from "fs/promises";
 import { RefactorContext } from "./core/refactor-context";
 import { ExtractMethodStrategy } from "./strategies/extract-method-strategy";
 
+import { RenameVariableStrategy } from "./strategies/rename-variable-strategy";
+import { RefactorStrategy } from "./core/refactor-strategy";
+
 export function activate(context: vscode.ExtensionContext) {
   console.log("🟢 SustainaDev Analyzer extension is active");
 
@@ -102,13 +105,13 @@ export function activate(context: vscode.ExtensionContext) {
           (a, b) => b.ccn - a.ccn || b.nloc - a.nloc
         )[0];
 
-        const decision = chooseRefactor(worst);
+        /* const decision = chooseRefactor(worst);
         if (decision.type !== "Extract Method") {
           vscode.window.showInformationMessage(
             "No actionable refactor (demo thresholds)."
           );
           return;
-        }
+        } */
 
         // 🧠 Run Java Analyzer (same as runAnalyzer)
         const jarPath = path.join(
@@ -180,28 +183,107 @@ export function activate(context: vscode.ExtensionContext) {
 
         const fullCode = refreshedDoc.getText();
 
-        /* const patch = await buildExtractPatch(
-          fullCode,
-          { from, to },
-          path.basename(filePath),
-          { methodBody, locals }
-        ); */
-
-        const extractMethodStrategy = new ExtractMethodStrategy();
-
-        // 🧠 Step 3: Create a context with that strategy
-        const refactorContext = new RefactorContext(extractMethodStrategy);
-
-        // 🧠 Step 4: Prepare input for the strategy
-        const input = {
+        // 4️⃣ Handle chosen refactor dynamically
+        let strategy: RefactorStrategy | undefined;
+        let input: any = {
           fullCode,
           fileName: path.basename(filePath),
           range: { from, to },
           context: { methodBody, locals },
         };
+        vscode.window.showInformationMessage(
+          "⚙️ Awaiting user refactor type selection..."
+        );
+        const chosenRefactor = await vscode.window.showQuickPick(
+          ["Extract Method", "Rename Variable"],
+          { placeHolder: "Choose which refactor to perform" }
+        );
 
-        // 🧠 Step 5: Execute the strategy via the context
+        if (!chosenRefactor) {
+          vscode.window.showWarningMessage("Refactor cancelled by user.");
+          return;
+        }
+
+        console.log("📦 Chosen Refactor:", chosenRefactor);
+
+        if (chosenRefactor === "Extract Method") {
+          strategy = new ExtractMethodStrategy();
+          vscode.window.showInformationMessage(
+            "🔧 Using ExtractMethodStrategy..."
+          );
+        } else if (chosenRefactor === "Rename Variable") {
+          strategy = new RenameVariableStrategy();
+          vscode.window.showInformationMessage(
+            "✏️ Using RenameVariableStrategy..."
+          );
+
+          // 💡 Ask user which variable to rename
+          console.log("📋 Local variables detected:", input.context.locals);
+
+          const oldName = await vscode.window.showQuickPick(
+            input.context.locals.length > 0
+              ? input.context.locals
+              : ["(type manually)"],
+            { placeHolder: "Select a variable to rename (from locals)" }
+          );
+
+          let finalOldName = oldName;
+          if (oldName === "(type manually)" || !oldName) {
+            finalOldName = await vscode.window.showInputBox({
+              prompt: "Enter the variable name to rename:",
+              placeHolder: "e.g., price",
+            });
+          }
+
+          if (!finalOldName) {
+            vscode.window.showErrorMessage("❌ No variable name provided.");
+            return;
+          }
+
+          const newName = await vscode.window.showInputBox({
+            prompt: `Enter the new name for '${finalOldName}':`,
+            placeHolder: "e.g., itemPrice",
+          });
+
+          if (!newName) {
+            vscode.window.showErrorMessage("❌ No new name provided.");
+            return;
+          }
+
+          // ✅ Log rename parameters
+          console.log("✏️ Rename details:", { oldName: finalOldName, newName });
+          vscode.window.showInformationMessage(
+            `🪶 Rename '${finalOldName}' → '${newName}'`
+          );
+
+          // Add rename params to input
+          input.oldName = finalOldName;
+          input.newName = newName;
+        }
+
+        // 🧩 Defensive check
+        if (!strategy) {
+          vscode.window.showErrorMessage(
+            "❌ No refactor strategy selected — aborting."
+          );
+          return;
+        }
+
+        // 🧠 Step 5: Execute via context
+        const refactorContext = new RefactorContext(strategy);
+
+        console.log("🧠 Input passed to strategy:", input);
+        vscode.window.showInformationMessage(
+          `🚀 Executing ${chosenRefactor}...`
+        );
+
         const patch = await refactorContext.execute(input);
+
+        console.log("✅ Refactor patch output:", patch);
+
+        vscode.window.showInformationMessage(
+          `✅ ${chosenRefactor} completed successfully!`
+        );
 
         console.log("🧠 AI Patch Response:", patch);
         if (!patch || !patch.preview || patch.preview.trim().length < 10) {
