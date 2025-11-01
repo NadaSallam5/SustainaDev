@@ -40,6 +40,8 @@ export class RefactorContext {
     });
 
     const text = resp.choices?.[0]?.message?.content ?? "";
+    console.log("🔍 Raw AI Response:", text);
+
     return this.strategy.parseResponse(text);
   }
 }
