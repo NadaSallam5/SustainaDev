@@ -5,13 +5,16 @@ import * as fs from "fs";
 // NEW imports for PoC flow
 import { runLizard } from "./analyzer/lizardRunner";
 import { chooseRefactor } from "./analyzer/smellClassifier";
-import { buildExtractPatch, extractClassBlock } from "./refactor/extractMethod";
+//import { buildExtractPatch, extractClassBlock } from "./refactor/extractMethod";
 import { buildExplanation } from "./refactor/explanation";
 import { gitCommit } from "./git/commit";
 import { verifyLastRefactor } from "./git/refactoringMiner";
 import { estimateEnergy, initPaths } from "./metrics/codeCarbon";
 import { appendLog } from "./metrics/logger";
 import * as fsp from "fs/promises";
+
+import { RefactorContext } from "./core/refactor-context";
+import { ExtractMethodStrategy } from "./strategies/extract-method-strategy";
 
 export function activate(context: vscode.ExtensionContext) {
   console.log("🟢 SustainaDev Analyzer extension is active");
@@ -177,12 +180,28 @@ export function activate(context: vscode.ExtensionContext) {
 
         const fullCode = refreshedDoc.getText();
 
-        const patch = await buildExtractPatch(
+        /* const patch = await buildExtractPatch(
           fullCode,
           { from, to },
           path.basename(filePath),
           { methodBody, locals }
-        );
+        ); */
+
+        const extractMethodStrategy = new ExtractMethodStrategy();
+
+        // 🧠 Step 3: Create a context with that strategy
+        const refactorContext = new RefactorContext(extractMethodStrategy);
+
+        // 🧠 Step 4: Prepare input for the strategy
+        const input = {
+          fullCode,
+          fileName: path.basename(filePath),
+          range: { from, to },
+          context: { methodBody, locals },
+        };
+
+        // 🧠 Step 5: Execute the strategy via the context
+        const patch = await refactorContext.execute(input);
 
         console.log("🧠 AI Patch Response:", patch);
         if (!patch || !patch.preview || patch.preview.trim().length < 10) {
@@ -191,37 +210,6 @@ export function activate(context: vscode.ExtensionContext) {
           );
           return;
         }
-
-        /*  // 🧹 Close any old preview
-        const oldDoc = vscode.workspace.textDocuments.find(
-          (d) => d.uri.toString() === "untitled:RefactorPreview.java"
-        );
-        if (oldDoc) {
-          await vscode.window.showTextDocument(oldDoc);
-          await vscode.commands.executeCommand(
-            "workbench.action.closeActiveEditor"
-          );
-        }
-
-        // 🆕 Create a new in-memory preview document
-        const right = vscode.Uri.parse("untitled:RefactorPreview.java");
-
-        const edit = new vscode.WorkspaceEdit();
-        edit.insert(right, new vscode.Position(0, 0), patch.preview);
-        await vscode.workspace.applyEdit(edit);
-
-        // 🕒 Wait to ensure buffer registration
-        await new Promise((resolve) => setTimeout(resolve, 100));
-
-        // 💡 Show the diff preview only
-        await vscode.commands.executeCommand(
-          "vscode.diff",
-          originalUri,
-          right,
-          "AI Suggested Changes",
-          { preview: true }
-        );
- */
 
         // 🧹 Close any old preview
         const oldDoc = vscode.workspace.textDocuments.find(
