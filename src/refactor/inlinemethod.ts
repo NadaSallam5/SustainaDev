@@ -1,5 +1,4 @@
-// inlinemethod.ts — FINAL FIXED VERSION ✅
-
+// inlinemethod.ts — modified to log file-level CCN/NLOC (sums across all functions)
 import OpenAI from "openai";
 import * as vscode from "vscode";
 import * as fs from "fs";
@@ -11,6 +10,9 @@ import { appendLog } from "../metrics/logger";
 
 /**
  * Performs Inline Method refactor + metrics & logging
+ *
+ * Now: before/after metrics are computed for the entire file
+ *       by summing CCN and NLOC returned by Lizard for all functions.
  */
 export async function buildInlinePatch(
   fullCode: string,
@@ -21,12 +23,10 @@ export async function buildInlinePatch(
   const project = process.env.OPENAI_PROJECT_ID;
   const workspace = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
 
-  // ---------------- BEFORE METRICS ----------------
-  const beforeMetrics = await safeRunLizard(fileName);
-  const beforeFn = beforeMetrics?.functions?.find((f: any) =>
-    f.name.includes(methodName)
-  );
-  const before = beforeFn || { ccn: 0, nloc: 0 };
+  // ---------------- BEFORE METRICS (file-level sums) ----------------
+  const beforeLizard = await safeRunLizard(fileName);
+  const beforeTotals = aggregateFileMetrics(beforeLizard);
+  const before = beforeTotals || { ccn: 0, nloc: 0 };
 
   // ---------------- Inline Logic ----------------
   const localInline = () => {
@@ -174,22 +174,20 @@ export async function buildInlinePatch(
     result = localInline();
   }
 
-  // ---------------- AFTER METRICS ----------------
+  // ---------------- AFTER METRICS (file-level sums) ----------------
   // write refactored code to a temp file (auto-deleted later)
-  const tmpAfter = path.join(os.tmpdir(), `sustainadev_inline_after.java`);
+  const tmpAfter = path.join(os.tmpdir(), `sustainadev_inline_after_${Date.now()}.java`);
   fs.writeFileSync(tmpAfter, result.preview, "utf8");
 
-  const afterMetrics = await safeRunLizard(tmpAfter);
-  const afterFn = afterMetrics?.functions?.find((f: any) =>
-    f.name.includes(methodName)
-  );
-  const after = afterFn || { ccn: 0, nloc: 0 };
+  const afterLizard = await safeRunLizard(tmpAfter);
+  const afterTotals = aggregateFileMetrics(afterLizard);
+  const after = afterTotals || { ccn: 0, nloc: 0 };
 
   // cleanup temp
   try { fs.unlinkSync(tmpAfter); } catch {}
 
-  // compute metrics & log
-  const delta = { ccn: before.ccn - after.ccn, nloc: before.nloc - after.nloc };
+  // compute metrics & log (file-level)
+  const delta = { ccn: Math.max(before.ccn - after.ccn, 0), nloc: Math.max(before.nloc - after.nloc, 0) };
   const energy = await estimateEnergy(delta.ccn);
 
   const logPath = path.join(workspace, ".sustainadev", "log.jsonl");
@@ -206,9 +204,18 @@ export async function buildInlinePatch(
       message: `Inline Method in ${methodName}: ${result.callCount} call(s) replaced`,
     },
   };
+
+  // Ensure directory exists
+  try {
+    const dir = path.dirname(logPath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  } catch (e) {
+    console.warn("Could not ensure .sustainadev dir exists:", e);
+  }
+
   fs.appendFileSync(logPath, JSON.stringify(logEntry) + "\n", "utf8");
 
-  console.log(`✅ Inline Method completed! CCN ${before.ccn} → ${after.ccn}, NLOC ${before.nloc} → ${after.nloc}`);
+  console.log(`✅ Inline Method completed! File CCN ${before.ccn} → ${after.ccn}, File NLOC ${before.nloc} → ${after.nloc}`);
   return result;
 }
 
@@ -220,6 +227,24 @@ async function safeRunLizard(file: string) {
     console.error("⚠️ Lizard failed on", file, e);
     return { functions: [] };
   }
+}
+
+/**
+ * Aggregates the Lizard result into file-level totals
+ */
+function aggregateFileMetrics(lizardRes: any): { ccn: number; nloc: number } {
+  if (!lizardRes || !Array.isArray(lizardRes.functions)) return { ccn: 0, nloc: 0 };
+  const totals = lizardRes.functions.reduce(
+    (acc: { ccn: number; nloc: number }, fn: any) => {
+      const ccn = Number(fn.ccn ?? 0);
+      const nloc = Number(fn.nloc ?? 0);
+      acc.ccn += isNaN(ccn) ? 0 : ccn;
+      acc.nloc += isNaN(nloc) ? 0 : nloc;
+      return acc;
+    },
+    { ccn: 0, nloc: 0 }
+  );
+  return totals;
 }
 
 function extractSection(output: string, label: string): string {
