@@ -26,6 +26,7 @@ export async function buildExtractPatch(
   fs.writeFileSync(tmpBefore, fullCode, "utf8");
   
   const beforeLizard = await safeRunLizard(tmpBefore);
+  console.log(`🔍 Lizard BEFORE returned:`, JSON.stringify(beforeLizard, null, 2));
   const beforeTotals = aggregateFileMetrics(beforeLizard);
   const before = beforeTotals || { ccn: 0, nloc: 0 };
 
@@ -195,6 +196,7 @@ Reason:
   fs.writeFileSync(tmpAfter, preview, "utf8");
 
   const afterLizard = await safeRunLizard(tmpAfter);
+  console.log(`🔍 Lizard AFTER returned:`, JSON.stringify(afterLizard, null, 2));
   const afterTotals = aggregateFileMetrics(afterLizard);
   const after = afterTotals || { ccn: 0, nloc: 0 };
 
@@ -335,7 +337,15 @@ async function safeRunLizard(file: string) {
  * Aggregates Lizard results into file-level totals (sum of all functions)
  */
 function aggregateFileMetrics(lizardRes: any): { ccn: number; nloc: number } {
+  console.log(`🔧 Aggregating metrics from:`, lizardRes);
+  
   if (!lizardRes || !Array.isArray(lizardRes.functions)) {
+    console.warn(`⚠️ Invalid Lizard result - no functions array found`);
+    return { ccn: 0, nloc: 0 };
+  }
+
+  if (lizardRes.functions.length === 0) {
+    console.warn(`⚠️ Lizard returned 0 functions`);
     return { ccn: 0, nloc: 0 };
   }
 
@@ -343,6 +353,7 @@ function aggregateFileMetrics(lizardRes: any): { ccn: number; nloc: number } {
     (acc: { ccn: number; nloc: number }, fn: any) => {
       const ccn = Number(fn.ccn ?? 0);
       const nloc = Number(fn.nloc ?? 0);
+      console.log(`  - Function "${fn.name}": CCN=${ccn}, NLOC=${nloc}`);
       acc.ccn += isNaN(ccn) ? 0 : ccn;
       acc.nloc += isNaN(nloc) ? 0 : nloc;
       return acc;
@@ -350,5 +361,6 @@ function aggregateFileMetrics(lizardRes: any): { ccn: number; nloc: number } {
     { ccn: 0, nloc: 0 }
   );
 
+  console.log(`✅ Aggregated totals: CCN=${totals.ccn}, NLOC=${totals.nloc}`);
   return totals;
 }
