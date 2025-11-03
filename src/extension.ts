@@ -14,7 +14,7 @@ import { appendLog } from "./metrics/logger";
 import * as fsp from "fs/promises";
 import { decideRefactorType } from "./refactor/chooseRefactor";
 import { buildInlinePatch } from "./refactor/inlinemethod"; 
-// ... other imports
+
 export function activate(context: vscode.ExtensionContext) {
   console.log("🟢 SustainaDev Analyzer extension is active");
 
@@ -53,6 +53,7 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   let isRunning = false;
+  
   // ---- Analyze current file, suggest refactor, preview, apply, commit, verify (optional), log ----
   const analyzeActiveFile = vscode.commands.registerCommand(
     "sustainadev.analyzeActiveFile",
@@ -75,7 +76,7 @@ export function activate(context: vscode.ExtensionContext) {
           await editor.document.save();
         }
         if (!editor) {
-            isRunning = false; // Release lock
+            isRunning = false;
             return;
         }
 
@@ -93,7 +94,7 @@ export function activate(context: vscode.ExtensionContext) {
         const analysis = await runLizard(filePath);
         if (!analysis.functions.length) {
           vscode.window.showInformationMessage("No functions found.");
-          isRunning = false; // Release lock
+          isRunning = false;
           return;
         }
 
@@ -108,12 +109,10 @@ export function activate(context: vscode.ExtensionContext) {
         const fullCode = refreshedDoc.getText();
 
         // =================================================================
-        // =========== LOGIC FLOW FIX: 'Extract Method' block ==============
+        // =========== EXTRACT METHOD BLOCK (FIXED - NO DUPLICATE LOGGING) ==
         // =================================================================
         if ((decision.type as string) === "Extract Method") {
           
-          // --- ALL 'EXTRACT METHOD' LOGIC IS NOW INSIDE THIS 'IF' BLOCK ---
-
           const jarPath = path.join(
             "C:\\Users\\mosta\\OneDrive - Misr International University\\Desktop\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
           );
@@ -182,7 +181,7 @@ export function activate(context: vscode.ExtensionContext) {
             }
           }
 
-          // Use the static import
+          // ✅ buildExtractPatch now handles ALL metrics and logging internally
           const patch = await buildExtractPatch(
             fullCode,
             { from, to },
@@ -195,7 +194,7 @@ export function activate(context: vscode.ExtensionContext) {
             vscode.window.showErrorMessage(
               "AI returned incomplete or invalid refactor output."
             );
-            return; // Exit function, finally block will run
+            return;
           }
 
           // 🧹 Close any old preview
@@ -233,7 +232,6 @@ export function activate(context: vscode.ExtensionContext) {
             }
           );
           if (apply !== "Apply refactor") {
-            // Find and close the preview
             const previewEditor = vscode.window.visibleTextEditors.find((e) =>
               e.document.uri.toString().includes("RefactorPreview.java")
             );
@@ -242,10 +240,10 @@ export function activate(context: vscode.ExtensionContext) {
                 await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
             }
             vscode.window.showInformationMessage("❌ Refactor canceled.");
-            return; // Exit function, finally block will run
+            return;
           }
 
-          // ✅ Close the preview (it's applied below)
+          // ✅ Close the preview
           const previewEditor = vscode.window.visibleTextEditors.find((e) =>
             e.document.uri.toString().includes("Preview")
           );
@@ -269,7 +267,7 @@ export function activate(context: vscode.ExtensionContext) {
           const applied = await vscode.workspace.applyEdit(we);
           if (!applied) {
             vscode.window.showErrorMessage("Failed to apply refactor edits.");
-            return; // Exit function, finally block will run
+            return;
           }
 
           await vscode.commands.executeCommand("editor.action.formatDocument");
@@ -279,125 +277,95 @@ export function activate(context: vscode.ExtensionContext) {
             "✅ Refactor applied successfully!"
           );
 
-          // re-run to get "after" metrics
-          const after = await runLizard(filePath);
-          const afterFn =
-            after.functions.find((f) => f.name === worst.name) ?? worst;
-
-          const explanation = buildExplanation(
-            worst.name,
-            { ccn: worst.ccn, nloc: worst.nloc },
-            { ccn: afterFn.ccn, nloc: afterFn.nloc }
+          // Show simple user message
+          vscode.window.showInformationMessage(
+            `Extract Method completed for ${worst.name}`
           );
-          vscode.window.showInformationMessage(explanation);
 
-          // commit
+          // Commit
           const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath!;
-          const msg = `Extract Method in ${worst.name}: CCN ${worst.ccn}→${afterFn.ccn}`;
+          const msg = `Extract Method in ${worst.name}`;
           await gitCommit(ws, msg);
 
-          // === RefactoringMiner verification ===
-          let verified = false;
+          // === RefactoringMiner verification (optional) ===
           if (useRM) {
             try {
-              verified = (await verifyLastRefactor(ws)).length > 0;
+              const verified = (await verifyLastRefactor(ws)).length > 0;
+              vscode.window.showInformationMessage(
+                verified ? "✅ Refactor verified by RefactoringMiner" : "⚠️ Not verified"
+              );
             } catch (e: any) {
               vscode.window.showWarningMessage(
-                `RefactoringMiner verification failed; continuing without it. ${
-                  e?.message ?? ""
-                }`.trim()
+                `RefactoringMiner verification failed: ${e?.message ?? ""}`.trim()
               );
-              verified = false;
             }
-          } else {
-            vscode.window.showInformationMessage(
-              "RefactoringMiner is disabled; skipping verification."
-            );
           }
-          // ===================================
 
-          // energy estimate
-          const deltaCCN = Math.max(worst.ccn - afterFn.ccn, 0);
-          const energy = await estimateEnergy(deltaCCN);
-
-          // log
-          appendLog(ws, {
-            timestamp: new Date().toISOString(),
-            file: filePath,
-            refactor: "Extract Method",
-            before: { ccn: worst.ccn, nloc: worst.nloc },
-            after: { ccn: afterFn.ccn, nloc: afterFn.nloc },
-            delta: { ccn: deltaCCN, nloc: worst.nloc - afterFn.nloc },
-            verify: { refminer: verified },
-            energy,
-            commit: { message: msg },
-          });
-
+          // ❌ REMOVED: Duplicate logging - buildExtractPatch already logged everything!
+          // No more appendLog() here - it's all done inside buildExtractPatch with correct metrics
+          
           vscode.window.showInformationMessage(
-            "Refactor applied, committed, and logged." +
-              (useRM ? "" : " (Verification skipped)")
+            "Refactor applied, committed, and logged."
           );
         
-// =================================================================
-// =========== LOGIC FLOW FIX: 'Inline Method' block ==============
-// =================================================================
-} else if ((decision.type as string) === "Inline Method") {
-  vscode.window.showInformationMessage("💡 Inline Method chosen");
+        // =================================================================
+        // =========== INLINE METHOD BLOCK ==============
+        // =================================================================
+        } else if ((decision.type as string) === "Inline Method") {
+          vscode.window.showInformationMessage("💡 Inline Method chosen");
 
-  const patch = await buildInlinePatch(fullCode, worst.name, filePath);
-  if (!patch || !patch.preview || patch.preview.trim().length < 10) {
-    vscode.window.showErrorMessage("AI failed to generate inline patch.");
-    return;
-  }
+          const patch = await buildInlinePatch(fullCode, worst.name, filePath);
+          if (!patch || !patch.preview || patch.preview.trim().length < 10) {
+            vscode.window.showErrorMessage("AI failed to generate inline patch.");
+            return;
+          }
 
-  const right = vscode.Uri.parse("untitled:RefactorPreview.java");
-  const edit = new vscode.WorkspaceEdit();
-  edit.insert(right, new vscode.Position(0, 0), patch.preview);
-  await vscode.workspace.applyEdit(edit);
-  await new Promise((r) => setTimeout(r, 200));
+          const right = vscode.Uri.parse("untitled:RefactorPreview.java");
+          const edit = new vscode.WorkspaceEdit();
+          edit.insert(right, new vscode.Position(0, 0), patch.preview);
+          await vscode.workspace.applyEdit(edit);
+          await new Promise((r) => setTimeout(r, 200));
 
-  await vscode.commands.executeCommand(
-    "vscode.diff",
-    originalUri,
-    right,
-    "🔄 Proposed Inline Refactoring (Original ← → Refactored)",
-    { preview: true }
-  );
+          await vscode.commands.executeCommand(
+            "vscode.diff",
+            originalUri,
+            right,
+            "🔄 Proposed Inline Refactoring (Original ← → Refactored)",
+            { preview: true }
+          );
 
-  const apply = await vscode.window.showQuickPick(["Apply refactor", "Cancel"], {
-    placeHolder: "Apply Inline Method?",
-  });
-  if (apply !== "Apply refactor") {
-    vscode.window.showInformationMessage("❌ Refactor canceled.");
-    return;
-  }
+          const apply = await vscode.window.showQuickPick(["Apply refactor", "Cancel"], {
+            placeHolder: "Apply Inline Method?",
+          });
+          if (apply !== "Apply refactor") {
+            vscode.window.showInformationMessage("❌ Refactor canceled.");
+            return;
+          }
 
-  const we = new vscode.WorkspaceEdit();
-  const fullRange = new vscode.Range(
-    new vscode.Position(0, 0),
-    new vscode.Position(refreshedDoc.lineCount, 0)
-  );
-  we.replace(originalUri, fullRange, patch.preview);
+          const we = new vscode.WorkspaceEdit();
+          const fullRange = new vscode.Range(
+            new vscode.Position(0, 0),
+            new vscode.Position(refreshedDoc.lineCount, 0)
+          );
+          we.replace(originalUri, fullRange, patch.preview);
 
-  const applied = await vscode.workspace.applyEdit(we);
-  if (!applied) {
-    vscode.window.showErrorMessage("Failed to apply inline edits.");
-    return;
-  }
+          const applied = await vscode.workspace.applyEdit(we);
+          if (!applied) {
+            vscode.window.showErrorMessage("Failed to apply inline edits.");
+            return;
+          }
 
-  await vscode.commands.executeCommand("editor.action.formatDocument");
-  await vscode.window.showTextDocument(originalUri, { preview: false });
-  await refreshedDoc.save();
+          await vscode.commands.executeCommand("editor.action.formatDocument");
+          await vscode.window.showTextDocument(originalUri, { preview: false });
+          await refreshedDoc.save();
 
-  vscode.window.showInformationMessage("✅ Inline Method applied successfully!");
-}
-
-
- else {
+          vscode.window.showInformationMessage("✅ Inline Method applied successfully!");
+        
+        } else {
           vscode.window.showInformationMessage(
             "No actionable refactor suggested."
           );
-          return; // Exit function, finally block will run
+          return;
         }
 
       } catch (err: any) {
@@ -417,7 +385,6 @@ export function activate(context: vscode.ExtensionContext) {
   const openDash = vscode.commands.registerCommand(
     "sustainadev.openDashboard",
     async () => {
-        // ... Your dashboard code (unchanged) ...
         const panel = vscode.window.createWebviewPanel(
             "sustainadevDashboard",
             "SustainaDev Dashboard",
@@ -512,8 +479,7 @@ export function activate(context: vscode.ExtensionContext) {
             context.subscriptions
         );
     }
-);
-
+  );
 
   context.subscriptions.push(runAnalyzer, analyzeActiveFile, openDash);
 }
