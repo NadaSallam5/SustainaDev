@@ -11,7 +11,7 @@ public class InvoiceCalculator {
         int count = 0;
 
         // Loop through prices and calculate
-        int[] results = processPrices(prices);
+        int[] results = calculateTotalAndCount(prices);
         total = results[0];
         count = results[1];
 
@@ -51,5 +51,20 @@ public class InvoiceCalculator {
             System.out.println("Discount applied: $" + discount);
             System.out.println("Final total: $" + (total - discount));
         }
+    }
+
+    private int[] calculateTotalAndCount(int[] prices) {
+        int total = 0;
+        int count = 0;
+
+        for (int price : prices) {
+            if (price > 0) {
+                total += price;
+                count++;
+            } else {
+                System.out.println("Invalid price skipped: " + price);
+            }
+        }
+        return new int[] { total, count };
     }
 }
