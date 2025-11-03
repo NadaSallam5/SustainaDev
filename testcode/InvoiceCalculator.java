@@ -10,7 +10,7 @@ public class InvoiceCalculator {
     }
 
     public void processOrder(int[] prices) {
-        int[] results = calculateTotalAndCount(prices);
+        int[] results = processPrices(prices);
         int total = results[0];
         int count = results[1];
 

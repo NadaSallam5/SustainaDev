@@ -1,3 +1,6 @@
+import java.util.Arrays;
+import java.util.List;
+
 public class complexsample {
 
     public static void main(String[] args) {
@@ -33,7 +36,21 @@ public class complexsample {
             }
 
             // 👇 Complex scoring logic – perfect for "Extract Method" refactor
-            int score = calculateUserScore(user, isAdult);
+            int score = 0;
+            if (isAdult && user.isActive()) {
+                score += 10;
+            } else if (isAdult) {
+                score += 5;
+            } else if (user.isActive()) {
+                score += 3;
+            } else {
+                score += 1;
+            }
+
+            if (user.getName().startsWith("A") || user.getName().startsWith("E")) {
+                score += 2;
+            }
+
             totalScore += score;
             System.out.println("User " + user.getName() + " has score: " + score);
         }
@@ -43,24 +60,6 @@ public class complexsample {
         System.out.println("Active users: " + totalActive);
         System.out.println("Adult users: " + totalAdults);
         System.out.println("Average score: " + avgScore);
-    }
-
-    private int calculateUserScore(User user, boolean isAdult) {
-        int score = 0;
-        if (isAdult && user.isActive()) {
-            score += 10;
-        } else if (isAdult) {
-            score += 5;
-        } else if (user.isActive()) {
-            score += 3;
-        } else {
-            score += 1;
-        }
-
-        if (user.getName().startsWith("A") || user.getName().startsWith("E")) {
-            score += 2;
-        }
-        return score;
     }
 
     // Simple data model
