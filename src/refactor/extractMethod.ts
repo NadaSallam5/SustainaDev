@@ -1,12 +1,33 @@
+// extractMethod.ts — with proper metrics logging (file-level CCN/NLOC sums)
 import OpenAI from "openai";
 import * as vscode from "vscode";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+import { runLizard } from "../analyzer/lizardRunner";
+import { estimateEnergy } from "../metrics/codeCarbon";
 
+/**
+ * Performs Extract Method refactoring with full metrics tracking and logging
+ */
 export async function buildExtractPatch(
   fullCode: string,
   range: { from: number; to: number },
   fileName?: string,
   context?: { methodBody?: string; locals?: string[] }
 ): Promise<{ preview: string; newMethod: string; callName: string }> {
+  
+  const workspace = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
+  const actualFileName = fileName || "UnknownFile.java";
+
+  // ---------------- BEFORE METRICS (file-level sums) ----------------
+  const beforeLizard = await safeRunLizard(actualFileName);
+  const beforeTotals = aggregateFileMetrics(beforeLizard);
+  const before = beforeTotals || { ccn: 0, nloc: 0 };
+
+  console.log(`📊 Before Extract Method: File CCN=${before.ccn}, NLOC=${before.nloc}`);
+
+  // ---------------- AI Extraction Logic ----------------
   const client = new OpenAI({
     apiKey:
       "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",
@@ -16,7 +37,6 @@ export async function buildExtractPatch(
   const adjustedFrom = Math.max(0, range.from - 1);
   const adjustedTo = range.to;
 
-  // Use adjustedFrom for extractClassBlock and prompt
   const { classBlock } = extractClassBlock(fullCode, adjustedFrom);
 
   const prompt = `
@@ -56,12 +76,10 @@ Choose a block that is:
 - Do not extract trivial helper methods that only wrap a loop or return primitive accumulators (e.g., total and count) 
   UNLESS the loop was originally inside a larger method that also handles other tasks (like printing or calculating).
 
-
-
 ---
 
 ### Input
-File: ${fileName ?? "UnknownFile.java"}
+File: ${actualFileName}
 Target method is between lines: ${range.from}–${range.to}
 
 ### Full class:
@@ -148,8 +166,9 @@ Reason:
     vscode.window.showInformationMessage(
       "AI couldn't find a good extraction candidate in this method."
     );
-    throw new Error("Ai couldn't find extraction candidate");
+    throw new Error("AI couldn't find extraction candidate");
   }
+
   if (!isBalanced(preview)) {
     vscode.window.showWarningMessage(
       "⚠️ AI output braces unbalanced — review before applying."
@@ -158,6 +177,66 @@ Reason:
 
   // Optional: Log what the AI decided to extract
   console.log(`AI extracted lines ${extractedLines}: ${reason}`);
+
+  // ---------------- AFTER METRICS (file-level sums) ----------------
+  // Write refactored code to a temp file for Lizard analysis
+  const tmpAfter = path.join(os.tmpdir(), `sustainadev_extract_after_${Date.now()}.java`);
+  fs.writeFileSync(tmpAfter, preview, "utf8");
+
+  const afterLizard = await safeRunLizard(tmpAfter);
+  const afterTotals = aggregateFileMetrics(afterLizard);
+  const after = afterTotals || { ccn: 0, nloc: 0 };
+
+  console.log(`📊 After Extract Method: File CCN=${after.ccn}, NLOC=${after.nloc}`);
+
+  // Cleanup temp file
+  try {
+    fs.unlinkSync(tmpAfter);
+  } catch (e) {
+    console.warn("Could not delete temp file:", e);
+  }
+
+  // ---------------- COMPUTE DELTA & LOG ----------------
+  // For Extract Method, complexity typically stays same or slightly changes
+  // But we track the actual delta
+  const delta = {
+    ccn: after.ccn - before.ccn, // Can be positive or negative
+    nloc: after.nloc - before.nloc,
+  };
+
+  const energy = await estimateEnergy(Math.abs(delta.ccn));
+
+  const logPath = path.join(workspace, ".sustainadev", "log.jsonl");
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    file: actualFileName,
+    refactor: "Extract Method",
+    before,
+    after,
+    delta,
+    verify: { refminer: false },
+    energy,
+    commit: {
+      message: `Extract Method in ${callName}: CCN ${before.ccn}→${after.ccn}, NLOC ${before.nloc}→${after.nloc}`,
+    },
+  };
+
+  // Ensure directory exists
+  try {
+    const dir = path.dirname(logPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  } catch (e) {
+    console.warn("Could not ensure .sustainadev dir exists:", e);
+  }
+
+  // Append to log
+  fs.appendFileSync(logPath, JSON.stringify(logEntry) + "\n", "utf8");
+
+  console.log(
+    `✅ Extract Method logged! Delta: CCN=${delta.ccn}, NLOC=${delta.nloc}`
+  );
 
   return { preview, newMethod, callName };
 }
@@ -227,4 +306,38 @@ function isBalanced(code: string): boolean {
     if (count < 0) return false;
   }
   return count === 0;
+}
+
+/**
+ * Safely run Lizard, returning empty result on failure
+ */
+async function safeRunLizard(file: string) {
+  try {
+    return await runLizard(file);
+  } catch (e) {
+    console.error("⚠️ Lizard failed on", file, e);
+    return { functions: [] };
+  }
+}
+
+/**
+ * Aggregates Lizard results into file-level totals (sum of all functions)
+ */
+function aggregateFileMetrics(lizardRes: any): { ccn: number; nloc: number } {
+  if (!lizardRes || !Array.isArray(lizardRes.functions)) {
+    return { ccn: 0, nloc: 0 };
+  }
+
+  const totals = lizardRes.functions.reduce(
+    (acc: { ccn: number; nloc: number }, fn: any) => {
+      const ccn = Number(fn.ccn ?? 0);
+      const nloc = Number(fn.nloc ?? 0);
+      acc.ccn += isNaN(ccn) ? 0 : ccn;
+      acc.nloc += isNaN(nloc) ? 0 : nloc;
+      return acc;
+    },
+    { ccn: 0, nloc: 0 }
+  );
+
+  return totals;
 }
