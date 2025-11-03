@@ -19,11 +19,7 @@ public class InvoiceCalculator {
         calculateAndPrintResults(total, count);
 
         // Apply discount if total is high
-        if (total > 500) {
-            double discount = total * 0.1;
-            System.out.println("Discount applied: $" + discount);
-            System.out.println("Final total: $" + (total - discount));
-        }
+        applyDiscountIfApplicable(total);
     }
 
     private void calculateAndPrintResults(int total, int count) {
@@ -47,5 +43,13 @@ public class InvoiceCalculator {
             }
         }
         return new int[] { total, count };
+    }
+
+    private void applyDiscountIfApplicable(int total) {
+        if (total > 500) {
+            double discount = total * 0.1;
+            System.out.println("Discount applied: $" + discount);
+            System.out.println("Final total: $" + (total - discount));
+        }
     }
 }
