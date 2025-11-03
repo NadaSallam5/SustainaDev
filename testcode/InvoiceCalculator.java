@@ -17,7 +17,7 @@ public class InvoiceCalculator {
         total = results[0];
         count = results[1];
 
-        calculateAverageAndPrint(total, count);
+        calculateAndPrintResults(total, count);
     }
 
     private int[] calculateTotalAndCount(int[] prices) {
@@ -47,6 +47,10 @@ public class InvoiceCalculator {
     private void calculateAverageAndPrint(int total, int count) {
         double avg = calculateAverage(total, count);
         printAverageAndSuccessMessage(avg);
+    }
+
+    private void calculateAndPrintResults(int total, int count) {
+        calculateAverageAndPrint(total, count);
     }
 
 }
