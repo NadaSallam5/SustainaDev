@@ -21,11 +21,22 @@ export async function buildExtractPatch(
   const actualFileName = fileName || "UnknownFile.java";
 
   // ---------------- BEFORE METRICS (file-level sums) ----------------
-  const beforeLizard = await safeRunLizard(actualFileName);
+  // Write ORIGINAL code to temp file for accurate Lizard measurement
+  const tmpBefore = path.join(os.tmpdir(), `sustainadev_extract_before_${Date.now()}.java`);
+  fs.writeFileSync(tmpBefore, fullCode, "utf8");
+  
+  const beforeLizard = await safeRunLizard(tmpBefore);
   const beforeTotals = aggregateFileMetrics(beforeLizard);
   const before = beforeTotals || { ccn: 0, nloc: 0 };
 
   console.log(`📊 Before Extract Method: File CCN=${before.ccn}, NLOC=${before.nloc}`);
+  
+  // Cleanup temp file
+  try {
+    fs.unlinkSync(tmpBefore);
+  } catch (e) {
+    console.warn("Could not delete temp before file:", e);
+  }
 
   // ---------------- AI Extraction Logic ----------------
   const client = new OpenAI({
