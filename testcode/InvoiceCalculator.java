@@ -1,10 +1,7 @@
 public class InvoiceCalculator {
 
     public static void main(String[] args) {
-        // 🧪 Sample input
         int[] prices = { 100, 50, -20, 200 };
-
-        // Run the unrefactored process
         InvoiceCalculator calculator = new InvoiceCalculator();
         calculator.processOrder(prices);
     }
@@ -13,55 +10,32 @@ public class InvoiceCalculator {
         int total = 0;
         int count = 0;
 
-        int[] results = calculateTotalAndCount(prices);
-        total = results[0];
-        count = results[1];
-
-        calculateAverageAndPrint(total, count);
-    }
-
-    private int[] calculateTotalAndCount(int[] prices) {
-        int total = 0;
-        int count = 0;
-
+        // Loop through prices and calculate
         for (int price : prices) {
             if (price > 0) {
                 total += price;
                 count++;
             } else {
-                System.out.println("Invalid price skipped: ");
+                System.out.println("Invalid price skipped: " + price);
             }
         }
-        return new int[] { total, count };
+
+        // Calculate average and print results
+        calculateAndPrintResults(total, count);
+
+        // Apply discount if total is high
+        if (total > 500) {
+            double discount = total * 0.1;
+            System.out.println("Discount applied: $" + discount);
+            System.out.println("Final total: $" + (total - discount));
+        }
     }
 
-    private double calculateAverage(int total, int count) {
-        return (count == 0) ? 0 : (double) total / count;
-    }
-
-    private void printAverageAndSuccessMessage(double avg) {
-        System.out.println("Average price: " + avg);
+    private void calculateAndPrintResults(int total, int count) {
+        double avg = (count == 0) ? 0 : (double) total / count;
+        System.out.println("Total: $" + total);
+        System.out.println("Count: " + count);
+        System.out.println("Average price: $" + avg);
         System.out.println("Order processed successfully.");
     }
-
-    private void calculateAverageAndPrint(int total, int count) {
-        double avg = calculateAverage(total, count);
-        printAverageAndSuccessMessage(avg);
-    }
-
-    private int[] extractAndCalculateTotalAndCount(int[] prices) {
-        int total = 0;
-        int count = 0;
-
-        for (int price : prices) {
-            if (price > 0) {
-                total += price;
-                count++;
-            } else {
-                System.out.println("Invalid price skipped: ");
-            }
-        }
-        return new int[] { total, count };
-    }
-
 }
