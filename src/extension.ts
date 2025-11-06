@@ -323,11 +323,8 @@ export function activate(context: vscode.ExtensionContext) {
         const afterFn =
           after.functions.find((f) => f.name === worst.name) ?? worst;
 
-        const explanation = buildExplanation(
-          worst.name,
-          { ccn: worst.ccn, nloc: worst.nloc },
-          { ccn: afterFn.ccn, nloc: afterFn.nloc }
-        );
+        const explanation = `📝 Refactor Explanation: ${patch.details.reason}`;
+
         vscode.window.showInformationMessage(explanation);
 
         // commit
