@@ -8,10 +8,17 @@
     "params" : 1,
     "forCount" : 0
   }, {
-    "ifCount" : 1,
+    "ifCount" : 0,
     "isLongMethod" : false,
     "name" : "processOrder",
-    "lines" : 20,
+    "lines" : 15,
+    "params" : 1,
+    "forCount" : 0
+  }, {
+    "ifCount" : 1,
+    "isLongMethod" : false,
+    "name" : "calculateTotals",
+    "lines" : 14,
     "params" : 1,
     "forCount" : 1
   } ]
