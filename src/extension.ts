@@ -205,6 +205,7 @@ export function activate(context: vscode.ExtensionContext) {
         }
 
         console.log("📦 Chosen Refactor:", chosenRefactor);
+        console.log("📋 Local variables detected:", input.context.locals);
 
         /* if (chosenRefactor === "Extract Method") {
           strategy = new ExtractMethodStrategy();
@@ -510,32 +511,31 @@ export function activate(context: vscode.ExtensionContext) {
         const patch = await refactorContext.execute(input);
         return patch;
       }
+
       async function getRenameVariableDetails(
         locals: string[]
       ): Promise<{ oldName: string; newName: string } | undefined> {
-        // Ask user to select the old variable name
-        const oldName = await vscode.window.showQuickPick(
-          locals.length > 0 ? locals : ["(type manually)"],
-          { placeHolder: "Select a variable to rename (from locals)" }
-        );
-
-        // Handle case where user types the old name manually
-        let finalOldName = oldName;
-        if (oldName === "(type manually)" || !oldName) {
-          finalOldName = await vscode.window.showInputBox({
-            prompt: "Enter the variable name to rename:",
-            placeHolder: "e.g., price",
-          });
-        }
-
-        if (!finalOldName) {
-          vscode.window.showErrorMessage("❌ No variable name provided.");
+        // Check if locals is empty
+        if (locals.length === 0) {
+          vscode.window.showInformationMessage(
+            "No local variables found in the current scope."
+          );
           return;
         }
 
-        // Ask user for the new variable name
+        // Show dropdown with available local variables for renaming
+        const oldName = await vscode.window.showQuickPick(locals, {
+          placeHolder: "Select a variable to rename (from locals)",
+        });
+
+        if (!oldName) {
+          vscode.window.showErrorMessage("❌ No variable selected.");
+          return;
+        }
+
+        // Ask for the new name
         const newName = await vscode.window.showInputBox({
-          prompt: `Enter the new name for '${finalOldName}':`,
+          prompt: `Enter the new name for '${oldName}':`,
           placeHolder: "e.g., itemPrice",
         });
 
@@ -544,8 +544,7 @@ export function activate(context: vscode.ExtensionContext) {
           return;
         }
 
-        // Return the old and new names
-        return { oldName: finalOldName, newName };
+        return { oldName, newName };
       }
     }
   );

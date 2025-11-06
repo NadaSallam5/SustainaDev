@@ -1,74 +1,24 @@
 [ {
-  "file" : "C:\\Users\\MM\\Downloads\\SustainaDev\\testcode\\complexsample.java",
-  "methods" : [ {
-    "ifCount" : 0,
-    "isLongMethod" : false,
-    "name" : "main",
-    "lines" : 11,
-    "params" : 1,
-    "forCount" : 0
-  }, {
-    "ifCount" : 7,
-    "isLongMethod" : false,
-    "name" : "processUsers",
-    "lines" : 46,
-    "params" : 1,
-    "extractableStart" : 23,
-    "extractableEnd" : 56,
-    "forCount" : 1
-  }, {
-    "ifCount" : 0,
-    "isLongMethod" : false,
-    "name" : "getName",
-    "lines" : 3,
-    "params" : 0,
-    "forCount" : 0
-  }, {
-    "ifCount" : 0,
-    "isLongMethod" : false,
-    "name" : "getAge",
-    "lines" : 3,
-    "params" : 0,
-    "forCount" : 0
-  }, {
-    "ifCount" : 0,
-    "isLongMethod" : false,
-    "name" : "isActive",
-    "lines" : 3,
-    "params" : 0,
-    "forCount" : 0
-  } ]
-}, {
-  "file" : "C:\\Users\\MM\\Downloads\\SustainaDev\\testcode\\InvoiceCalculator.java",
+  "file" : "c:\\Users\\MM\\Downloads\\SustainaDev\\testcode\\InvoiceCalculator.java",
   "methods" : [ {
     "ifCount" : 0,
     "isLongMethod" : false,
     "name" : "main",
     "lines" : 8,
     "params" : 1,
-    "forCount" : 0
-  }, {
-    "ifCount" : 0,
-    "isLongMethod" : false,
-    "name" : "processOrder",
-    "lines" : 10,
-    "params" : 1,
-    "forCount" : 0
-  }, {
-    "ifCount" : 0,
-    "isLongMethod" : false,
-    "name" : "printOrderSummary",
-    "lines" : 5,
-    "params" : 2,
-    "forCount" : 0
+    "body" : "{\r\n    // \uD83E\uDDEA Sample input\r\n    int[] prices = { 100, 50, -20, 200 };\r\n    // Run the unrefactored process\r\n    InvoiceCalculator calculator = new InvoiceCalculator();\r\n    calculator.processOrder(prices);\r\n}",
+    "forCount" : 0,
+    "locals" : [ "prices", "calculator" ]
   }, {
     "ifCount" : 1,
     "isLongMethod" : false,
-    "name" : "calculateTotals",
-    "lines" : 14,
+    "name" : "processOrder",
+    "lines" : 17,
     "params" : 1,
-    "extractableStart" : 33,
-    "extractableEnd" : 40,
-    "forCount" : 1
+    "body" : "{\r\n    int sum = 0;\r\n    int count = 0;\r\n    for (int price : prices) {\r\n        if (price > 0) {\r\n            sum += price;\r\n            count++;\r\n        } else {\r\n            System.out.println(\"Invalid price skipped: \" + price);\r\n        }\r\n    }\r\n    double average = (count == 0) ? 0 : (double) sum / count;\r\n    System.out.println(\"Average price: \" + average);\r\n    System.out.println(\"Order processed successfully.\");\r\n}",
+    "extractableStart" : 16,
+    "extractableEnd" : 23,
+    "forCount" : 1,
+    "locals" : [ "sum", "count", "price", "average" ]
   } ]
 } ]
