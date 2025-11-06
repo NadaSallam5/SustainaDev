@@ -1,6 +1,6 @@
 import {
   RefactorStrategy,
-  BaseRefactorInput,
+  RenameVariableInput,
   RefactorResult,
 } from "../core/refactor-strategy";
 import {
@@ -9,16 +9,11 @@ import {
   extractClassBlock,
 } from "../core/utils";
 
-interface RenameVariableInput extends BaseRefactorInput {
-  oldName: string;
-  newName: string;
-}
-
 export class RenameVariableStrategy implements RefactorStrategy {
   name = "rename-variable";
 
   buildPrompt(input: RenameVariableInput): string {
-    const { fullCode, fileName, oldName, newName, range, context } = input;
+    const { fullCode, fileName, oldName, newName, range } = input;
 
     // Adjusted range, although it may not be needed for variable renaming
     const adjustedFrom = Math.max(0, range.from - 1);
@@ -60,11 +55,7 @@ ${classBlock}
 ### Target Method Context
 Below is the **full method** that contains the target variable:
 
-\`\`\`java
-${context?.methodBody ?? "N/A"}
-\`\`\`
 
-Local variables in scope: ${context?.locals?.join(", ") || "none"}
 
 ---
 

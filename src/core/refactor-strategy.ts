@@ -2,8 +2,11 @@ export interface BaseRefactorInput {
   fullCode: string;
   fileName: string;
   range: { from: number; to: number };
-  context?: { methodBody?: string; locals?: string[] };
   [key: string]: any;
+}
+export interface RenameVariableInput extends BaseRefactorInput {
+  oldName: string;
+  newName: string;
 }
 
 export interface RefactorResult {

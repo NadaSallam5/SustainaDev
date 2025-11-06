@@ -13,7 +13,7 @@ export class ExtractMethodStrategy implements RefactorStrategy {
   name = "extract-method";
 
   buildPrompt(input: BaseRefactorInput): string {
-    const { fullCode, fileName, range, context } = input;
+    const { fullCode, fileName, range } = input;
 
     const adjustedFrom = Math.max(0, range.from - 1);
     const adjustedTo = range.to;
@@ -74,11 +74,9 @@ export class ExtractMethodStrategy implements RefactorStrategy {
     ### Target Method Context
     Below is the **full method** that contains the target code block:
     
-    \`\`\`java
-    ${context?.methodBody ?? "N/A"}
-    \`\`\`
+
     
-    Local variables in scope: ${context?.locals?.join(", ") || "none"}
+ 
     
     The code to extract lies between lines ${range.from}–${range.to}.
     You MUST replace those lines with a call to the new method at the same position inside the same parent method.
