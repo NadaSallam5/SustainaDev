@@ -64,36 +64,36 @@ public class Analyzer {
                                     m.findAll(ForStmt.class).size() + m.findAll(ForEachStmt.class).size());
                             methodInfo.put("isLongMethod", lines >= 50);
 
-                            // Detect first inner block (for/foreach/if)
-                            int blockStart = 0;
-                            int blockEnd = 0;
-                            if (m.findFirst(ForStmt.class).isPresent()) {
-                                var f = m.findFirst(ForStmt.class).get();
-                                blockStart = f.getBegin().map(pos -> pos.line).orElse(0);
-                                blockEnd = f.getEnd().map(pos -> pos.line).orElse(0);
-                            } else if (m.findFirst(ForEachStmt.class).isPresent()) {
-                                var f = m.findFirst(ForEachStmt.class).get();
-                                blockStart = f.getBegin().map(pos -> pos.line).orElse(0);
-                                blockEnd = f.getEnd().map(pos -> pos.line).orElse(0);
-                            } else if (m.findFirst(IfStmt.class).isPresent()) {
-                                var f = m.findFirst(IfStmt.class).get();
-                                blockStart = f.getBegin().map(pos -> pos.line).orElse(0);
-                                blockEnd = f.getEnd().map(pos -> pos.line).orElse(0);
-                            }
+                            // // Detect first inner block (for/foreach/if)
+                            // int blockStart = 0;
+                            // int blockEnd = 0;
+                            // if (m.findFirst(ForStmt.class).isPresent()) {
+                            // var f = m.findFirst(ForStmt.class).get();
+                            // blockStart = f.getBegin().map(pos -> pos.line).orElse(0);
+                            // blockEnd = f.getEnd().map(pos -> pos.line).orElse(0);
+                            // } else if (m.findFirst(ForEachStmt.class).isPresent()) {
+                            // var f = m.findFirst(ForEachStmt.class).get();
+                            // blockStart = f.getBegin().map(pos -> pos.line).orElse(0);
+                            // blockEnd = f.getEnd().map(pos -> pos.line).orElse(0);
+                            // } else if (m.findFirst(IfStmt.class).isPresent()) {
+                            // var f = m.findFirst(IfStmt.class).get();
+                            // blockStart = f.getBegin().map(pos -> pos.line).orElse(0);
+                            // blockEnd = f.getEnd().map(pos -> pos.line).orElse(0);
+                            // }
 
-                            if (blockStart > 0 && blockEnd > 0) {
-                                methodInfo.put("extractableStart", blockStart);
-                                methodInfo.put("extractableEnd", blockEnd);
-                            }
+                            // if (blockStart > 0 && blockEnd > 0) {
+                            // methodInfo.put("extractableStart", blockStart);
+                            // methodInfo.put("extractableEnd", blockEnd);
+                            // }
 
-                            String methodBody = m.getBody().map(Object::toString).orElse("");
-                            methodInfo.put("body", methodBody);
+                            // String methodBody = m.getBody().map(Object::toString).orElse("");
+                            // methodInfo.put("body", methodBody);
 
-                            List<String> localVars = m.findAll(VariableDeclarator.class)
-                                    .stream()
-                                    .map(v -> v.getNameAsString())
-                                    .toList();
-                            methodInfo.put("locals", localVars);
+                            // List<String> localVars = m.findAll(VariableDeclarator.class)
+                            // .stream()
+                            // .map(v -> v.getNameAsString())
+                            // .toList();
+                            // methodInfo.put("locals", localVars);
 
                             // ✅ FIX: add method info to the list!
                             methods.add(methodInfo);
@@ -112,6 +112,6 @@ public class Analyzer {
         om.writeValue(outputFile, reports);
 
         System.out.println("✅ Analysis complete! Results saved to: " + outputFile.getAbsolutePath());
-    
+
     }
 }
