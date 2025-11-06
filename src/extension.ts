@@ -156,7 +156,7 @@ export function activate(context: vscode.ExtensionContext) {
           path.dirname(filePath),
           "analysis-report.json"
         );
-        /* if (fs.existsSync(analyzerReport)) {
+        if (fs.existsSync(analyzerReport)) {
           try {
             const report = JSON.parse(fs.readFileSync(analyzerReport, "utf8"));
             const fileReport = report.find((r: any) =>
@@ -168,20 +168,10 @@ export function activate(context: vscode.ExtensionContext) {
 
             methodBody = method?.body ?? "";
             locals = method?.locals ?? [];
-
-            if (method?.extractableStart && method?.extractableEnd) {
-              from = method.extractableStart;
-              to = method.extractableEnd;
-              console.log(`📊 JavaParser block detected: ${from}-${to}`);
-            } else {
-              console.log(
-                "⚠️ Analyzer did not find an extractable block. Using Lizard range."
-              );
-            }
           } catch (err) {
             console.error("❌ Failed reading analyzer output:", err);
           }
-        } */
+        }
 
         const fullCode = refreshedDoc.getText();
 
@@ -208,79 +198,6 @@ export function activate(context: vscode.ExtensionContext) {
 
         console.log("📦 Chosen Refactor:", chosenRefactor);
         console.log("📋 Local variables detected:", input.context.locals);
-
-        /* if (chosenRefactor === "Extract Method") {
-          strategy = new ExtractMethodStrategy();
-          vscode.window.showInformationMessage(
-            "🔧 Using ExtractMethodStrategy..."
-          );
-        } else if (chosenRefactor === "Rename Variable") {
-          strategy = new RenameVariableStrategy();
-          vscode.window.showInformationMessage(
-            "✏️ Using RenameVariableStrategy..."
-          );
-
-          // 💡 Ask user which variable to rename
-          console.log("📋 Local variables detected:", input.context.locals);
-
-          const oldName = await vscode.window.showQuickPick(
-            input.context.locals.length > 0
-              ? input.context.locals
-              : ["(type manually)"],
-            { placeHolder: "Select a variable to rename (from locals)" }
-          );
-
-          let finalOldName = oldName;
-          if (oldName === "(type manually)" || !oldName) {
-            finalOldName = await vscode.window.showInputBox({
-              prompt: "Enter the variable name to rename:",
-              placeHolder: "e.g., price",
-            });
-          }
-
-          if (!finalOldName) {
-            vscode.window.showErrorMessage("❌ No variable name provided.");
-            return;
-          }
-
-          const newName = await vscode.window.showInputBox({
-            prompt: `Enter the new name for '${finalOldName}':`,
-            placeHolder: "e.g., itemPrice",
-          });
-
-          if (!newName) {
-            vscode.window.showErrorMessage("❌ No new name provided.");
-            return;
-          }
-
-          // ✅ Log rename parameters
-          console.log("✏️ Rename details:", { oldName: finalOldName, newName });
-          vscode.window.showInformationMessage(
-            `🪶 Rename '${finalOldName}' → '${newName}'`
-          );
-
-          // Add rename params to input
-          input.oldName = finalOldName;
-          input.newName = newName;
-        }
-
-        // 🧩 Defensive check
-        if (!strategy) {
-          vscode.window.showErrorMessage(
-            "❌ No refactor strategy selected — aborting."
-          );
-          return;
-        }
-
-        // 🧠 Step 5: Execute via context
-        const refactorContext = new RefactorContext(strategy);
-
-        console.log("🧠 Input passed to strategy:", input);
-        vscode.window.showInformationMessage(
-          `🚀 Executing ${chosenRefactor}...`
-        );
-
-        const patch = await refactorContext.execute(input); */
 
         const patch = await handleRefactor(chosenRefactor, input);
         console.log("✅ Refactor patch output:", patch);

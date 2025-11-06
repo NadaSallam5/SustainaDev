@@ -86,14 +86,14 @@ public class Analyzer {
                             // methodInfo.put("extractableEnd", blockEnd);
                             // }
 
-                            // String methodBody = m.getBody().map(Object::toString).orElse("");
-                            // methodInfo.put("body", methodBody);
+                            String methodBody = m.getBody().map(Object::toString).orElse("");
+                            methodInfo.put("body", methodBody);
 
-                            // List<String> localVars = m.findAll(VariableDeclarator.class)
-                            // .stream()
-                            // .map(v -> v.getNameAsString())
-                            // .toList();
-                            // methodInfo.put("locals", localVars);
+                            List<String> localVars = m.findAll(VariableDeclarator.class)
+                                    .stream()
+                                    .map(v -> v.getNameAsString())
+                                    .toList();
+                            methodInfo.put("locals", localVars);
 
                             // ✅ FIX: add method info to the list!
                             methods.add(methodInfo);
