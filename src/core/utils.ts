@@ -53,7 +53,7 @@ export function extractLabelValue(output: string, label: string): string {
   return match ? match[1].trim().split(/\s+/)[0] : "";
 }
 
-export function extractReasonValue(output: string, label: string): string {
+export function extractReason(output: string, label: string): string {
   const re = new RegExp(`${label}:\\s*(.*)`);
   const match = output.match(re);
   return match ? match[1].trim() : "";

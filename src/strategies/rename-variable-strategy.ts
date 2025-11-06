@@ -7,6 +7,7 @@ import {
   extractSection,
   extractLabelValue,
   extractClassBlock,
+  extractReason,
 } from "../core/utils";
 
 export class RenameVariableStrategy implements RefactorStrategy {
@@ -86,7 +87,7 @@ Reason:
       preview: extractSection(response, "Preview"),
       details: {
         renamedVariable: extractLabelValue(response, "Renamed Variable"),
-        reason: extractLabelValue(response, "Reason"),
+        reason: extractReason(response, "Reason"),
       },
     };
   }
