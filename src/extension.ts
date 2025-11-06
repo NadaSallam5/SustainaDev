@@ -323,7 +323,7 @@ export function activate(context: vscode.ExtensionContext) {
         const afterFn =
           after.functions.find((f) => f.name === worst.name) ?? worst;
 
-        const explanation = `📝 Refactor Explanation: ${patch.details.reason}`;
+        const explanation = `📝Explanation: ${patch.details.reason}`;
 
         vscode.window.showInformationMessage(explanation);
 
