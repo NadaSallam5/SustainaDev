@@ -156,7 +156,7 @@ export function activate(context: vscode.ExtensionContext) {
           path.dirname(filePath),
           "analysis-report.json"
         );
-        if (fs.existsSync(analyzerReport)) {
+        /* if (fs.existsSync(analyzerReport)) {
           try {
             const report = JSON.parse(fs.readFileSync(analyzerReport, "utf8"));
             const fileReport = report.find((r: any) =>
@@ -181,7 +181,7 @@ export function activate(context: vscode.ExtensionContext) {
           } catch (err) {
             console.error("❌ Failed reading analyzer output:", err);
           }
-        }
+        } */
 
         const fullCode = refreshedDoc.getText();
 
