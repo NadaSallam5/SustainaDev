@@ -15,7 +15,7 @@
     "name" : "processOrder",
     "lines" : 12,
     "params" : 1,
-    "body" : "{\r\n    int total = 0;\r\n    int count = 0;\r\n    int[] results = calculateTotals(prices);\r\n    total = results[0];\r\n    count = results[1];\r\n    double avg = (count == 0) ? 0 : (double) total / count;\r\n    printOrderSummary(total, count, avg);\r\n}",
+    "body" : "{\r\n    int total = 0;\r\n    int count = 0;\r\n    int[] results = calculateTotals(prices);\r\n    total = results[0];\r\n    count = results[1];\r\n    double avg = calculateAverage(total, count);\r\n    printOrderSummary(total, count, avg);\r\n}",
     "forCount" : 0,
     "locals" : [ "total", "count", "results", "avg" ]
   }, {
@@ -34,6 +34,15 @@
     "lines" : 6,
     "params" : 3,
     "body" : "{\r\n    System.out.println(\"Total price: \" + total);\r\n    System.out.println(\"Count of valid prices: \" + count);\r\n    System.out.println(\"Average price: \" + avg);\r\n    System.out.println(\"Order processed successfully.\");\r\n}",
+    "forCount" : 0,
+    "locals" : [ ]
+  }, {
+    "ifCount" : 0,
+    "isLongMethod" : false,
+    "name" : "calculateAverage",
+    "lines" : 3,
+    "params" : 2,
+    "body" : "{\r\n    return (count == 0) ? 0 : (double) total / count;\r\n}",
     "forCount" : 0,
     "locals" : [ ]
   } ]

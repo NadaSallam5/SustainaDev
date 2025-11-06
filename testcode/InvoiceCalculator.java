@@ -10,42 +10,42 @@ public class InvoiceCalculator {
     }
 
     public void processOrder(int[] prices) {
-        int total = 0;
+        int sum = 0;
         int count = 0;
 
         int[] results = calculateTotals(prices);
-        total = results[0];
+        sum = results[0];
         count = results[1];
 
-        double avg = calculateAverage(total, count);
+        double avg = calculateAverage(sum, count);
 
-        printOrderSummary(total, count, avg);
+        printOrderSummary(sum, count, avg);
     }
 
     private int[] calculateTotals(int[] prices) {
-        int total = 0;
+        int sum = 0;
         int count = 0;
 
         for (int price : prices) {
             if (price > 0) {
-                total += price;
+                sum += price;
                 count++;
             } else {
                 System.out.println("Invalid price skipped: " + price);
             }
         }
-        return new int[] { total, count };
+        return new int[] { sum, count };
     }
 
-    private void printOrderSummary(int total, int count, double avg) {
-        System.out.println("Total price: " + total);
+    private void printOrderSummary(int sum, int count, double avg) {
+        System.out.println("Total price: " + sum);
         System.out.println("Count of valid prices: " + count);
         System.out.println("Average price: " + avg);
         System.out.println("Order processed successfully.");
     }
 
-    private double calculateAverage(int total, int count) {
-        return (count == 0) ? 0 : (double) total / count;
+    private double calculateAverage(int sum, int count) {
+        return (count == 0) ? 0 : (double) sum / count;
     }
 
 }
