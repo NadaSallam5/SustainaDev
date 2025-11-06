@@ -7,6 +7,7 @@ import {
   extractSection,
   extractLabelValue,
   extractClassBlock,
+  extractReasonValue,
 } from "../core/utils";
 
 export class ExtractMethodStrategy implements RefactorStrategy {
@@ -115,7 +116,7 @@ export class ExtractMethodStrategy implements RefactorStrategy {
       details: {
         newMethod: extractSection(response, "New Method"),
         callName: extractLabelValue(response, "Call Name"),
-        reason: extractLabelValue(response, "Reason"),
+        reason: extractReasonValue(response, "Reason"),
       },
     };
   }
