@@ -121,11 +121,13 @@ export function activate(context: vscode.ExtensionContext) {
         const analyzerCmd = `java -jar "${jarPath}" "${projectPath}"`;
 
         console.log("🔍 Running Analyzer:", analyzerCmd);
+        console.log("📂 Analyzer working directory:", projectPath);
 
         try {
           await new Promise((resolve, reject) => {
             const proc = require("child_process").exec(
               analyzerCmd,
+              { cwd: projectPath },
               (err: any, stdout: string, stderr: string) => {
                 if (err) {
                   console.error("❌ Analyzer failed:", err.message);

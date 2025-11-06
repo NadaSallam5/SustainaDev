@@ -112,5 +112,6 @@ public class Analyzer {
         om.writeValue(outputFile, reports);
 
         System.out.println("✅ Analysis complete! Results saved to: " + outputFile.getAbsolutePath());
+    
     }
 }
