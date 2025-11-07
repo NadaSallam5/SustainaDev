@@ -26,10 +26,10 @@ export function activate(context: vscode.ExtensionContext) {
         "🚀 Running SustainaDev Java Analyzer..."
       );
 
-      const jarPath = path.join(
-        "C:\\Users\\mosta\\OneDrive - Misr International University\\Desktop\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
+      const jarPath = path.join( 
+        "C:\\Users\\Sarah Wael\\Desktop\\2SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
       );
-      const projectPath = "C:\\Users\\mosta\\OneDrive - Misr International University\\Desktop\\SustainaDev\\testcode";
+      const projectPath = "C:\\Users\\Sarah Wael\\Desktop\\2SustainaDev\\testcode";
       const command = `java -jar "${jarPath}" "${projectPath}"`;
 
       const terminal = vscode.window.createTerminal("SustainaDev Analyzer");
@@ -114,7 +114,7 @@ export function activate(context: vscode.ExtensionContext) {
         if ((decision.type as string) === "Extract Method") {
           
           const jarPath = path.join(
-            "C:\\Users\\mosta\\OneDrive - Misr International University\\Desktop\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
+            "C:\\Users\\Sarah Wael\\Desktop\\2SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
           );
           const projectPath = path.dirname(filePath);
           const analyzerCmd = `java -jar "${jarPath}" "${projectPath}"`;
