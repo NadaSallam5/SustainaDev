@@ -12,7 +12,7 @@ public class InvoiceCalculator {
     public void processOrder(int[] prices) {
         int total = 0;
         int count = 0;
-        int[] results = calculateTotalAndCount(prices);
+        int[] results = calculateTotals(prices);
         total = results[0];
         count = results[1];
 
@@ -24,7 +24,7 @@ public class InvoiceCalculator {
         System.out.println("Number of valid items: " + count);
     }
 
-    private int[] calculateTotalAndCount(int[] prices) {
+    private int[] calculateTotals(int[] prices) {
         int total = 0;
         int count = 0;
         for (int price : prices) {
