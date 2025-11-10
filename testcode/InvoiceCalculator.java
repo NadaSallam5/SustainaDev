@@ -10,19 +10,15 @@ public class InvoiceCalculator {
     }
 
     public void processOrder(int[] prices) {
-        int total = 0;
-        int count = 0;
-
-        int[] results = calculateTotalAndCount(prices);
-        total = results[0];
-        count = results[1];
-
-        double avg = calculateAverage(total, count);
+        int[] results = processPrices(prices);
+        int total = results[0];
+        int count = results[1];
+        double avg = (count == 0) ? 0 : (double) total / count;
         System.out.println("Average price: " + avg);
         System.out.println("Order processed successfully.");
     }
 
-    private int[] calculateTotalAndCount(int[] prices) {
+    private int[] processPrices(int[] prices) {
         int total = 0;
         int count = 0;
 
@@ -34,11 +30,6 @@ public class InvoiceCalculator {
                 System.out.println("Invalid price skipped: ");
             }
         }
-        return new int[] { total, count };
+        return new int[]{total, count};
     }
-
-    private double calculateAverage(int total, int count) {
-        return (count == 0) ? 0 : (double) total / count;
-    }
-
 }

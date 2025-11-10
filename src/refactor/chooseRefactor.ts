@@ -38,6 +38,18 @@ export function decideRefactorType(func: FunctionMetrics) {
     };
   }
 
+  // --- NEW: Detect possible rename candidates ---
+  const badNames = ["x", "y", "z", "a", "b", "data", "info", "temp"];
+  const found = badNames.find((n) => new RegExp(`\\b${n}\\b`).test(content));
+
+  if (found) {
+    return {
+      type: "Rename Variable",
+      reason: `Variable "${found}" may be unclear. Suggest renaming it.`,
+      candidate: found, // optional field for convenience
+    };
+  }
+
   return {
     type: "Extract Method",
     reason: `Function "${name}" moderately complex (CCN=${ccn}), extracting will improve readability.`,

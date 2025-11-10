@@ -14,6 +14,7 @@ import { appendLog } from "./metrics/logger";
 import * as fsp from "fs/promises";
 import { decideRefactorType } from "./refactor/chooseRefactor";
 import { buildInlinePatch } from "./refactor/inlinemethod";
+import { buildRenamePatch } from "./refactor/rename-variable";
 
 export function activate(context: vscode.ExtensionContext) {
   console.log("🟢 SustainaDev Analyzer extension is active");
@@ -374,6 +375,84 @@ export function activate(context: vscode.ExtensionContext) {
 
           vscode.window.showInformationMessage(
             "✅ Inline Method applied successfully!"
+          );
+        } else if ((decision.type as string) === "Rename Variable") {
+          vscode.window.showInformationMessage("💡 Rename Variable chosen");
+
+          // Extract potential variable names from the function content
+          const badNames = ["x", "y", "z", "a", "b", "data", "info", "temp"];
+          const foundVars = badNames.filter((n) =>
+            new RegExp(`\\b${n}\\b`).test(worst.content)
+          );
+
+          if (foundVars.length === 0) {
+            vscode.window.showWarningMessage(
+              "No unclear variable names found."
+            );
+            return;
+          }
+
+          // Let user pick which one to rename
+          const oldName = await vscode.window.showQuickPick(foundVars, {
+            placeHolder: "Pick a variable to rename",
+          });
+          if (!oldName) return;
+
+          const newName = await vscode.window.showInputBox({
+            prompt: `Enter a new name for "${oldName}"`,
+            placeHolder: "e.g. totalSum, userData, buffer",
+          });
+          if (!newName) return;
+
+          // Call AI to safely rename just that one variable
+          const patch = await buildRenamePatch(
+            fullCode,
+            oldName,
+            newName,
+            filePath
+          );
+
+          if (!patch || !patch.preview || patch.preview.trim().length < 10) {
+            vscode.window.showErrorMessage(
+              "AI failed to generate rename patch."
+            );
+            return;
+          }
+
+          // Preview and confirm like your other refactors
+          const right = vscode.Uri.parse("untitled:RefactorPreview.java");
+          const edit = new vscode.WorkspaceEdit();
+          edit.insert(right, new vscode.Position(0, 0), patch.preview);
+          await vscode.workspace.applyEdit(edit);
+          await new Promise((r) => setTimeout(r, 200));
+
+          await vscode.commands.executeCommand(
+            "vscode.diff",
+            originalUri,
+            right,
+            `🔄 Proposed Rename Variable (${oldName} → ${newName})`,
+            { preview: true }
+          );
+
+          const apply = await vscode.window.showQuickPick(
+            ["Apply refactor", "Cancel"],
+            {
+              placeHolder: `Apply rename for "${oldName}"?`,
+            }
+          );
+          if (apply !== "Apply refactor") return;
+
+          const we = new vscode.WorkspaceEdit();
+          const fullRange = new vscode.Range(
+            new vscode.Position(0, 0),
+            new vscode.Position(refreshedDoc.lineCount, 0)
+          );
+          we.replace(originalUri, fullRange, patch.preview);
+          await vscode.workspace.applyEdit(we);
+          await refreshedDoc.save();
+
+          vscode.window.showInformationMessage(
+            `✅ Variable "${oldName}" renamed successfully!`
           );
         } else {
           vscode.window.showInformationMessage(
