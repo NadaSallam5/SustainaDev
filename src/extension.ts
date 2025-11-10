@@ -28,10 +28,9 @@ export function activate(context: vscode.ExtensionContext) {
       );
 
       const jarPath = path.join(
-        "C:\\Users\\Sarah Wael\\Desktop\\2SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
+        "c:\\Users\\MM\\Downloads\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
       );
-      const projectPath =
-        "C:\\Users\\Sarah Wael\\Desktop\\2SustainaDev\\testcode";
+      const projectPath = "c:\\Users\\MM\\Downloads\\SustainaDev\\testcode";
       const command = `java -jar "${jarPath}" "${projectPath}"`;
 
       const terminal = vscode.window.createTerminal("SustainaDev Analyzer");
@@ -115,7 +114,7 @@ export function activate(context: vscode.ExtensionContext) {
         // =================================================================
         if ((decision.type as string) === "Extract Method") {
           const jarPath = path.join(
-            "C:\\Users\\Sarah Wael\\Desktop\\2SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
+            "c:\\Users\\MM\\Downloads\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
           );
           const projectPath = path.dirname(filePath);
           const analyzerCmd = `java -jar "${jarPath}" "${projectPath}"`;
@@ -381,9 +380,7 @@ export function activate(context: vscode.ExtensionContext) {
 
           // Extract potential variable names from the function content
           const badNames = ["x", "y", "z", "a", "b", "data", "info", "temp"];
-          const foundVars = badNames.filter((n) =>
-            new RegExp(`\\b${n}\\b`).test(worst.content)
-          );
+          const foundVars = [] as string[];
 
           if (foundVars.length === 0) {
             vscode.window.showWarningMessage(
