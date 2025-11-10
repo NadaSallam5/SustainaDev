@@ -10,13 +10,14 @@ public class InvoiceCalculator {
     }
 
     public void processOrder(int[] prices) {
+
         int[] results = processPrices(prices);
         int total = results[0];
         int count = results[1];
-        double avg = (count == 0) ? 0 : (double) total / count;
-        System.out.println("Average price: " + avg);
-        System.out.println("Order processed successfully.");
-    }
+
+        
+
+        
 
     private int[] processPrices(int[] prices) {
         int total = 0;
@@ -27,9 +28,9 @@ public class InvoiceCalculator {
                 total += price;
                 count++;
             } else {
-                System.out.println("Invalid price skipped: ");
+                System.o
             }
         }
-        return new int[]{total, count};
+        return new int[] { total, count };
     }
-}
+}   
