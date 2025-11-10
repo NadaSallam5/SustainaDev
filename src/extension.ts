@@ -167,16 +167,6 @@ export function activate(context: vscode.ExtensionContext) {
 
               methodBody = method?.body ?? "";
               locals = method?.locals ?? [];
-
-              if (method?.extractableStart && method?.extractableEnd) {
-                from = method.extractableStart;
-                to = method.extractableEnd;
-                console.log(`📊 JavaParser block detected: ${from}-${to}`);
-              } else {
-                console.log(
-                  "⚠️ Analyzer did not find an extractable block. Using Lizard range."
-                );
-              }
             } catch (err) {
               console.error("❌ Failed reading analyzer output:", err);
             }
