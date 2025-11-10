@@ -59,6 +59,7 @@ export async function buildExtractPatch(
 
   const { classBlock } = extractClassBlock(fullCode, adjustedFrom);
 
+  console.log("here is method body " + context?.methodBody);
   const prompt = `
 You are a senior Java refactoring engineer performing an **Extract Method** refactoring.
 

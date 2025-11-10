@@ -125,6 +125,7 @@ export function activate(context: vscode.ExtensionContext) {
             await new Promise((resolve, reject) => {
               const proc = require("child_process").exec(
                 analyzerCmd,
+                { cwd: projectPath },
                 (err: any, stdout: string, stderr: string) => {
                   if (err) {
                     console.error("❌ Analyzer failed:", err.message);
