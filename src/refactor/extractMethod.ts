@@ -16,22 +16,30 @@ export async function buildExtractPatch(
   fileName?: string,
   context?: { methodBody?: string; locals?: string[] }
 ): Promise<{ preview: string; newMethod: string; callName: string }> {
-  
-  const workspace = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
+  const workspace =
+    vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
   const actualFileName = fileName || "UnknownFile.java";
 
   // ---------------- BEFORE METRICS (file-level sums) ----------------
   // Write ORIGINAL code to temp file for accurate Lizard measurement
-  const tmpBefore = path.join(os.tmpdir(), `sustainadev_extract_before_${Date.now()}.java`);
+  const tmpBefore = path.join(
+    os.tmpdir(),
+    `sustainadev_extract_before_${Date.now()}.java`
+  );
   fs.writeFileSync(tmpBefore, fullCode, "utf8");
-  
+
   const beforeLizard = await safeRunLizard(tmpBefore);
-  console.log(`🔍 Lizard BEFORE returned:`, JSON.stringify(beforeLizard, null, 2));
+  console.log(
+    `🔍 Lizard BEFORE returned:`,
+    JSON.stringify(beforeLizard, null, 2)
+  );
   const beforeTotals = aggregateFileMetrics(beforeLizard);
   const before = beforeTotals || { ccn: 0, nloc: 0 };
 
-  console.log(`📊 Before Extract Method: File CCN=${before.ccn}, NLOC=${before.nloc}`);
-  
+  console.log(
+    `📊 Before Extract Method: File CCN=${before.ccn}, NLOC=${before.nloc}`
+  );
+
   // Cleanup temp file
   try {
     fs.unlinkSync(tmpBefore);
@@ -192,15 +200,23 @@ Reason:
 
   // ---------------- AFTER METRICS (file-level sums) ----------------
   // Write refactored code to a temp file for Lizard analysis
-  const tmpAfter = path.join(os.tmpdir(), `sustainadev_extract_after_${Date.now()}.java`);
+  const tmpAfter = path.join(
+    os.tmpdir(),
+    `sustainadev_extract_after_${Date.now()}.java`
+  );
   fs.writeFileSync(tmpAfter, preview, "utf8");
 
   const afterLizard = await safeRunLizard(tmpAfter);
-  console.log(`🔍 Lizard AFTER returned:`, JSON.stringify(afterLizard, null, 2));
+  console.log(
+    `🔍 Lizard AFTER returned:`,
+    JSON.stringify(afterLizard, null, 2)
+  );
   const afterTotals = aggregateFileMetrics(afterLizard);
   const after = afterTotals || { ccn: 0, nloc: 0 };
 
-  console.log(`📊 After Extract Method: File CCN=${after.ccn}, NLOC=${after.nloc}`);
+  console.log(
+    `📊 After Extract Method: File CCN=${after.ccn}, NLOC=${after.nloc}`
+  );
 
   // Cleanup temp file
   try {
@@ -338,7 +354,7 @@ async function safeRunLizard(file: string) {
  */
 function aggregateFileMetrics(lizardRes: any): { ccn: number; nloc: number } {
   console.log(`🔧 Aggregating metrics from:`, lizardRes);
-  
+
   if (!lizardRes || !Array.isArray(lizardRes.functions)) {
     console.warn(`⚠️ Invalid Lizard result - no functions array found`);
     return { ccn: 0, nloc: 0 };

@@ -27,9 +27,10 @@ export function activate(context: vscode.ExtensionContext) {
       );
 
       const jarPath = path.join(
-        "c:\\Users\\MM\\Downloads\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
+        "C:\\Users\\Sarah Wael\\Desktop\\2SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
       );
-      const projectPath = "C:\\Users\\MM\\Downloads\\SustainaDev\\testcode";
+      const projectPath =
+        "C:\\Users\\Sarah Wael\\Desktop\\2SustainaDev\\testcode";
       const command = `java -jar "${jarPath}" "${projectPath}"`;
 
       const terminal = vscode.window.createTerminal("SustainaDev Analyzer");
@@ -113,7 +114,7 @@ export function activate(context: vscode.ExtensionContext) {
         // =================================================================
         if ((decision.type as string) === "Extract Method") {
           const jarPath = path.join(
-            "c:\\Users\\MM\\Downloads\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
+            "C:\\Users\\Sarah Wael\\Desktop\\2SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
           );
           const projectPath = path.dirname(filePath);
           const analyzerCmd = `java -jar "${jarPath}" "${projectPath}"`;
