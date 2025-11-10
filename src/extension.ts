@@ -9,7 +9,7 @@ import { buildExtractPatch, extractClassBlock } from "./refactor/extractMethod";
 import { buildExplanation } from "./refactor/explanation";
 import { gitCommit } from "./git/commit";
 import { verifyLastRefactor } from "./git/refactoringMiner";
-import { estimateEnergy } from "./metrics/codeCarbon";
+import { estimateEnergy, initPaths } from "./metrics/codeCarbon";
 import { appendLog } from "./metrics/logger";
 import * as fsp from "fs/promises";
 import { decideRefactorType } from "./refactor/chooseRefactor";
@@ -72,6 +72,7 @@ export function activate(context: vscode.ExtensionContext) {
       );
 
       try {
+        initPaths(context);
         const editor = vscode.window.activeTextEditor;
         if (editor && editor.document.isDirty) {
           await editor.document.save();

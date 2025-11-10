@@ -12,16 +12,19 @@ public class InvoiceCalculator {
     public void processOrder(int[] prices) {
         int total = 0;
         int count = 0;
-        int[] results = processPrices(prices);
+        int[] results = calculateTotalAndCount(prices);
         total = results[0];
         count = results[1];
 
         double avg = (count == 0) ? 0 : (double) total / count;
+
+        System.out.println("Processing order...");
         System.out.println("Total price: " + total);
         System.out.println("Average price: " + avg);
+        System.out.println("Number of valid items: " + count);
     }
 
-    private int[] processPrices(int[] prices) {
+    private int[] calculateTotalAndCount(int[] prices) {
         int total = 0;
         int count = 0;
         for (int price : prices) {
