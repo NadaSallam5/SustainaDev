@@ -10,18 +10,23 @@ public class InvoiceCalculator {
     }
 
     public void processOrder(int[] prices) {
+
+        System.out.println("Processing order...");
+
         int total = 0;
         int count = 0;
-        int[] results = calculateTotals(prices);
+        int[] results = calculateTotalAndCount(prices);
         total = results[0];
         count = results[1];
 
-        double avg = calculateAverage(total, count);
+        double avg = (count == 0) ? 0 : (double) total / count;
 
-        printOrderSummary(total, avg, count);
+        System.out.println("Total price: " + total);
+        System.out.println("Average price: " + avg);
+        System.out.println("Number of valid items: " + count);
     }
 
-    private int[] calculateTotals(int[] prices) {
+    private int[] calculateTotalAndCount(int[] prices) {
         int total = 0;
         int count = 0;
         for (int price : prices) {
@@ -33,17 +38,6 @@ public class InvoiceCalculator {
             }
         }
         return new int[] { total, count };
-    }
-
-    private void printOrderSummary(int total, double avg, int count) {
-        System.out.println("Processing order...");
-        System.out.println("Total price: " + total);
-        System.out.println("Average price: " + avg);
-        System.out.println("Number of valid items: " + count);
-    }
-
-    private double calculateAverage(int total, int count) {
-        return (count == 0) ? 0 : (double) total / count;
     }
 
 }

@@ -119,6 +119,13 @@ You MUST replace those lines with a call to the new method at the same position 
 
 ---
 
+- If extraction would be redundant or add unnecessary indirection,
+  respond with:
+  Call Name: none
+  Preview: none
+  New Method: none
+  Reason: Extraction redundant — method already simple or cohesive.
+
 ### Output Format (strict)
 Respond ONLY with the formatted output below.  
 Do not include any explanations, commentary, or markdown outside the specified format.  
@@ -178,6 +185,13 @@ Reason:
   if (!preview || !newMethod || !callName) {
     vscode.window.showErrorMessage("AI output missing sections.");
     throw new Error("Incomplete AI response");
+  }
+
+  if (callName === "none" || !preview || preview === "none") {
+    vscode.window.showInformationMessage(
+      `ℹ️ AI decided no extraction was necessary (redundant or trivial method).`
+    );
+    throw new Error("Extraction skipped by AI decision");
   }
 
   if (!extractedLines || extractedLines === "none") {
