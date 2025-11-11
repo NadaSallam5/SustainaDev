@@ -369,17 +369,76 @@ export function activate(context: vscode.ExtensionContext) {
         } else if ((decision.type as string) === "Rename Variable") {
           vscode.window.showInformationMessage("💡 Rename Variable chosen");
 
+          const jarPath = path.join(
+            "c:\\Users\\MM\\Downloads\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
+          );
+          const projectPath = path.dirname(filePath);
+          const analyzerCmd = `java -jar "${jarPath}" "${projectPath}"`;
+
+          console.log("🔍 Running Analyzer:", analyzerCmd);
+
+          try {
+            await new Promise((resolve, reject) => {
+              const proc = require("child_process").exec(
+                analyzerCmd,
+                { cwd: projectPath },
+                (err: any, stdout: string, stderr: string) => {
+                  if (err) {
+                    console.error("❌ Analyzer failed:", err.message);
+                    console.error("stderr:", stderr);
+                    reject(err);
+                  } else {
+                    console.log("✅ Analyzer output:", stdout);
+                    resolve(null);
+                  }
+                }
+              );
+            });
+          } catch (err: any) {
+            vscode.window.showWarningMessage(
+              `⚠️ Analyzer failed to run: ${err.message}. Using Lizard fallback.`
+            );
+            console.error("Analyzer execution error:", err);
+          }
+
+          let from = worst.start;
+          let to = worst.end;
+          let methodBody = "";
+          let locals: string[] = [];
+          const analyzerReport = path.join(
+            path.dirname(filePath),
+            "analysis-report.json"
+          );
+          if (fs.existsSync(analyzerReport)) {
+            try {
+              const report = JSON.parse(
+                fs.readFileSync(analyzerReport, "utf8")
+              );
+              const fileReport = report.find((r: any) =>
+                r.file.includes(path.basename(filePath))
+              );
+              const method = fileReport?.methods?.find(
+                (m: any) => m.name === worst.name
+              );
+
+              methodBody = method?.body ?? "";
+              locals = method?.locals ?? [];
+            } catch (err) {
+              console.error("❌ Failed reading analyzer output:", err);
+            }
+          }
           // Extract potential variable names from the function content
-          const badNames = ["x", "y", "z", "a", "b", "data", "info", "temp"];
-          const foundVars = [] as string[];
+          /* const badNames = ["x", "y", "z", "a", "b", "data", "info", "temp"];
+
+          let foundVars = locals.filter((v) => badNames.includes(v));
 
           if (foundVars.length === 0) {
+            // fallback in case analyzer missed them
             vscode.window.showWarningMessage(
               "No unclear variable names found."
             );
-            return;
-          }
-
+          } */
+          const foundVars = locals; // use all local vars for user to pick
           // Let user pick which one to rename
           const oldName = await vscode.window.showQuickPick(foundVars, {
             placeHolder: "Pick a variable to rename",
@@ -397,6 +456,7 @@ export function activate(context: vscode.ExtensionContext) {
             fullCode,
             oldName,
             newName,
+            { from, to },
             filePath
           );
 

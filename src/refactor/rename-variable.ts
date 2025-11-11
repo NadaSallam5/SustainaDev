@@ -12,6 +12,7 @@ export async function buildRenamePatch(
   fullCode: string,
   oldName: string,
   newName: string,
+  range: { from: number; to: number },
   fileName?: string
 ): Promise<{ preview: string; renamed: string }> {
   const workspace =
@@ -44,8 +45,10 @@ export async function buildRenamePatch(
     project: "proj_LNUP8IUIyX6NsPPmk5Fg5e37",
   });
 
-  const { classBlock } = extractClassBlock(fullCode, 0);
+  const adjustedFrom = Math.max(0, range.from - 1);
 
+  // Use adjustedFrom for extractClassBlock and prompt
+  const { classBlock } = extractClassBlock(fullCode, adjustedFrom);
   const prompt = `
 You are a Java refactoring expert performing a **Rename Variable** operation.
 

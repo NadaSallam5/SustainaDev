@@ -6,6 +6,16 @@ import { FunctionMetrics } from "../types";
 export function decideRefactorType(func: FunctionMetrics) {
   const { name, ccn, nloc, tokenCount = 0, callCount = 1, content = "" } = func;
 
+  // --- NEW: Detect possible rename candidates ---
+  /*  const badNames = ["x", "y", "z", "a", "b", "data", "info", "temp"];
+  const found = badNames.find((n) => new RegExp(`\\b${n}\\b`).test(content));
+ */
+  /* if (true) {
+    return {
+      type: "Rename Variable",
+      reason: `Variable  may be unclear. Suggest renaming it.`,
+    };
+  } */
   // Metric-based rules
   if (ccn > 10 || nloc > 40) {
     return {
@@ -35,18 +45,6 @@ export function decideRefactorType(func: FunctionMetrics) {
     return {
       type: "Inline Method",
       reason: `Function "${name}" just delegates to another method — safe to inline.`,
-    };
-  }
-
-  // --- NEW: Detect possible rename candidates ---
-  const badNames = ["x", "y", "z", "a", "b", "data", "info", "temp"];
-  const found = badNames.find((n) => new RegExp(`\\b${n}\\b`).test(content));
-
-  if (found) {
-    return {
-      type: "Rename Variable",
-      reason: `Variable "${found}" may be unclear. Suggest renaming it.`,
-      candidate: found, // optional field for convenience
     };
   }
 

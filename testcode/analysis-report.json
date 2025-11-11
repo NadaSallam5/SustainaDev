@@ -46,11 +46,11 @@
     "ifCount" : 0,
     "isLongMethod" : false,
     "name" : "processOrder",
-    "lines" : 22,
+    "lines" : 24,
     "params" : 1,
-    "body" : "{\r\n    int total = 0;\r\n    int count = 0;\r\n    int[] results = calculateTotalAndCount(prices);\r\n    total = results[0];\r\n    count = results[1];\r\n    double avg = (count == 0) ? 0 : (double) total / count;\r\n    double discount = calculateDiscount(total);\r\n    double finalPrice = total - discount;\r\n    // \uD83E\uDDEE Simulate extra processing\r\n    verifyItems(count);\r\n    System.out.println(\"Order processed.\");\r\n    System.out.println(\"Total price: \" + total);\r\n    System.out.println(\"Discount: \" + discount);\r\n    System.out.println(\"Final price: \" + finalPrice);\r\n    System.out.println(\"Average price: \" + avg);\r\n    System.out.println(\"Number of valid items: \" + count);\r\n}",
-    "forCount" : 0,
-    "locals" : [ "total", "count", "results", "avg", "discount", "finalPrice" ]
+    "body" : "{\r\n    int total = 0;\r\n    int count = 0;\r\n    int[] results = calculateTotalAndCount(prices);\r\n    total = results[0];\r\n    count = results[1];\r\n    double avg = (count == 0) ? 0 : (double) total / count;\r\n    double discount = calculateDiscount(total);\r\n    double finalPrice = total - discount;\r\n    // \uD83E\uDDEE Simulate extra processing\r\n    for (int i = 0; i < count; i++) {\r\n        System.out.println(\"Verifying item #\" + (i + 1));\r\n    }\r\n    System.out.println(\"Order processed.\");\r\n    System.out.println(\"Total price: \" + total);\r\n    System.out.println(\"Discount: \" + discount);\r\n    System.out.println(\"Final price: \" + finalPrice);\r\n    System.out.println(\"Average price: \" + avg);\r\n    System.out.println(\"Number of valid items: \" + count);\r\n}",
+    "forCount" : 1,
+    "locals" : [ "total", "count", "results", "avg", "discount", "finalPrice", "i" ]
   }, {
     "ifCount" : 1,
     "isLongMethod" : false,
@@ -69,14 +69,17 @@
     "body" : "{\r\n    double discount = 0.0;\r\n    if (total > 500) {\r\n        discount = total * 0.1;\r\n        System.out.println(\"Applying 10% discount for large order.\");\r\n    } else if (total > 200) {\r\n        discount = total * 0.05;\r\n        System.out.println(\"Applying 5% discount for medium order.\");\r\n    } else {\r\n        System.out.println(\"No discount applied.\");\r\n    }\r\n    return discount;\r\n}",
     "forCount" : 0,
     "locals" : [ "discount" ]
-  }, {
+  } ]
+}, {
+  "file" : "c:\\Users\\MM\\Downloads\\SustainaDev\\testcode\\renameTest.java",
+  "methods" : [ {
     "ifCount" : 0,
     "isLongMethod" : false,
-    "name" : "verifyItems",
-    "lines" : 5,
+    "name" : "main",
+    "lines" : 8,
     "params" : 1,
-    "body" : "{\r\n    for (int i = 0; i < count; i++) {\r\n        System.out.println(\"Verifying item #\" + (i + 1));\r\n    }\r\n}",
-    "forCount" : 1,
-    "locals" : [ "i" ]
+    "body" : "{\r\n    int x = 5;\r\n    int y = 10;\r\n    int z = x + y;\r\n    System.out.println(\"Sum: \" + z);\r\n}",
+    "forCount" : 0,
+    "locals" : [ "x", "y", "z" ]
   } ]
 } ]
