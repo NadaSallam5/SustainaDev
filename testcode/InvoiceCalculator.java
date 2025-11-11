@@ -22,9 +22,7 @@ public class InvoiceCalculator {
         double finalPrice = total - discount;
 
         // 🧮 Simulate extra processing
-        for (int i = 0; i < count; i++) {
-            System.out.println("Verifying item #" + (i + 1));
-        }
+        verifyItems(count);
 
         System.out.println("Order processed.");
         System.out.println("Total price: " + total);
@@ -64,5 +62,11 @@ public class InvoiceCalculator {
             System.out.println("No discount applied.");
         }
         return discount;
+    }
+
+    private void verifyItems(int count) {
+        for (int i = 0; i < count; i++) {
+            System.out.println("Verifying item #" + (i + 1));
+        }
     }
 }

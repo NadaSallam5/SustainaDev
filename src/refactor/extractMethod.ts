@@ -111,9 +111,7 @@ ${classBlock}
 ### Target Method Context
 Below is the **full method** that contains the target code block:
 
-\`\`\`java
-${context?.methodBody ?? "N/A"}
-\`\`\`
+
 
 Local variables in scope: ${context?.locals?.join(", ") || "none"}
 
@@ -393,12 +391,4 @@ function extractReason(output: string, label: string): string {
   const re = new RegExp(`${label}:\\s*(.*)`);
   const match = output.match(re);
   return match ? match[1].trim() : "";
-}
-
-export function isHelperFunction(fn: any): boolean {
-  const name = fn.name;
-  // Skip private methods
-  if (/private\s/.test(fn.code ?? "")) return true;
-  // Skip short and pure functions
-  return false;
 }
