@@ -51,4 +51,8 @@ public class InvoiceCalculator {
         System.out.println("Number of valid items: " + count);
     }
 
+    private void printInvalidPriceMessage() {
+        System.out.println("Invalid price skipped: ");
+    }
+
 }
