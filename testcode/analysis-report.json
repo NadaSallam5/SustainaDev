@@ -46,7 +46,7 @@
     "ifCount" : 1,
     "isLongMethod" : false,
     "name" : "processOrder",
-    "lines" : 23,
+    "lines" : 24,
     "params" : 1,
     "body" : "{\r\n    int total = 0;\r\n    int count = 0;\r\n    for (int price : prices) {\r\n        if (price > 0) {\r\n            total += price;\r\n            count++;\r\n        } else {\r\n            System.out.println(\"Invalid price skipped: \");\r\n        }\r\n    }\r\n    double average = (count == 0) ? 0 : (double) total / count;\r\n    for (int i = 0; i < count; i++) {\r\n        System.out.println(\"Verifying item #\" + (i + 1));\r\n    }\r\n    System.out.println(\"Order processed.\");\r\n    System.out.println(\"Total price: \" + total);\r\n    System.out.println(\"Average price: \" + average);\r\n    System.out.println(\"Number of valid items: \" + count);\r\n}",
     "forCount" : 2,
