@@ -443,7 +443,7 @@ export function activate(context: vscode.ExtensionContext) {
           const foundVars = decision.candidate ? [decision.candidate] : locals;
           // Let user pick which one to rename
           const oldName = await vscode.window.showQuickPick(foundVars, {
-            placeHolder: "Pick a variable to rename",
+            placeHolder: "Pick a unreadable variable to rename",
           });
           if (!oldName) return;
 
@@ -507,7 +507,7 @@ export function activate(context: vscode.ExtensionContext) {
           const apply = await vscode.window.showQuickPick(
             ["Apply refactor", "Cancel"],
             {
-              placeHolder: "Apply Extract Method?",
+              placeHolder: "Apply Rename Variable?",
             }
           );
           if (apply !== "Apply refactor") {
