@@ -147,8 +147,7 @@ New Method:
 Call Name:
 (newMethodNameOnly)
 
-Extracted Lines:
-(start–end line numbers, e.g., "38–42")
+
 
 Reason:
 (one short sentence explaining why this block was chosen)
@@ -175,7 +174,6 @@ Reason:
   const preview = extractSection(text, "Preview");
   const newMethod = extractSection(text, "New Method");
   const callName = extractLabelValue(text, "Call Name");
-  const extractedLines = extractLabelValue(text, "Extracted Lines");
   const reason = extractReason(text, "Reason");
 
   // 🧩 Ensure AI output contains only ONE class
@@ -191,12 +189,12 @@ Reason:
     throw new Error("Incomplete AI response");
   }
 
-  if (!extractedLines || extractedLines === "none") {
+  /* if (!extractedLines || extractedLines === "none") {
     vscode.window.showInformationMessage(
       "AI couldn't find a good extraction candidate in this method."
     );
     throw new Error("AI couldn't find extraction candidate");
-  }
+  } */
 
   if (!isBalanced(preview)) {
     vscode.window.showWarningMessage(
@@ -205,7 +203,7 @@ Reason:
   }
 
   // Optional: Log what the AI decided to extract
-  console.log(`AI extracted lines ${extractedLines}: ${reason}`);
+  // console.log(`AI extracted lines ${extractedLines}: ${reason}`);
 
   // ---------------- AFTER METRICS (file-level sums) ----------------
   // Write refactored code to a temp file for Lizard analysis
