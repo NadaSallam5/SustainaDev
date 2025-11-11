@@ -389,8 +389,11 @@ export function isHelperFunction(fn: any, fileContent: string): boolean {
   const lines = fileContent.split(/\r?\n/);
   const start = Math.max(fn.start - 1, 0);
   const end = Math.min(fn.end, lines.length);
-  const code = lines.slice(start, end).join("\n");
 
+  let code = lines.slice(start, end).join("\n");
+  code = code.replace(/^[\s\}]+/, "");
+
+  console.log(code);
   // ✅ Skip if method is explicitly private or static
   if (/^\s*(private|static)\s+/.test(code)) return true;
 

@@ -10,9 +10,9 @@ public class OrderProcessor {
     // ✅ Clear, self-explanatory variable names
     public double calculateTotal(double[] prices) {
         double total = 0;
-        for (double price : prices) {
-            if (price > 0) {
-                total += price;
+        for (double p : prices) {
+            if (p > 0) {
+                total += p;
             }
         }
 
