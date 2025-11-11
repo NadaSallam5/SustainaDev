@@ -5,7 +5,11 @@ import * as fs from "fs";
 // NEW imports for PoC flow
 import { runLizard } from "./analyzer/lizardRunner";
 import { chooseRefactor } from "./analyzer/smellClassifier";
-import { buildExtractPatch, extractClassBlock } from "./refactor/extractMethod";
+import {
+  buildExtractPatch,
+  extractClassBlock,
+  isHelperFunction,
+} from "./refactor/extractMethod";
 import { buildExplanation } from "./refactor/explanation";
 import { gitCommit } from "./git/commit";
 import { verifyLastRefactor } from "./git/refactoringMiner";
@@ -113,6 +117,14 @@ export function activate(context: vscode.ExtensionContext) {
         // =========== EXTRACT METHOD BLOCK (FIXED - NO DUPLICATE LOGGING) ==
         // =================================================================
         if ((decision.type as string) === "Extract Method") {
+          if (isHelperFunction(worst, fullCode)) {
+            vscode.window.showInformationMessage(
+              `⏭️ Skipping "${worst.name}" — looks like a helper or extracted method.`
+            );
+            isRunning = false;
+            return;
+          }
+
           const jarPath = path.join(
             "c:\\Users\\MM\\Downloads\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
           );
@@ -427,18 +439,8 @@ export function activate(context: vscode.ExtensionContext) {
               console.error("❌ Failed reading analyzer output:", err);
             }
           }
-          // Extract potential variable names from the function content
-          /* const badNames = ["x", "y", "z", "a", "b", "data", "info", "temp"];
 
-          let foundVars = locals.filter((v) => badNames.includes(v));
-
-          if (foundVars.length === 0) {
-            // fallback in case analyzer missed them
-            vscode.window.showWarningMessage(
-              "No unclear variable names found."
-            );
-          } */
-          const foundVars = locals; // use all local vars for user to pick
+          const foundVars = decision.candidate ? [decision.candidate] : locals;
           // Let user pick which one to rename
           const oldName = await vscode.window.showQuickPick(foundVars, {
             placeHolder: "Pick a variable to rename",
@@ -447,7 +449,7 @@ export function activate(context: vscode.ExtensionContext) {
 
           const newName = await vscode.window.showInputBox({
             prompt: `Enter a new name for "${oldName}"`,
-            placeHolder: "e.g. totalSum, userData, buffer",
+            placeHolder: "e.g. total,",
           });
           if (!newName) return;
 

@@ -9,19 +9,14 @@ public class OrderProcessor {
 
     // ✅ Clear, self-explanatory variable names
     public double calculateTotal(double[] prices) {
-        double t = 0;
-        t = calculateSubtotal(prices, t);
-
-        double discount = (t > 50) ? t * 0.1 : 0;
-        return t - discount;
-    }
-
-    private double calculateSubtotal(double[] prices, double subtotal) {
+        double total = 0;
         for (double price : prices) {
             if (price > 0) {
-                subtotal += price;
+                total += price;
             }
         }
-        return subtotal;
+
+        double discount = (total > 50) ? total * 0.1 : 0;
+        return total - discount;
     }
 }

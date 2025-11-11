@@ -189,21 +189,11 @@ Reason:
     throw new Error("Incomplete AI response");
   }
 
-  /* if (!extractedLines || extractedLines === "none") {
-    vscode.window.showInformationMessage(
-      "AI couldn't find a good extraction candidate in this method."
-    );
-    throw new Error("AI couldn't find extraction candidate");
-  } */
-
   if (!isBalanced(preview)) {
     vscode.window.showWarningMessage(
       "⚠️ AI output braces unbalanced — review before applying."
     );
   }
-
-  // Optional: Log what the AI decided to extract
-  // console.log(`AI extracted lines ${extractedLines}: ${reason}`);
 
   // ---------------- AFTER METRICS (file-level sums) ----------------
   // Write refactored code to a temp file for Lizard analysis
@@ -391,4 +381,18 @@ function extractReason(output: string, label: string): string {
   const re = new RegExp(`${label}:\\s*(.*)`);
   const match = output.match(re);
   return match ? match[1].trim() : "";
+}
+
+export function isHelperFunction(fn: any, fileContent: string): boolean {
+  if (!fn?.name) return false;
+
+  const lines = fileContent.split(/\r?\n/);
+  const start = Math.max(fn.start - 1, 0);
+  const end = Math.min(fn.end, lines.length);
+  const code = lines.slice(start, end).join("\n");
+
+  // ✅ Skip if method is explicitly private or static
+  if (/^\s*(private|static)\s+/.test(code)) return true;
+
+  return false;
 }

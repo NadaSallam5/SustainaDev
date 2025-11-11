@@ -7,7 +7,7 @@ export function decideRefactorType(func: FunctionMetrics) {
   const { name, ccn, nloc, tokenCount = 0, callCount = 1, content = "" } = func;
 
   // --- NEW: Detect possible rename candidates ---
-  const badNames = ["x", "y", "z"];
+  const badNames = ["x", "y", "z", "t"];
   const found = badNames.find((n) => new RegExp(`\\b${n}\\b`).test(content));
 
   if (found) {
