@@ -121,12 +121,6 @@ The code to extract lies between lines ${range.from}–${range.to}.
 You MUST replace those lines with a call to the new method at the same position inside the same parent method.
 
 ---
-- If extraction would be redundant or add unnecessary indirection,
-  respond with:
-  Call Name: none
-  Preview: none
-  New Method: none
-  Reason: Extraction redundant — method already simple or cohesive.
 
 ### Output Format (strict)
 Respond ONLY with the formatted output below.  
@@ -174,7 +168,7 @@ Reason:
   const newMethod = extractSection(text, "New Method");
   const callName = extractLabelValue(text, "Call Name");
   const extractedLines = extractLabelValue(text, "Extracted Lines");
-  const reason = extractReason(text, "Reason");
+  const reason = extractLabelValue(text, "Reason");
 
   // 🧩 Ensure AI output contains only ONE class
   const classCount = (preview.match(/\bclass\s+\w+/g) || []).length;
@@ -189,12 +183,6 @@ Reason:
     throw new Error("Incomplete AI response");
   }
 
-  if (callName === "none" || !preview || preview === "none") {
-    vscode.window.showInformationMessage(
-      `AI decided no extraction was necessary (redundant or trivial method).`
-    );
-    throw new Error("Extraction skipped by AI decision");
-  }
   if (!extractedLines || extractedLines === "none") {
     vscode.window.showInformationMessage(
       "AI couldn't find a good extraction candidate in this method."
@@ -392,9 +380,4 @@ function aggregateFileMetrics(lizardRes: any): { ccn: number; nloc: number } {
 
   console.log(`✅ Aggregated totals: CCN=${totals.ccn}, NLOC=${totals.nloc}`);
   return totals;
-}
-export function extractReason(output: string, label: string): string {
-  const re = new RegExp(`${label}:\\s*(.*)`);
-  const match = output.match(re);
-  return match ? match[1].trim() : "";
 }
