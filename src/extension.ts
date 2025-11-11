@@ -5,7 +5,11 @@ import * as fs from "fs";
 // NEW imports for PoC flow
 import { runLizard } from "./analyzer/lizardRunner";
 import { chooseRefactor } from "./analyzer/smellClassifier";
-import { buildExtractPatch, extractClassBlock } from "./refactor/extractMethod";
+import {
+  buildExtractPatch,
+  extractClassBlock,
+  isHelperFunction,
+} from "./refactor/extractMethod";
 import { buildExplanation } from "./refactor/explanation";
 import { gitCommit } from "./git/commit";
 import { verifyLastRefactor } from "./git/refactoringMiner";
@@ -99,7 +103,21 @@ export function activate(context: vscode.ExtensionContext) {
           return;
         }
 
-        const worst = analysis.functions.sort(
+        // Filter out helper/utility methods
+        const filteredFunctions = analysis.functions.filter(
+          (fn: any) => !isHelperFunction(fn)
+        );
+
+        if (!filteredFunctions.length) {
+          vscode.window.showInformationMessage(
+            "All detected methods appear to be helpers or too simple. Skipping."
+          );
+          isRunning = false;
+          return;
+        }
+
+        // Choose the “worst” remaining function (highest complexity)
+        const worst = filteredFunctions.sort(
           (a, b) => b.ccn - a.ccn || b.nloc - a.nloc
         )[0];
 

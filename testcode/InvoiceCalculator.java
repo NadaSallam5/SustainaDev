@@ -49,6 +49,10 @@ public class InvoiceCalculator {
     }
 
     private double calculateDiscount(int total) {
+        return determineDiscount(total);
+    }
+
+    private double determineDiscount(int total) {
         double discount = 0.0;
         if (total > 500) {
             discount = total * 0.1;

@@ -123,27 +123,35 @@ You MUST replace those lines with a call to the new method at the same position 
 ---
 
 ### Output Format (strict)
-Respond ONLY with the formatted output below.  
-Do not include any explanations, commentary, or markdown outside the specified format.  
-If no good extraction candidate exists, respond with:
+Respond **only** in the following exact structure.  
+Do not include explanations, commentary, or markdown outside this format.
+
+If extraction is skipped due to redundancy, respond with:
 Call Name: none
 Preview: none
 New Method: none
+Reason: Extraction redundant — method already simple or cohesive.
+
+Otherwise, provide all fields below:
 
 Preview:
 \`\`\`java
 (full updated class with ONE new method inserted and the extracted lines replaced by a call)
 \`\`\`
+
 New Method:
 \`\`\`java
-(only the new method)
+(only the new method; valid, compilable Java)
 \`\`\`
+
 Call Name:
 (newMethodNameOnly)
+
 Extracted Lines:
-(start–end line numbers of what you extracted, e.g., "38–42")
+(start–end line numbers, e.g., "38–42")
+
 Reason:
-(one sentence explaining why this block was chosen)
+(one short sentence explaining why this block was chosen)
 ---
 `;
 
@@ -168,7 +176,7 @@ Reason:
   const newMethod = extractSection(text, "New Method");
   const callName = extractLabelValue(text, "Call Name");
   const extractedLines = extractLabelValue(text, "Extracted Lines");
-  const reason = extractLabelValue(text, "Reason");
+  const reason = extractReason(text, "Reason");
 
   // 🧩 Ensure AI output contains only ONE class
   const classCount = (preview.match(/\bclass\s+\w+/g) || []).length;
@@ -380,4 +388,17 @@ function aggregateFileMetrics(lizardRes: any): { ccn: number; nloc: number } {
 
   console.log(`✅ Aggregated totals: CCN=${totals.ccn}, NLOC=${totals.nloc}`);
   return totals;
+}
+function extractReason(output: string, label: string): string {
+  const re = new RegExp(`${label}:\\s*(.*)`);
+  const match = output.match(re);
+  return match ? match[1].trim() : "";
+}
+
+export function isHelperFunction(fn: any): boolean {
+  const name = fn.name;
+  // Skip private methods
+  if (/private\s/.test(fn.code ?? "")) return true;
+  // Skip short and pure functions
+  return false;
 }
