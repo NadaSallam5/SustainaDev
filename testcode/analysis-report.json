@@ -46,9 +46,9 @@
     "ifCount" : 0,
     "isLongMethod" : false,
     "name" : "processOrder",
-    "lines" : 22,
+    "lines" : 16,
     "params" : 1,
-    "body" : "{\r\n    int total = 0;\r\n    int count = 0;\r\n    int[] results = calculateTotalAndCount(prices);\r\n    total = results[0];\r\n    count = results[1];\r\n    double avg = (count == 0) ? 0 : (double) total / count;\r\n    double discount = calculateDiscount(total);\r\n    double finalPrice = total - discount;\r\n    // \uD83E\uDDEE Simulate extra processing\r\n    verifyItems(count);\r\n    System.out.println(\"Order processed.\");\r\n    System.out.println(\"Total price: \" + total);\r\n    System.out.println(\"Discount: \" + discount);\r\n    System.out.println(\"Final price: \" + finalPrice);\r\n    System.out.println(\"Average price: \" + avg);\r\n    System.out.println(\"Number of valid items: \" + count);\r\n}",
+    "body" : "{\r\n    int total = 0;\r\n    int count = 0;\r\n    int[] results = calculateTotalAndCount(prices);\r\n    total = results[0];\r\n    count = results[1];\r\n    double avg = (count == 0) ? 0 : (double) total / count;\r\n    double discount = calculateDiscount(total);\r\n    double finalPrice = total - discount;\r\n    // \uD83E\uDDEE Simulate extra processing\r\n    verifyItems(count);\r\n    printOrderSummary(total, discount, finalPrice, avg, count);\r\n}",
     "forCount" : 0,
     "locals" : [ "total", "count", "results", "avg", "discount", "finalPrice" ]
   }, {
@@ -87,5 +87,14 @@
     "body" : "{\r\n    for (int i = 0; i < count; i++) {\r\n        System.out.println(\"Verifying item #\" + (i + 1));\r\n    }\r\n}",
     "forCount" : 1,
     "locals" : [ "i" ]
+  }, {
+    "ifCount" : 0,
+    "isLongMethod" : false,
+    "name" : "printOrderSummary",
+    "lines" : 8,
+    "params" : 5,
+    "body" : "{\r\n    System.out.println(\"Order processed.\");\r\n    System.out.println(\"Total price: \" + total);\r\n    System.out.println(\"Discount: \" + discount);\r\n    System.out.println(\"Final price: \" + finalPrice);\r\n    System.out.println(\"Average price: \" + avg);\r\n    System.out.println(\"Number of valid items: \" + count);\r\n}",
+    "forCount" : 0,
+    "locals" : [ ]
   } ]
 } ]

@@ -72,4 +72,8 @@ public class InvoiceCalculator {
         System.out.println("Average price: " + avg);
         System.out.println("Number of valid items: " + count);
     }
+
+    private double calculateFinalPrice(int total, double discount) {
+        return total - discount;
+    }
 }
