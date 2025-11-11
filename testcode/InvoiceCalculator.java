@@ -20,10 +20,7 @@ public class InvoiceCalculator {
 
         verifyItems(count);
 
-        System.out.println("Order processed.");
-        System.out.println("Total price: " + total);
-        System.out.println("Average price: " + average);
-        System.out.println("Number of valid items: " + count);
+        printOrderSummary(total, average, count);
     }
 
     private int[] calculateTotalAndCount(int[] prices) {
@@ -44,6 +41,13 @@ public class InvoiceCalculator {
         for (int i = 0; i < count; i++) {
             System.out.println("Verifying item #" + (i + 1));
         }
+    }
+
+    private void printOrderSummary(int total, double average, int count) {
+        System.out.println("Order processed.");
+        System.out.println("Total price: " + total);
+        System.out.println("Average price: " + average);
+        System.out.println("Number of valid items: " + count);
     }
 
 }
