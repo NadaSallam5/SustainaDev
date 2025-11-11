@@ -46,9 +46,11 @@ export async function buildRenamePatch(
   });
 
   const adjustedFrom = Math.max(0, range.from - 1);
+  console.log("🧩 adjustedFrom =", adjustedFrom);
+  console.log("📜 Code near adjustedFrom:\n", fullCode);
 
-  // Use adjustedFrom for extractClassBlock and prompt
   const { classBlock } = extractClassBlock(fullCode, adjustedFrom);
+
   const prompt = `
 You are a Java refactoring expert performing a **Rename Variable** operation.
 
@@ -203,6 +205,16 @@ export function extractClassBlock(fullCode: string, functionStart: number) {
     if (/^(public|private|protected)?\s*class\s+\w+/.test(trimmed)) {
       classStart = i;
       break;
+    }
+  }
+
+  if (classStart === -1) {
+    for (let i = 0; i < Math.min(20, lines.length); i++) {
+      const trimmed = lines[i].trim();
+      if (/^(public|private|protected)?\s*class\s+\w+/.test(trimmed)) {
+        classStart = i;
+        break;
+      }
     }
   }
   if (classStart === -1) throw new Error("Could not find class declaration.");

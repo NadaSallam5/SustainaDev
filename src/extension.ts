@@ -451,6 +451,12 @@ export function activate(context: vscode.ExtensionContext) {
           });
           if (!newName) return;
 
+          const refreshedDocLatest = await vscode.workspace.openTextDocument(
+            filePath
+          );
+          await refreshedDocLatest.save();
+          const fullCode = refreshedDocLatest.getText();
+
           // Call AI to safely rename just that one variable
           const patch = await buildRenamePatch(
             fullCode,
@@ -466,41 +472,108 @@ export function activate(context: vscode.ExtensionContext) {
             );
             return;
           }
+          // 🧹 Close any old preview
+          const oldDoc = vscode.workspace.textDocuments.find(
+            (d) => d.uri.toString() === "untitled:RefactorPreview.java"
+          );
+          if (oldDoc) {
+            await vscode.window.showTextDocument(oldDoc);
+            await vscode.commands.executeCommand(
+              "workbench.action.revertAndCloseActiveEditor"
+            );
+          }
 
-          // Preview and confirm like your other refactors
+          // 🆕 Create a new in-memory preview document
           const right = vscode.Uri.parse("untitled:RefactorPreview.java");
+
           const edit = new vscode.WorkspaceEdit();
           edit.insert(right, new vscode.Position(0, 0), patch.preview);
           await vscode.workspace.applyEdit(edit);
-          await new Promise((r) => setTimeout(r, 200));
 
+          // 🕒 Wait to ensure buffer registration
+          await new Promise((resolve) => setTimeout(resolve, 200));
+
+          // 💡 Show the diff preview
           await vscode.commands.executeCommand(
             "vscode.diff",
             originalUri,
             right,
-            `🔄 Proposed Rename Variable (${oldName} → ${newName})`,
+            "🔄 Proposed Refactoring (Original ← → Refactored)",
             { preview: true }
           );
-
+          // 🧭 Ask user whether to apply
           const apply = await vscode.window.showQuickPick(
             ["Apply refactor", "Cancel"],
             {
-              placeHolder: `Apply rename for "${oldName}"?`,
+              placeHolder: "Apply Extract Method?",
             }
           );
-          if (apply !== "Apply refactor") return;
+          if (apply !== "Apply refactor") {
+            // ✅ Find the diff preview safely
+            const previewEditor = vscode.window.visibleTextEditors.find((e) =>
+              e.document.uri.toString().includes("RefactorPreview.java")
+            );
 
+            if (previewEditor) {
+              const doc = previewEditor.document;
+
+              // 🧹 Discard all changes silently (no save popup)
+              await vscode.window.showTextDocument(doc, { preview: false });
+
+              // Try revert first (silently discards content)
+              await vscode.commands.executeCommand(
+                "workbench.action.revertAndCloseActiveEditor"
+              );
+
+              // Fallback in case revert isn't supported (untitled docs sometimes)
+              if (!doc.isClosed) {
+                await vscode.commands.executeCommand(
+                  "workbench.action.closeActiveEditor"
+                );
+              }
+            }
+
+            vscode.window.showInformationMessage(
+              "❌ Refactor canceled — preview closed without saving."
+            );
+            return;
+          }
+
+          // ✅ Close the preview completely (no save popup)
+          const previewEditor = vscode.window.visibleTextEditors.find((e) =>
+            e.document.uri.toString().includes("Preview")
+          );
+          if (previewEditor) {
+            await vscode.window.showTextDocument(previewEditor.document, {
+              preview: false,
+            });
+
+            // Force discard unsaved buffer (since revert doesn’t work on untitled)
+            await vscode.commands.executeCommand(
+              "workbench.action.revertAndCloseActiveEditor"
+            );
+          }
+
+          // ✅ Apply the patch to the original file
           const we = new vscode.WorkspaceEdit();
           const fullRange = new vscode.Range(
             new vscode.Position(0, 0),
             new vscode.Position(refreshedDoc.lineCount, 0)
           );
           we.replace(originalUri, fullRange, patch.preview);
-          await vscode.workspace.applyEdit(we);
-          await refreshedDoc.save();
 
+          const applied = await vscode.workspace.applyEdit(we);
+          if (!applied) {
+            vscode.window.showErrorMessage("Failed to apply refactor edits.");
+            isRunning = false;
+            return;
+          }
+
+          await vscode.commands.executeCommand("editor.action.formatDocument");
+          await vscode.window.showTextDocument(originalUri, { preview: false });
+          await refreshedDoc.save();
           vscode.window.showInformationMessage(
-            `✅ Variable "${oldName}" renamed successfully!`
+            "✅ Refactor applied successfully!"
           );
         } else {
           vscode.window.showInformationMessage(

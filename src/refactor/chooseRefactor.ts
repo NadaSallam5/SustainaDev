@@ -10,7 +10,7 @@ export function decideRefactorType(func: FunctionMetrics) {
   /*  const badNames = ["x", "y", "z", "a", "b", "data", "info", "temp"];
   const found = badNames.find((n) => new RegExp(`\\b${n}\\b`).test(content));
  */
-  /* if (true) {
+  /*  if (true) {
     return {
       type: "Rename Variable",
       reason: `Variable  may be unclear. Suggest renaming it.`,
