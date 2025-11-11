@@ -66,6 +66,11 @@ You are a senior Java refactoring engineer performing an **Extract Method** refa
 ### Task
 Analyze the following Java class and identify ONE cohesive code block within the target method that should be extracted into a new private method.
 
+### What NOT to Extract
+- Single lines (not worth extracting)
+- Code with complex control flow that spans the entire method
+- Code that would require too many parameters (>4)
+
 ### Selection Criteria (IMPORTANT)
 Choose a block that is:
 - **Cohesive**: Performs a single, well-defined task (e.g., printing output, validation logic, calculation)
@@ -76,9 +81,7 @@ Choose a block that is:
 - The extracted method must preserve the same control flow and logical order.
 - Never call the new method from inside a loop if it was previously called after the loop.
 
-### What NOT to Extract
-- Code with complex control flow that spans the entire method
-- Code that would require too many parameters (>4)
+
 
 ### Refactoring Requirements
 - Modify ONLY code inside this class.
