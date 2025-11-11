@@ -17,7 +17,7 @@ public class InvoiceCalculator {
         total = results[0];
         count = results[1];
 
-        double average = (count == 0) ? 0 : (double) total / count;
+        double average = calculateAverage(total, count);
 
         printVerification(count);
 
@@ -46,6 +46,10 @@ public class InvoiceCalculator {
             }
         }
         return new int[] { total, count };
+    }
+
+    private double calculateAverage(int total, int count) {
+        return (count == 0) ? 0 : (double) total / count;
     }
 
 }
