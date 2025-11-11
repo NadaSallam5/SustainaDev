@@ -111,14 +111,16 @@ ${classBlock}
 ### Target Method Context
 Below is the **full method** that contains the target code block:
 
+\`\`\`java
+${context?.methodBody ?? "N/A"}
+\`\`\`
 
-
+Local variables in scope: ${context?.locals?.join(", ") || "none"}
 
 The code to extract lies between lines ${range.from}–${range.to}.
 You MUST replace those lines with a call to the new method at the same position inside the same parent method.
 
 ---
-
 - If extraction would be redundant or add unnecessary indirection,
   respond with:
   Call Name: none
@@ -172,7 +174,7 @@ Reason:
   const newMethod = extractSection(text, "New Method");
   const callName = extractLabelValue(text, "Call Name");
   const extractedLines = extractLabelValue(text, "Extracted Lines");
-  const reason = extractLabelValue(text, "Reason");
+  const reason = extractReason(text, "Reason");
 
   // 🧩 Ensure AI output contains only ONE class
   const classCount = (preview.match(/\bclass\s+\w+/g) || []).length;
@@ -189,11 +191,10 @@ Reason:
 
   if (callName === "none" || !preview || preview === "none") {
     vscode.window.showInformationMessage(
-      `ℹ️ AI decided no extraction was necessary (redundant or trivial method).`
+      `AI decided no extraction was necessary (redundant or trivial method).`
     );
     throw new Error("Extraction skipped by AI decision");
   }
-
   if (!extractedLines || extractedLines === "none") {
     vscode.window.showInformationMessage(
       "AI couldn't find a good extraction candidate in this method."
@@ -391,4 +392,9 @@ function aggregateFileMetrics(lizardRes: any): { ccn: number; nloc: number } {
 
   console.log(`✅ Aggregated totals: CCN=${totals.ccn}, NLOC=${totals.nloc}`);
   return totals;
+}
+export function extractReason(output: string, label: string): string {
+  const re = new RegExp(`${label}:\\s*(.*)`);
+  const match = output.match(re);
+  return match ? match[1].trim() : "";
 }

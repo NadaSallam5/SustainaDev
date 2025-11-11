@@ -72,7 +72,6 @@ export function activate(context: vscode.ExtensionContext) {
       );
 
       try {
-        initPaths(context);
         const editor = vscode.window.activeTextEditor;
         if (editor && editor.document.isDirty) {
           await editor.document.save();

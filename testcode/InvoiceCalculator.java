@@ -11,8 +11,6 @@ public class InvoiceCalculator {
 
     public void processOrder(int[] prices) {
 
-        System.out.println("Processing order...");
-
         int total = 0;
         int count = 0;
         int[] results = calculateTotalAndCount(prices);
@@ -21,6 +19,7 @@ public class InvoiceCalculator {
 
         double avg = (count == 0) ? 0 : (double) total / count;
 
+        System.out.println("Order processed.");
         System.out.println("Total price: " + total);
         System.out.println("Average price: " + avg);
         System.out.println("Number of valid items: " + count);
@@ -39,5 +38,4 @@ public class InvoiceCalculator {
         }
         return new int[] { total, count };
     }
-
 }
