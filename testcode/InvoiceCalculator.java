@@ -20,11 +20,7 @@ public class InvoiceCalculator {
         double average = calculateAverage(total, count);
 
         printVerification(count);
-
-        System.out.println("Order processed.");
-        System.out.println("Total price: " + total);
-        System.out.println("Average price: " + average);
-        System.out.println("Number of valid items: " + count);
+        printOrderSummary(total, average, count);
     }
 
     private void printVerification(int count) {
@@ -50,6 +46,13 @@ public class InvoiceCalculator {
 
     private double calculateAverage(int total, int count) {
         return (count == 0) ? 0 : (double) total / count;
+    }
+
+    private void printOrderSummary(int total, double average, int count) {
+        System.out.println("Order processed.");
+        System.out.println("Total price: " + total);
+        System.out.println("Average price: " + average);
+        System.out.println("Number of valid items: " + count);
     }
 
 }
