@@ -7,15 +7,17 @@ export function decideRefactorType(func: FunctionMetrics) {
   const { name, ccn, nloc, tokenCount = 0, callCount = 1, content = "" } = func;
 
   // --- NEW: Detect possible rename candidates ---
-  /*  const badNames = ["x", "y", "z", "a", "b", "data", "info", "temp"];
+  const badNames = ["x", "y", "z"];
   const found = badNames.find((n) => new RegExp(`\\b${n}\\b`).test(content));
- */
-  /*  if (true) {
+
+  if (found) {
     return {
       type: "Rename Variable",
-      reason: `Variable  may be unclear. Suggest renaming it.`,
+      reason: `Variable "${found}" may be unclear. Suggest renaming it.`,
+      candidate: found, // optional field for convenience
     };
-  } */
+  }
+
   // Metric-based rules
   if (ccn > 10 || nloc > 40) {
     return {

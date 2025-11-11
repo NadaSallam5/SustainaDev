@@ -189,15 +189,6 @@ Reason:
     throw new Error("Incomplete AI response");
   }
 
-  // 🧩 Verify AI actually called the extracted method
-  if (callName && !preview.includes(`${callName}(`)) {
-    vscode.window.showWarningMessage(
-      `⚠️ AI created "${callName}" but did NOT insert a call to it. Skipping this extraction.`
-    );
-    console.warn("❌ Missing method call in AI output:", callName);
-    throw new Error(`AI failed to replace code with ${callName}() call`);
-  }
-
   /* if (!extractedLines || extractedLines === "none") {
     vscode.window.showInformationMessage(
       "AI couldn't find a good extraction candidate in this method."
