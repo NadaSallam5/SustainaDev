@@ -10,21 +10,21 @@ public class InvoiceCalculator {
     }
 
     public void processOrder(int[] prices) {
-
         int total = 0;
         int count = 0;
         int[] results = calculateTotalAndCount(prices);
         total = results[0];
         count = results[1];
+        double avg = (count == 0) ? 0 : (double) total / count;
 
         double discount = calculateDiscount(total);
+
         double finalPrice = total - discount;
 
         // 🧮 Simulate extra processing
         for (int i = 0; i < count; i++) {
             System.out.println("Verifying item #" + (i + 1));
         }
-        double avg = (count == 0) ? 0 : (double) total / count;
 
         System.out.println("Order processed.");
         System.out.println("Total price: " + total);
