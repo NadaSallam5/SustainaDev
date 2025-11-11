@@ -26,7 +26,7 @@ export function decideRefactorType(func: FunctionMetrics) {
     };
   }
 
-  if (ccn <= 3 && nloc < 10 && callCount <= 2) {
+  if (ccn <= 2 && nloc < 10 && callCount <= 2) {
     return {
       type: "Inline Method",
       reason: `Function "${name}" is trivial and rarely reused (CCN=${ccn}, NLOC=${nloc}, calls=${callCount}).`,
