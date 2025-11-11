@@ -18,12 +18,18 @@ public class InvoiceCalculator {
         double avg = (count == 0) ? 0 : (double) total / count;
 
         double discount = calculateDiscount(total);
+
         double finalPrice = total - discount;
 
         // 🧮 Simulate extra processing
         verifyItems(count);
 
-        printOrderSummary(total, discount, finalPrice, avg, count);
+        System.out.println("Order processed.");
+        System.out.println("Total price: " + total);
+        System.out.println("Discount: " + discount);
+        System.out.println("Final price: " + finalPrice);
+        System.out.println("Average price: " + avg);
+        System.out.println("Number of valid items: " + count);
     }
 
     private int[] calculateTotalAndCount(int[] prices) {
@@ -62,18 +68,5 @@ public class InvoiceCalculator {
         for (int i = 0; i < count; i++) {
             System.out.println("Verifying item #" + (i + 1));
         }
-    }
-
-    private void printOrderSummary(int total, double discount, double finalPrice, double avg, int count) {
-        System.out.println("Order processed.");
-        System.out.println("Total price: " + total);
-        System.out.println("Discount: " + discount);
-        System.out.println("Final price: " + finalPrice);
-        System.out.println("Average price: " + avg);
-        System.out.println("Number of valid items: " + count);
-    }
-
-    private double calculateFinalPrice(int total, double discount) {
-        return total - discount;
     }
 }

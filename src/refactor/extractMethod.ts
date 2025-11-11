@@ -77,7 +77,6 @@ Choose a block that is:
 - Never call the new method from inside a loop if it was previously called after the loop.
 
 ### What NOT to Extract
-- Single lines (not worth extracting)
 - Code with complex control flow that spans the entire method
 - Code that would require too many parameters (>4)
 
