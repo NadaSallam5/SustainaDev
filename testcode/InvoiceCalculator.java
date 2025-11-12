@@ -13,9 +13,14 @@ public class InvoiceCalculator {
         int count = 0;
 
         // Loop through prices and calculate
-        int[] results = processPrices(prices);
-        total = results[0];
-        count = results[1];
+        for (int price : prices) {
+            if (price > 0) {
+                total += price;
+                count++;
+            } else {
+                System.out.println("Invalid price skipped: " + price);
+            }
+        }
 
         // Calculate average and print results
         calculateAndPrintResults(total, count);
@@ -36,20 +41,5 @@ public class InvoiceCalculator {
         System.out.println("Count: " + count);
         System.out.println("Average price: $" + avg);
         System.out.println("Order processed successfully.");
-    }
-
-    private int[] processPrices(int[] prices) {
-        int total = 0;
-        int count = 0;
-
-        for (int price : prices) {
-            if (price > 0) {
-                total += price;
-                count++;
-            } else {
-                System.out.println("Invalid price skipped: " + price);
-            }
-        }
-        return new int[] { total, count };
     }
 }
