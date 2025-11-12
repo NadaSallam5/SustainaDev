@@ -13,6 +13,21 @@ public class InvoiceCalculator {
         int total = 0;
         int count = 0;
 
+        count = processValidPrices(prices, total);
+
+        double average = (count == 0) ? 0 : (double) total / count;
+
+        for (int i = 0; i < count; i++) {
+            System.out.println("Verifying item #" + (i + 1));
+        }
+        System.out.println("Order processed.");
+        System.out.println("Total price: " + total);
+        System.out.println("Average price: " + average);
+        System.out.println("Number of valid items: " + count);
+    }
+
+    private int processValidPrices(int[] prices, int total) {
+        int count = 0;
         for (int price : prices) {
             if (price > 0) {
                 total += price;
@@ -21,21 +36,7 @@ public class InvoiceCalculator {
                 System.out.println("Invalid price skipped: " + price);
             }
         }
-
-        double average = (count == 0) ? 0 : (double) total / count;
-
-        printVerification(count);
-
-        System.out.println("Order processed.");
-        System.out.println("Total price: " + total);
-        System.out.println("Average price: " + average);
-        System.out.println("Number of valid items: " + count);
-    }
-
-    private void printVerification(int count) {
-        for (int i = 0; i < count; i++) {
-            System.out.println("Verifying item #" + (i + 1));
-        }
+        return count;
     }
 
 }
