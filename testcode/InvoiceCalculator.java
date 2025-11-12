@@ -13,7 +13,7 @@ public class InvoiceCalculator {
         int total = 0;
         int count = 0;
 
-        int[] results = processPrices(prices);
+        int[] results = processPrices(prices, total, count);
         total = results[0];
         count = results[1];
 
@@ -33,10 +33,7 @@ public class InvoiceCalculator {
         }
     }
 
-    private int[] processPrices(int[] prices) {
-        int total = 0;
-        int count = 0;
-
+    private int[] processPrices(int[] prices, int total, int count) {
         for (int price : prices) {
             if (price > 0) {
                 total += price;
