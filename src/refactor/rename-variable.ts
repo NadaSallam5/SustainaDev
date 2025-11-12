@@ -213,7 +213,6 @@ Reason:
     timestamp: new Date().toISOString(),
     file: path.basename(actualFileName),
     refactor: "Rename Variable",
-    renamed: `${oldName} -> ${chosenName}`,
     before,
     after,
     delta,
