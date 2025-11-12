@@ -11,7 +11,6 @@ import { estimateEnergy } from "../metrics/codeCarbon";
 export async function buildRenamePatch(
   fullCode: string,
   oldName: string,
-  newName: string,
   range: { from: number; to: number },
   fileName?: string
 ): Promise<{ preview: string; renamed: string }> {
@@ -55,58 +54,37 @@ export async function buildRenamePatch(
 You are a Java refactoring expert performing a **Rename Variable** operation.
 
 ### Task
-Rename the variable \`${oldName}\` to \`${newName}\` **safely** throughout the entire class, including the method, loops, and any references.
+Analyze the class below. A variable named \`${oldName}\` is unclear.
+1. Suggest 3 better, descriptive variable names (Java-style).
+2. Pick the most suitable one and apply it across the code safely.
 
-In addition, you must **rename any related function names** that contain \`${oldName}\` to reflect the new variable name \`${newName}\`. For example, rename functions like \`calculateTotalAndCount\` to \`calculateSumAndCount\`.
-
-Make sure that you do not rename the variable in comments, strings, or other places where it shouldn't be modified. Only rename valid variable occurrences in the code.
-
-### Selection Criteria
-- Rename all valid occurrences of \`${oldName}\` to \`${newName}\` in the provided class.
-- Ensure that the renamed variable does not conflict with other variable names or change the functionality of the code.
-
-### Refactoring Requirements
-- Modify ONLY the variable occurrences in the class.
-- Do not modify comments, string literals, or method signatures.
-- Maintain the same functionality as before, ensuring that the renamed variable is updated in all valid places.
-
----
-
-### Input
-File: ${fileName ?? "Unknown.java"}
-Target variable to rename: \`${oldName}\` → \`${newName}\`
-
-### Full class:
+### Code
 \`\`\`java
 ${classBlock}
 \`\`\`
 
-### Target Method Context
-Below is the **full method** that contains the target variable:
-
-
+### Constraints
+- Do NOT modify logic, strings, or comments.
+- Rename variable consistently in all scopes and usages.
+- Maintain valid Java syntax.
+- Keep only the renamed version in your final preview.
 
 ---
 
 ### Output Format (strict)
-Respond ONLY with the formatted output below. Do not include any explanations, commentary, or markdown outside the specified format. If no good renaming candidate exists, respond with:
-
-Preview: none  
-Renamed Variable: none  
-Reason: none
+Suggested Names:
+["name1", "name2", "name3"]
 
 Preview:
 \`\`\`java
-(full updated code with renamed variable)
+(full updated code with chosen rename)
 \`\`\`
 
 Renamed Variable:
-${oldName} -> ${newName}
+${oldName} -> (chosen name)
 
 Reason:
-(one sentence explaining why this variable was renamed)
-
----
+(one sentence explaining why the new name was chosen)
 `;
 
   const resp = await client.chat.completions.create({
@@ -125,12 +103,68 @@ Reason:
   const text = resp.choices?.[0]?.message?.content ?? "";
   console.log("🔍 Raw AI Response:", text);
 
-  const preview = extractSection(text, "Preview");
-  const renamed = extractLabelValue(text, "Renamed Variable");
+  const suggestedNames = extractJsonArray(text, "Suggested Names");
   const reason = extractLabelValue(text, "Reason");
+  let preview = extractSection(text, "Preview");
 
-  if (!preview || preview === "none") {
+  let aiChosenName = "";
+  const renamedLabel = extractFullLabelValue(text, "Renamed Variable");
+  if (renamedLabel && renamedLabel.includes("->")) {
+    aiChosenName = renamedLabel.split("->")[1].trim();
+  }
+
+  // ✅ Let the user pick one of AI's suggested names
+  let chosenName: string | undefined;
+
+  if (suggestedNames && suggestedNames.length > 0) {
+    chosenName = await vscode.window.showQuickPick(
+      [...suggestedNames, "✏️ Enter custom name..."],
+      {
+        placeHolder: `AI suggested names for "${oldName}"`,
+      }
+    );
+
+    if (chosenName === "✏️ Enter custom name...") {
+      chosenName = await vscode.window.showInputBox({
+        prompt: `Enter a custom name for "${oldName}"`,
+        placeHolder: "e.g. total, subtotal, average",
+      });
+    }
+
+    if (!chosenName) {
+      vscode.window.showWarningMessage("Rename cancelled by user.");
+      throw new Error("User cancelled rename");
+    }
+
+    // 🧩 Ensure preview matches user's chosen name
+    if (preview) {
+      const safeOld = aiChosenName || oldName;
+      const regex = new RegExp(`\\b${safeOld}\\b`, "g");
+      preview = preview.replace(regex, chosenName);
+      console.log(
+        `🪄 Replaced all occurrences of '${safeOld}' with '${chosenName}'`
+      );
+    }
+
     vscode.window.showInformationMessage(
+      `✅ Final rename: ${oldName} → ${chosenName}`
+    );
+
+    vscode.window.showInformationMessage(
+      `✅ Using "${chosenName}" as new name.`
+    );
+  } else {
+    vscode.window.showWarningMessage(
+      "AI provided no suggestions; renaming to fallback."
+    );
+    chosenName = oldName + "_renamed";
+    const regex = new RegExp(`\\b${oldName}\\b`, "g");
+    preview = preview.replace(regex, chosenName);
+  }
+
+  // 🔍 Validate that preview exists
+  if (!preview || preview === "none") {
+    vscode.window.showErrorMessage(
       "AI couldn't find valid variable to rename."
     );
     throw new Error("AI couldn't rename variable");
@@ -168,7 +202,7 @@ Reason:
     timestamp: new Date().toISOString(),
     file: actualFileName,
     refactor: "Rename Variable",
-    renamed,
+    renamed: `${oldName} -> ${chosenName}`,
     before,
     after,
     delta,
@@ -189,10 +223,21 @@ Reason:
     `✅ Rename Variable logged! Delta: CCN=${delta.ccn}, NLOC=${delta.nloc}`
   );
 
-  return { preview, renamed };
+  return { preview, renamed: `${oldName} -> ${chosenName}` };
 }
 
 /* ---------------- Helper functions ---------------- */
+
+function extractJsonArray(output: string, label: string): string[] {
+  const match = output.match(new RegExp(`${label}:\\s*(\\[[^\\]]*\\])`));
+  if (!match) return [];
+  try {
+    const arr = JSON.parse(match[1]);
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
 
 export function extractClassBlock(fullCode: string, functionStart: number) {
   const lines = fullCode.split(/\r?\n/);
@@ -257,6 +302,12 @@ function extractLabelValue(output: string, label: string): string {
   const re = new RegExp(`${label}:\\s*(.*)`);
   const match = output.match(re);
   return match ? match[1].trim().split(/\s+/)[0] : "";
+}
+
+function extractFullLabelValue(output: string, label: string): string {
+  const re = new RegExp(`${label}:\\s*(.*)`, "i");
+  const match = output.match(re);
+  return match ? match[1].trim() : "";
 }
 
 function isBalanced(code: string): boolean {

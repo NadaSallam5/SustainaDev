@@ -188,7 +188,7 @@ export function activate(context: vscode.ExtensionContext) {
           const patch = await buildExtractPatch(
             fullCode,
             { from, to },
-            path.basename(filePath),
+            filePath,
             { methodBody, locals }
           );
 
@@ -333,12 +333,25 @@ export function activate(context: vscode.ExtensionContext) {
             return;
           }
 
+          // 🧹 Close any old preview
+          const oldDoc = vscode.workspace.textDocuments.find(
+            (d) => d.uri.toString() === "untitled:RefactorPreview.java"
+          );
+          if (oldDoc) {
+            await vscode.window.showTextDocument(oldDoc);
+            await vscode.commands.executeCommand(
+              "workbench.action.revertAndCloseActiveEditor"
+            );
+          }
+
+          // 🆕 Create a new in-memory preview document
           const right = vscode.Uri.parse("untitled:RefactorPreview.java");
           const edit = new vscode.WorkspaceEdit();
           edit.insert(right, new vscode.Position(0, 0), patch.preview);
           await vscode.workspace.applyEdit(edit);
-          await new Promise((r) => setTimeout(r, 200));
+          await new Promise((resolve) => setTimeout(resolve, 200));
 
+          // 💡 Show the diff preview
           await vscode.commands.executeCommand(
             "vscode.diff",
             originalUri,
@@ -347,6 +360,7 @@ export function activate(context: vscode.ExtensionContext) {
             { preview: true }
           );
 
+          // 🧭 Ask user whether to apply
           const apply = await vscode.window.showQuickPick(
             ["Apply refactor", "Cancel"],
             {
@@ -354,10 +368,35 @@ export function activate(context: vscode.ExtensionContext) {
             }
           );
           if (apply !== "Apply refactor") {
+            const previewEditor = vscode.window.visibleTextEditors.find((e) =>
+              e.document.uri.toString().includes("RefactorPreview.java")
+            );
+            if (previewEditor) {
+              await vscode.window.showTextDocument(previewEditor.document, {
+                preview: false,
+              });
+              await vscode.commands.executeCommand(
+                "workbench.action.revertAndCloseActiveEditor"
+              );
+            }
             vscode.window.showInformationMessage("❌ Refactor canceled.");
             return;
           }
 
+          // ✅ Close the preview
+          const previewEditor = vscode.window.visibleTextEditors.find((e) =>
+            e.document.uri.toString().includes("Preview")
+          );
+          if (previewEditor) {
+            await vscode.window.showTextDocument(previewEditor.document, {
+              preview: false,
+            });
+            await vscode.commands.executeCommand(
+              "workbench.action.revertAndCloseActiveEditor"
+            );
+          }
+
+          // ✅ Apply the patch to the original file
           const we = new vscode.WorkspaceEdit();
           const fullRange = new vscode.Range(
             new vscode.Position(0, 0),
@@ -367,13 +406,15 @@ export function activate(context: vscode.ExtensionContext) {
 
           const applied = await vscode.workspace.applyEdit(we);
           if (!applied) {
-            vscode.window.showErrorMessage("Failed to apply inline edits.");
+            vscode.window.showErrorMessage("Failed to apply refactor edits.");
             return;
           }
 
           await vscode.commands.executeCommand("editor.action.formatDocument");
           await vscode.window.showTextDocument(originalUri, { preview: false });
           await refreshedDoc.save();
+
+          // Show simple user message
 
           vscode.window.showInformationMessage(
             "✅ Inline Method applied successfully!"
@@ -447,23 +488,21 @@ export function activate(context: vscode.ExtensionContext) {
           });
           if (!oldName) return;
 
-          const newName = await vscode.window.showInputBox({
-            prompt: `Enter a new name for "${oldName}"`,
-            placeHolder: "e.g. total,",
-          });
-          if (!newName) return;
-
           const refreshedDocLatest = await vscode.workspace.openTextDocument(
             filePath
           );
           await refreshedDocLatest.save();
           const fullCode = refreshedDocLatest.getText();
 
+          // 🤖 Call AI ONCE to suggest + rename
+          vscode.window.showInformationMessage(
+            `🤖 AI analyzing "${oldName}"...`
+          );
+
           // Call AI to safely rename just that one variable
           const patch = await buildRenamePatch(
             fullCode,
             oldName,
-            newName,
             { from, to },
             filePath
           );
