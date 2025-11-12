@@ -104,9 +104,10 @@ Reason:
   console.log("🔍 Raw AI Response:", text);
 
   const suggestedNames = extractJsonArray(text, "Suggested Names");
-  const reason = extractLabelValue(text, "Reason");
+  const reason = extractReason(text, "Reason");
   let preview = extractSection(text, "Preview");
 
+  let finalReason = reason; // ✅ Declare globally here
   let aiChosenName = "";
   const renamedLabel = extractFullLabelValue(text, "Renamed Variable");
   if (renamedLabel && renamedLabel.includes("->")) {
@@ -144,6 +145,16 @@ Reason:
       console.log(
         `🪄 Replaced all occurrences of '${safeOld}' with '${chosenName}'`
       );
+    }
+
+    // 🧠 Adjust reason to reflect user's chosen name instead of AI's
+    if (reason && aiChosenName && chosenName) {
+      finalReason = reason.replace(
+        new RegExp(`\\b${aiChosenName}\\b`, "g"),
+        chosenName
+      );
+    } else {
+      finalReason = `Renamed "${oldName}" to "${chosenName}" for clarity.`;
     }
 
     vscode.window.showInformationMessage(
@@ -207,7 +218,7 @@ Reason:
     after,
     delta,
     energy,
-    reason,
+    reason: finalReason,
   };
   try {
     const dir = path.dirname(logPath);
@@ -306,6 +317,12 @@ function extractLabelValue(output: string, label: string): string {
 
 function extractFullLabelValue(output: string, label: string): string {
   const re = new RegExp(`${label}:\\s*(.*)`, "i");
+  const match = output.match(re);
+  return match ? match[1].trim() : "";
+}
+
+export function extractReason(output: string, label: string): string {
+  const re = new RegExp(`${label}:\\s*(.*)`);
   const match = output.match(re);
   return match ? match[1].trim() : "";
 }
