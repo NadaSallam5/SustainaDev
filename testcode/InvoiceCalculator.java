@@ -13,9 +13,14 @@ public class InvoiceCalculator {
         int total = 0;
         int count = 0;
 
-        int[] results = processPrices(prices, total, count);
-        total = results[0];
-        count = results[1];
+        for (int price : prices) {
+            if (price > 0) {
+                total += price;
+                count++;
+            } else {
+                System.out.println("Invalid price skipped: " + price);
+            }
+        }
 
         double average = (count == 0) ? 0 : (double) total / count;
 
@@ -31,18 +36,6 @@ public class InvoiceCalculator {
         for (int i = 0; i < count; i++) {
             System.out.println("Verifying item #" + (i + 1));
         }
-    }
-
-    private int[] processPrices(int[] prices, int total, int count) {
-        for (int price : prices) {
-            if (price > 0) {
-                total += price;
-                count++;
-            } else {
-                System.out.println("Invalid price skipped: " + price);
-            }
-        }
-        return new int[] { total, count };
     }
 
 }
