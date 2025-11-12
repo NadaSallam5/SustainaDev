@@ -13,18 +13,11 @@ public class InvoiceCalculator {
         int count = 0;
 
         // Loop through prices and calculate
-        int[] results = processPrices(prices);
+        int[] results = calculateTotalAndCount(prices);
         total = results[0];
         count = results[1];
 
         // Calculate average and print results
-        calculateAndPrintResults(total, count);
-
-        // Apply discount if total is high
-        applyDiscountIfHigh(total);
-    }
-
-    private void calculateAndPrintResults(int total, int count) {
         double avg = (count == 0) ? 0 : (double) total / count;
 
         // Print results
@@ -32,9 +25,16 @@ public class InvoiceCalculator {
         System.out.println("Count: " + count);
         System.out.println("Average price: $" + avg);
         System.out.println("Order processed successfully.");
+
+        // Apply discount if total is high
+        if (total > 500) {
+            double discount = total * 0.1;
+            System.out.println("Discount applied: $" + discount);
+            System.out.println("Final total: $" + (total - discount));
+        }
     }
 
-    private int[] processPrices(int[] prices) {
+    private int[] calculateTotalAndCount(int[] prices) {
         int total = 0;
         int count = 0;
 
@@ -49,11 +49,4 @@ public class InvoiceCalculator {
         return new int[] { total, count };
     }
 
-    private void applyDiscountIfHigh(int total) {
-        if (total > 500) {
-            double discount = total * 0.1;
-            System.out.println("Discount applied: $" + discount);
-            System.out.println("Final total: $" + (total - discount));
-        }
-    }
 }
