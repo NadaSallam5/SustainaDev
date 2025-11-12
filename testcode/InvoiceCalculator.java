@@ -6,26 +6,18 @@ public class InvoiceCalculator {
         calculator.processOrder(prices);
     }
 
-    // ✅ THIS METHOD IS GOOD FOR TESTING EXTRACT METHOD
-    // It has multiple responsibilities: validation, calculation, and printing
+    // Single method doing validation, calculation, printing, and discount logic
     public void processOrder(int[] prices) {
         int total = 0;
         int count = 0;
 
-        // Loop through prices and calculate
-        for (int price : prices) {
-            if (price > 0) {
-                total += price;
-                count++;
-            } else {
-                System.out.println("Invalid price skipped: " + price);
-            }
-        }
+        // Loop through prices: validate and accumulate
+        int[] results = validateAndAccumulate(prices);
+        total = results[0];
+        count = results[1];
 
         // Calculate average and print results
-        double avg = calculateAverage(total, count);
-
-        // Print results
+        double avg = (count == 0) ? 0 : (double) total / count;
         System.out.println("Total: $" + total);
         System.out.println("Count: " + count);
         System.out.println("Average price: $" + avg);
@@ -39,8 +31,18 @@ public class InvoiceCalculator {
         }
     }
 
-    private double calculateAverage(int total, int count) {
-        return (count == 0) ? 0 : (double) total / count;
-    }
+    private int[] validateAndAccumulate(int[] prices) {
+        int total = 0;
+        int count = 0;
 
+        for (int price : prices) {
+            if (price > 0) {
+                total += price;
+                count++;
+            } else {
+                System.out.println("Invalid price skipped: " + price);
+            }
+        }
+        return new int[] { total, count };
+    }
 }
