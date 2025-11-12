@@ -1,45 +1,44 @@
 public class InvoiceCalculator {
 
     public static void main(String[] args) {
-        int[] prices = { 100, 50, -20, 200 };
-        InvoiceCalculator calculator = new InvoiceCalculator();
-        calculator.processOrder(prices);
+        InvoiceCalculator calc = new InvoiceCalculator();
+        calc.processOrder(new int[] { 100, 50, -20, 200 });
     }
 
-    // ✅ THIS METHOD IS GOOD FOR TESTING EXTRACT METHOD
-    // It has multiple responsibilities: validation, calculation, and printing
+    // 🧩 High CCN version: all logic inline
     public void processOrder(int[] prices) {
         int total = 0;
         int count = 0;
 
-        // Loop through prices and calculate
+        int[] results = processPrices(prices, total, count);
+        total = results[0];
+        count = results[1];
+
+        if (count > 0) {
+            double average = (double) total / count;
+            if (average > 100) {
+                System.out.println("High average order!");
+            } else {
+                System.out.println("Normal order.");
+            }
+        } else {
+            System.out.println("No valid prices found.");
+        }
+
+        System.out.println("Final total: $" + total);
+    }
+
+    private int[] processPrices(int[] prices, int total, int count) {
         for (int price : prices) {
             if (price > 0) {
                 total += price;
                 count++;
+            } else if (price == 0) {
+                System.out.println("Zero price ignored");
             } else {
                 System.out.println("Invalid price skipped: " + price);
             }
         }
-
-        // Calculate average
-        double avg = calculateAverage(total, count);
-
-        // Print results
-        System.out.println("Total: $" + total);
-        System.out.println("Count: " + count);
-        System.out.println("Average price: $" + avg);
-        System.out.println("Order processed successfully.");
-
-        // Apply discount if total is high
-        if (total > 500) {
-            double discount = total * 0.1;
-            System.out.println("Discount applied: $" + discount);
-            System.out.println("Final total: $" + (total - discount));
-        }
-    }
-
-    private double calculateAverage(int total, int count) {
-        return (count == 0) ? 0 : (double) total / count;
+        return new int[] { total, count };
     }
 }
