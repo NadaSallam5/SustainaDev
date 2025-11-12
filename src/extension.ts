@@ -296,8 +296,12 @@ export function activate(context: vscode.ExtensionContext) {
           const msg = `Extract Method in ${worst.name}`;
           await gitCommit(ws, msg);
 
+          vscode.window.showInformationMessage(
+            "Refactor applied, committed, and logged."
+          );
+
           // === RefactoringMiner verification (optional) ===
-          if (useRM) {
+          /*  if (useRM) {
             try {
               const verified = (await verifyLastRefactor(ws)).length > 0;
               vscode.window.showInformationMessage(
@@ -312,14 +316,10 @@ export function activate(context: vscode.ExtensionContext) {
                 }`.trim()
               );
             }
-          }
+          } */
 
           // ❌ REMOVED: Duplicate logging - buildExtractPatch already logged everything!
           // No more appendLog() here - it's all done inside buildExtractPatch with correct metrics
-
-          vscode.window.showInformationMessage(
-            "Refactor applied, committed, and logged."
-          );
 
           // =================================================================
           // =========== INLINE METHOD BLOCK ==============
@@ -420,6 +420,15 @@ export function activate(context: vscode.ExtensionContext) {
 
           vscode.window.showInformationMessage(
             "✅ Inline Method applied successfully!"
+          );
+
+          // Commit
+          const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath!;
+          const msg = `Inline Method in ${worst.name}`;
+          await gitCommit(ws, msg);
+
+          vscode.window.showInformationMessage(
+            "Refactor applied, committed, and logged."
           );
         } else if ((decision.type as string) === "Rename Variable") {
           vscode.window.showInformationMessage("💡 Rename Variable chosen");
@@ -616,7 +625,16 @@ export function activate(context: vscode.ExtensionContext) {
           await vscode.window.showTextDocument(originalUri, { preview: false });
           await refreshedDoc.save();
           vscode.window.showInformationMessage(
-            "✅ Refactor applied successfully!"
+            "✅ renameRefactor applied successfully!"
+          );
+
+          // Commit
+          const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath!;
+          const msg = `Rename Variable in ${worst.name}`;
+          await gitCommit(ws, msg);
+
+          vscode.window.showInformationMessage(
+            "Refactor applied, committed, and logged."
           );
         } else {
           vscode.window.showInformationMessage(
