@@ -3,10 +3,19 @@
   "methods" : [ {
     "ifCount" : 0,
     "isLongMethod" : false,
+    "name" : "calculateDiscount",
+    "lines" : 3,
+    "params" : 2,
+    "body" : "{\r\n    return price - (price * (percentage / 100));\r\n}",
+    "forCount" : 0,
+    "locals" : [ ]
+  }, {
+    "ifCount" : 0,
+    "isLongMethod" : false,
     "name" : "applyDiscount",
     "lines" : 4,
     "params" : 0,
-    "body" : "{\r\n    double discountedPrice = (200 - (200 * (15 / 100)));\r\n    System.out.println(discountedPrice);\r\n}",
+    "body" : "{\r\n    double discountedPrice = calculateDiscount(200, 15);\r\n    System.out.println(discountedPrice);\r\n}",
     "forCount" : 0,
     "locals" : [ "discountedPrice" ]
   } ]
