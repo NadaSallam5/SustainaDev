@@ -21,7 +21,8 @@ export async function buildInlinePatch(
 ): Promise<{ preview: string; inlinedMethod: string; callCount: number }> {
   const apiKey = process.env.OPENAI_API_KEY;
   const project = process.env.OPENAI_PROJECT_ID;
-  const workspace = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
+  const workspace =
+    vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
 
   // ---------------- BEFORE METRICS (file-level sums) ----------------
   const beforeLizard = await safeRunLizard(fileName);
@@ -65,17 +66,23 @@ export async function buildInlinePatch(
     const afterPart = classBody.slice(methodEnd);
 
     const methodBodyContent = classBody.slice(braceStart + 1, pos).trim();
-    const returnMatch = methodBodyContent.match(/^\s*return\s+([\s\S]*?)\s*;\s*$/m);
+    const returnMatch = methodBodyContent.match(
+      /^\s*return\s+([\s\S]*?)\s*;\s*$/m
+    );
     if (!returnMatch) throw new Error("Method body too complex to inline.");
 
     const expr = returnMatch[1].trim();
 
     const params = paramsRaw
-      ? paramsRaw.split(/,/).map((p) => p.trim()).filter(Boolean).map((p) => {
-          const parts = p.split(/\s+/).filter(Boolean);
-          const name = parts[parts.length - 1];
-          return { raw: p, name };
-        })
+      ? paramsRaw
+          .split(/,/)
+          .map((p) => p.trim())
+          .filter(Boolean)
+          .map((p) => {
+            const parts = p.split(/\s+/).filter(Boolean);
+            const name = parts[parts.length - 1];
+            return { raw: p, name };
+          })
       : [];
 
     const searchArea = beforePart + afterPart;
@@ -140,7 +147,11 @@ export async function buildInlinePatch(
     if (callCount === 0) throw new Error("No call sites found to inline.");
 
     const fullPreview = fullCode.replace(classBody, out);
-    return { preview: fullPreview, inlinedMethod: methodText.trim(), callCount };
+    return {
+      preview: fullPreview,
+      inlinedMethod: methodText.trim(),
+      callCount,
+    };
   };
   // -----------------------------------------------------
 
@@ -153,7 +164,11 @@ export async function buildInlinePatch(
       const resp = await client.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
-          { role: "system", content: "You are a Java refactoring expert. Output only valid code sections." },
+          {
+            role: "system",
+            content:
+              "You are a Java refactoring expert. Output only valid code sections.",
+          },
           { role: "user", content: prompt + "\n\nFile:\n" + fullCode },
         ],
         temperature: 0,
@@ -163,11 +178,14 @@ export async function buildInlinePatch(
       const preview = extractSection(text, "Preview");
       const inlinedMethod = extractSection(text, "Inlined Method");
       const callCount = parseInt(extractLabelValue(text, "Call Count") || "0");
-      result = preview && preview.trim().length > 10
-        ? { preview, inlinedMethod, callCount }
-        : localInline();
+      result =
+        preview && preview.trim().length > 10
+          ? { preview, inlinedMethod, callCount }
+          : localInline();
     } catch {
-      vscode.window.showWarningMessage("⚠️ OpenAI call failed — using local fallback.");
+      vscode.window.showWarningMessage(
+        "⚠️ OpenAI call failed — using local fallback."
+      );
       result = localInline();
     }
   } else {
@@ -176,7 +194,10 @@ export async function buildInlinePatch(
 
   // ---------------- AFTER METRICS (file-level sums) ----------------
   // write refactored code to a temp file (auto-deleted later)
-  const tmpAfter = path.join(os.tmpdir(), `sustainadev_inline_after_${Date.now()}.java`);
+  const tmpAfter = path.join(
+    os.tmpdir(),
+    `sustainadev_inline_after_${Date.now()}.java`
+  );
   fs.writeFileSync(tmpAfter, result.preview, "utf8");
 
   const afterLizard = await safeRunLizard(tmpAfter);
@@ -184,16 +205,21 @@ export async function buildInlinePatch(
   const after = afterTotals || { ccn: 0, nloc: 0 };
 
   // cleanup temp
-  try { fs.unlinkSync(tmpAfter); } catch {}
+  try {
+    fs.unlinkSync(tmpAfter);
+  } catch {}
 
   // compute metrics & log (file-level)
-  const delta = { ccn: Math.max(before.ccn - after.ccn, 0), nloc: Math.max(before.nloc - after.nloc, 0) };
+  const delta = {
+    ccn: Math.max(before.ccn - after.ccn, 0),
+    nloc: Math.max(before.nloc - after.nloc, 0),
+  };
   const energy = await estimateEnergy(delta.ccn);
 
   const logPath = path.join(workspace, ".sustainadev", "log.jsonl");
   const logEntry = {
     timestamp: new Date().toISOString(),
-    file: fileName,
+    file: path.basename(fileName),
     refactor: "Inline Method",
     before,
     after,
@@ -215,7 +241,9 @@ export async function buildInlinePatch(
 
   fs.appendFileSync(logPath, JSON.stringify(logEntry) + "\n", "utf8");
 
-  console.log(`✅ Inline Method completed! File CCN ${before.ccn} → ${after.ccn}, File NLOC ${before.nloc} → ${after.nloc}`);
+  console.log(
+    `✅ Inline Method completed! File CCN ${before.ccn} → ${after.ccn}, File NLOC ${before.nloc} → ${after.nloc}`
+  );
   return result;
 }
 
@@ -233,7 +261,8 @@ async function safeRunLizard(file: string) {
  * Aggregates the Lizard result into file-level totals
  */
 function aggregateFileMetrics(lizardRes: any): { ccn: number; nloc: number } {
-  if (!lizardRes || !Array.isArray(lizardRes.functions)) return { ccn: 0, nloc: 0 };
+  if (!lizardRes || !Array.isArray(lizardRes.functions))
+    return { ccn: 0, nloc: 0 };
   const totals = lizardRes.functions.reduce(
     (acc: { ccn: number; nloc: number }, fn: any) => {
       const ccn = Number(fn.ccn ?? 0);

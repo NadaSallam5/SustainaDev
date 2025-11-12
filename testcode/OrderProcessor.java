@@ -9,9 +9,9 @@ public class OrderProcessor {
 
     public double calculateTotal(double[] prices) {
         double total = 0;
-        for (double jjjjj : prices) {
-            if (jjjjj > 0) {
-                total += jjjjj;
+        for (double p : prices) {
+            if (p > 0) {
+                total += p;
             }
         }
 

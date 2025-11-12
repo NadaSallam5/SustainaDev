@@ -235,7 +235,7 @@ Reason:
   const logPath = path.join(workspace, ".sustainadev", "log.jsonl");
   const logEntry = {
     timestamp: new Date().toISOString(),
-    file: actualFileName,
+    file: path.basename(actualFileName),
     refactor: "Extract Method",
     before,
     after,

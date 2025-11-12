@@ -211,14 +211,14 @@ Reason:
   const logPath = path.join(workspace, ".sustainadev", "log.jsonl");
   const logEntry = {
     timestamp: new Date().toISOString(),
-    file: actualFileName,
+    file: path.basename(actualFileName),
     refactor: "Rename Variable",
     renamed: `${oldName} -> ${chosenName}`,
     before,
     after,
     delta,
     energy,
-    reason: finalReason,
+    commit: { message: finalReason },
   };
   try {
     const dir = path.dirname(logPath);
