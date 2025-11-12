@@ -41,4 +41,5 @@ public class InvoiceCalculator {
         }
         return new int[] { total, count };
     }
+
 }

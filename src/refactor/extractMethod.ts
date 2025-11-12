@@ -14,7 +14,11 @@ export async function buildExtractPatch(
   fullCode: string,
   range: { from: number; to: number },
   fileName?: string,
-  context?: { methodBody?: string; locals?: string[] }
+  context?: {
+    methodBody?: string;
+    locals?: string[];
+    targetMethodName?: string;
+  }
 ): Promise<{ preview: string; newMethod: string; callName: string }> {
   const workspace =
     vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
@@ -33,7 +37,10 @@ export async function buildExtractPatch(
     `🔍 Lizard BEFORE returned:`,
     JSON.stringify(beforeLizard, null, 2)
   );
-  const beforeTotals = aggregateFileMetrics(beforeLizard);
+  const beforeTotals = getMethodMetrics(
+    beforeLizard,
+    context?.targetMethodName || ""
+  );
   const before = beforeTotals || { ccn: 0, nloc: 0 };
 
   console.log(
@@ -208,7 +215,10 @@ Reason:
     `🔍 Lizard AFTER returned:`,
     JSON.stringify(afterLizard, null, 2)
   );
-  const afterTotals = aggregateFileMetrics(afterLizard);
+  const afterTotals = getMethodMetrics(
+    afterLizard,
+    context?.targetMethodName || ""
+  );
   const after = afterTotals || { ccn: 0, nloc: 0 };
 
   console.log(
@@ -268,6 +278,17 @@ Reason:
 }
 
 /* ---------------- Helper functions ---------------- */
+
+function getMethodMetrics(result: any, targetMethodName: string) {
+  const fn = result.functions.find((f: any) => f.name === targetMethodName);
+  if (!fn) {
+    console.warn(
+      `⚠️ Could not find method ${targetMethodName}, using file sum fallback.`
+    );
+    return aggregateFileMetrics(result);
+  }
+  return { ccn: fn.ccn, nloc: fn.nloc };
+}
 
 export function extractClassBlock(fullCode: string, functionStart: number) {
   const lines = fullCode.split(/\r?\n/);

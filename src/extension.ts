@@ -191,7 +191,7 @@ export function activate(context: vscode.ExtensionContext) {
             fullCode,
             { from, to },
             filePath,
-            { methodBody, locals }
+            { methodBody, locals, targetMethodName: worst.name }
           );
 
           console.log("🧠 AI Patch Response:", patch);
