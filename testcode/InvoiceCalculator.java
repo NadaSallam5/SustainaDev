@@ -137,4 +137,16 @@ public class InvoiceCalculator {
         System.out.println("FINAL TOTAL: $" + finalTotal);
         System.out.println("Order processed successfully.");
     }
+
+    private void printInvoiceLines(int[] prices) {
+        System.out.println("----------------- LINE ITEMS ----------------");
+        for (int i = 0; i < prices.length; i++) {
+            int itemPrice = prices[i];
+            if (itemPrice > 0) {
+                System.out.println("#" + (i + 1) + "  $" + itemPrice);
+            } else {
+                System.out.println("#" + (i + 1) + "  (invalid: " + itemPrice + ")");
+            }
+        }
+    }
 }
