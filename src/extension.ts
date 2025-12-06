@@ -31,9 +31,12 @@ export function activate(context: vscode.ExtensionContext) {
         "🚀 Running SustainaDev Java Analyzer..."
       );
 
-      const jarPath = path.join(
-        "c:\\Users\\MM\\Downloads\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
+      const jarPath = path.resolve(
+        context.extensionPath,
+        "target",
+        "javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
       );
+
       const projectPath = "c:\\Users\\MM\\Downloads\\SustainaDev\\testcode";
       const command = `java -jar "${jarPath}" "${projectPath}"`;
 
@@ -76,7 +79,7 @@ export function activate(context: vscode.ExtensionContext) {
       );
 
       try {
-        initPaths(context); // ✅ MUST BE CALLED HERE
+        initPaths(context); // MUST BE CALLED HERE
 
         const editor = vscode.window.activeTextEditor;
         if (editor && editor.document.isDirty) {
@@ -116,7 +119,7 @@ export function activate(context: vscode.ExtensionContext) {
         const fullCode = refreshedDoc.getText();
 
         // =================================================================
-        // =========== EXTRACT METHOD BLOCK (FIXED - NO DUPLICATE LOGGING) ==
+        // =========== EXTRACT METHOD BLOCK ================================
         // =================================================================
         if ((decision.type as string) === "Extract Method") {
           if (isHelperFunction(worst, fullCode)) {
@@ -127,9 +130,12 @@ export function activate(context: vscode.ExtensionContext) {
             return;
           }
 
-          const jarPath = path.join(
-            "c:\\Users\\MM\\Downloads\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
+          const jarPath = path.resolve(
+            context.extensionPath,
+            "target",
+            "javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
           );
+
           const projectPath = path.dirname(filePath);
           const analyzerCmd = `java -jar "${jarPath}" "${projectPath}"`;
 
@@ -186,7 +192,6 @@ export function activate(context: vscode.ExtensionContext) {
             }
           }
 
-          // ✅ buildExtractPatch now handles ALL metrics and logging internally
           const patch = await buildExtractPatch(
             fullCode,
             { from, to },
@@ -202,7 +207,7 @@ export function activate(context: vscode.ExtensionContext) {
             return;
           }
 
-          // 🧹 Close any old preview
+          // PREVIEW STEPS (unchanged)
           const oldDoc = vscode.workspace.textDocuments.find(
             (d) => d.uri.toString() === "untitled:RefactorPreview.java"
           );
@@ -213,14 +218,12 @@ export function activate(context: vscode.ExtensionContext) {
             );
           }
 
-          // 🆕 Create a new in-memory preview document
           const right = vscode.Uri.parse("untitled:RefactorPreview.java");
           const edit = new vscode.WorkspaceEdit();
           edit.insert(right, new vscode.Position(0, 0), patch.preview);
           await vscode.workspace.applyEdit(edit);
           await new Promise((resolve) => setTimeout(resolve, 200));
 
-          // 💡 Show the diff preview
           await vscode.commands.executeCommand(
             "vscode.diff",
             originalUri,
@@ -229,7 +232,6 @@ export function activate(context: vscode.ExtensionContext) {
             { preview: true }
           );
 
-          // 🧭 Ask user whether to apply
           const apply = await vscode.window.showQuickPick(
             ["Apply refactor", "Cancel"],
             {
@@ -252,7 +254,6 @@ export function activate(context: vscode.ExtensionContext) {
             return;
           }
 
-          // ✅ Close the preview
           const previewEditor = vscode.window.visibleTextEditors.find((e) =>
             e.document.uri.toString().includes("Preview")
           );
@@ -265,7 +266,6 @@ export function activate(context: vscode.ExtensionContext) {
             );
           }
 
-          // ✅ Apply the patch to the original file
           const we = new vscode.WorkspaceEdit();
           const fullRange = new vscode.Range(
             new vscode.Position(0, 0),
@@ -286,12 +286,6 @@ export function activate(context: vscode.ExtensionContext) {
             "✅ Refactor applied successfully!"
           );
 
-          // Show simple user message
-          vscode.window.showInformationMessage(
-            `Extract Method completed for ${worst.name}`
-          );
-
-          // Commit
           const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath!;
           const msg = `Extract Method in ${worst.name}`;
           await gitCommit(ws, msg);
@@ -300,30 +294,9 @@ export function activate(context: vscode.ExtensionContext) {
             "Refactor applied, committed, and logged."
           );
 
-          // === RefactoringMiner verification (optional) ===
-          /*  if (useRM) {
-            try {
-              const verified = (await verifyLastRefactor(ws)).length > 0;
-              vscode.window.showInformationMessage(
-                verified
-                  ? "✅ Refactor verified by RefactoringMiner"
-                  : "⚠️ Not verified"
-              );
-            } catch (e: any) {
-              vscode.window.showWarningMessage(
-                `RefactoringMiner verification failed: ${
-                  e?.message ?? ""
-                }`.trim()
-              );
-            }
-          } */
-
-          // ❌ REMOVED: Duplicate logging - buildExtractPatch already logged everything!
-          // No more appendLog() here - it's all done inside buildExtractPatch with correct metrics
-
-          // =================================================================
-          // =========== INLINE METHOD BLOCK ==============
-          // =================================================================
+        // =================================================================
+        // =========== INLINE METHOD BLOCK ================================
+        // =================================================================
         } else if ((decision.type as string) === "Inline Method") {
           vscode.window.showInformationMessage("💡 Inline Method chosen");
 
@@ -335,7 +308,6 @@ export function activate(context: vscode.ExtensionContext) {
             return;
           }
 
-          // 🧹 Close any old preview
           const oldDoc = vscode.workspace.textDocuments.find(
             (d) => d.uri.toString() === "untitled:RefactorPreview.java"
           );
@@ -346,14 +318,12 @@ export function activate(context: vscode.ExtensionContext) {
             );
           }
 
-          // 🆕 Create a new in-memory preview document
           const right = vscode.Uri.parse("untitled:RefactorPreview.java");
           const edit = new vscode.WorkspaceEdit();
           edit.insert(right, new vscode.Position(0, 0), patch.preview);
           await vscode.workspace.applyEdit(edit);
           await new Promise((resolve) => setTimeout(resolve, 200));
 
-          // 💡 Show the diff preview
           await vscode.commands.executeCommand(
             "vscode.diff",
             originalUri,
@@ -362,7 +332,6 @@ export function activate(context: vscode.ExtensionContext) {
             { preview: true }
           );
 
-          // 🧭 Ask user whether to apply
           const apply = await vscode.window.showQuickPick(
             ["Apply refactor", "Cancel"],
             {
@@ -385,7 +354,6 @@ export function activate(context: vscode.ExtensionContext) {
             return;
           }
 
-          // ✅ Close the preview
           const previewEditor = vscode.window.visibleTextEditors.find((e) =>
             e.document.uri.toString().includes("Preview")
           );
@@ -398,7 +366,6 @@ export function activate(context: vscode.ExtensionContext) {
             );
           }
 
-          // ✅ Apply the patch to the original file
           const we = new vscode.WorkspaceEdit();
           const fullRange = new vscode.Range(
             new vscode.Position(0, 0),
@@ -416,13 +383,10 @@ export function activate(context: vscode.ExtensionContext) {
           await vscode.window.showTextDocument(originalUri, { preview: false });
           await refreshedDoc.save();
 
-          // Show simple user message
-
           vscode.window.showInformationMessage(
             "✅ Inline Method applied successfully!"
           );
 
-          // Commit
           const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath!;
           const msg = `Inline Method in ${worst.name}`;
           await gitCommit(ws, msg);
@@ -430,12 +394,19 @@ export function activate(context: vscode.ExtensionContext) {
           vscode.window.showInformationMessage(
             "Refactor applied, committed, and logged."
           );
+
+        // =================================================================
+        // =========== RENAME VARIABLE BLOCK ===============================
+        // =================================================================
         } else if ((decision.type as string) === "Rename Variable") {
           vscode.window.showInformationMessage("💡 Rename Variable chosen");
 
-          const jarPath = path.join(
-            "c:\\Users\\MM\\Downloads\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
+          const jarPath = path.resolve(
+            context.extensionPath,
+            "target",
+            "javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
           );
+
           const projectPath = path.dirname(filePath);
           const analyzerCmd = `java -jar "${jarPath}" "${projectPath}"`;
 
@@ -493,7 +464,7 @@ export function activate(context: vscode.ExtensionContext) {
           }
 
           const foundVars = decision.candidate ? [decision.candidate] : locals;
-          // Let user pick which one to rename
+
           const oldName = await vscode.window.showQuickPick(foundVars, {
             placeHolder: "Pick a unreadable variable to rename",
           });
@@ -505,12 +476,10 @@ export function activate(context: vscode.ExtensionContext) {
           await refreshedDocLatest.save();
           const fullCode = refreshedDocLatest.getText();
 
-          // 🤖 Call AI ONCE to suggest + rename
           vscode.window.showInformationMessage(
             `🤖 AI analyzing "${oldName}"...`
           );
 
-          // Call AI to safely rename just that one variable
           const patch = await buildRenamePatch(
             fullCode,
             oldName,
@@ -524,7 +493,7 @@ export function activate(context: vscode.ExtensionContext) {
             );
             return;
           }
-          // 🧹 Close any old preview
+
           const oldDoc = vscode.workspace.textDocuments.find(
             (d) => d.uri.toString() === "untitled:RefactorPreview.java"
           );
@@ -535,17 +504,14 @@ export function activate(context: vscode.ExtensionContext) {
             );
           }
 
-          // 🆕 Create a new in-memory preview document
           const right = vscode.Uri.parse("untitled:RefactorPreview.java");
 
           const edit = new vscode.WorkspaceEdit();
           edit.insert(right, new vscode.Position(0, 0), patch.preview);
           await vscode.workspace.applyEdit(edit);
 
-          // 🕒 Wait to ensure buffer registration
           await new Promise((resolve) => setTimeout(resolve, 200));
 
-          // 💡 Show the diff preview
           await vscode.commands.executeCommand(
             "vscode.diff",
             originalUri,
@@ -553,7 +519,7 @@ export function activate(context: vscode.ExtensionContext) {
             "🔄 Proposed Refactoring (Original ← → Refactored)",
             { preview: true }
           );
-          // 🧭 Ask user whether to apply
+
           const apply = await vscode.window.showQuickPick(
             ["Apply refactor", "Cancel"],
             {
@@ -561,7 +527,6 @@ export function activate(context: vscode.ExtensionContext) {
             }
           );
           if (apply !== "Apply refactor") {
-            // ✅ Find the diff preview safely
             const previewEditor = vscode.window.visibleTextEditors.find((e) =>
               e.document.uri.toString().includes("RefactorPreview.java")
             );
@@ -569,15 +534,12 @@ export function activate(context: vscode.ExtensionContext) {
             if (previewEditor) {
               const doc = previewEditor.document;
 
-              // 🧹 Discard all changes silently (no save popup)
               await vscode.window.showTextDocument(doc, { preview: false });
 
-              // Try revert first (silently discards content)
               await vscode.commands.executeCommand(
                 "workbench.action.revertAndCloseActiveEditor"
               );
 
-              // Fallback in case revert isn't supported (untitled docs sometimes)
               if (!doc.isClosed) {
                 await vscode.commands.executeCommand(
                   "workbench.action.closeActiveEditor"
@@ -591,7 +553,6 @@ export function activate(context: vscode.ExtensionContext) {
             return;
           }
 
-          // ✅ Close the preview completely (no save popup)
           const previewEditor = vscode.window.visibleTextEditors.find((e) =>
             e.document.uri.toString().includes("Preview")
           );
@@ -600,13 +561,11 @@ export function activate(context: vscode.ExtensionContext) {
               preview: false,
             });
 
-            // Force discard unsaved buffer (since revert doesn’t work on untitled)
             await vscode.commands.executeCommand(
               "workbench.action.revertAndCloseActiveEditor"
             );
           }
 
-          // ✅ Apply the patch to the original file
           const we = new vscode.WorkspaceEdit();
           const fullRange = new vscode.Range(
             new vscode.Position(0, 0),
@@ -628,7 +587,6 @@ export function activate(context: vscode.ExtensionContext) {
             "✅ renameRefactor applied successfully!"
           );
 
-          // Commit
           const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath!;
           const msg = `Rename Variable in ${worst.name}`;
           await gitCommit(ws, msg);
@@ -655,7 +613,7 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
-  // ---- Dashboard (reads analysis-report.json and .sustainadev/log.jsonl) ----
+  // ---- Dashboard Command ----
   const openDash = vscode.commands.registerCommand(
     "sustainadev.openDashboard",
     async () => {

@@ -40,5 +40,4 @@ public class InvoiceCalculator {
             System.out.println("Verifying item #" + (i + 1));
         }
     }
-
 }
