@@ -13,17 +13,12 @@ public class InvoiceCalculator {
         int count = 0;
 
         // Loop through prices and calculate
-        for (int price : prices) {
-            if (price > 0) {
-                total += price;
-                count++;
-            } else {
-                System.out.println("Invalid price skipped: " + price);
-            }
-        }
+        int[] results = calculateTotalAndCount(prices);
+        total = results[0];
+        count = results[1];
 
         // Calculate average
-        double avg = calculateAverage(total, count);
+        double avg = (count == 0) ? 0 : (double) total / count;
 
         // Print results
         System.out.println("Total: $" + total);
@@ -39,7 +34,18 @@ public class InvoiceCalculator {
         }
     }
 
-    private double calculateAverage(int total, int count) {
-        return (count == 0) ? 0 : (double) total / count;
+    private int[] calculateTotalAndCount(int[] prices) {
+        int total = 0;
+        int count = 0;
+
+        for (int price : prices) {
+            if (price > 0) {
+                total += price;
+                count++;
+            } else {
+                System.out.println("Invalid price skipped: " + price);
+            }
+        }
+        return new int[] { total, count };
     }
 }
