@@ -19,6 +19,7 @@ import * as fsp from "fs/promises";
 import { decideRefactorType } from "./refactor/chooseRefactor";
 import { buildInlinePatch } from "./refactor/inlinemethod";
 import { buildRenamePatch } from "./refactor/rename-variable";
+import si from "systeminformation";
 
 export function activate(context: vscode.ExtensionContext) {
   console.log("🟢 SustainaDev Analyzer extension is active");
@@ -31,10 +32,10 @@ export function activate(context: vscode.ExtensionContext) {
         "🚀 Running SustainaDev Java Analyzer..."
       );
 
-      const jarPath = path.join(
-        "c:\\Users\\MM\\Downloads\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
+      const jarPath = path.join( 
+        "C:\\Users\\Sarah Wael\\Desktop\\NewSustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
       );
-      const projectPath = "c:\\Users\\MM\\Downloads\\SustainaDev\\testcode";
+      const projectPath = "C:\\Users\\Sarah Wael\\Desktop\\NewSustainaDev\\testcode";
       const command = `java -jar "${jarPath}" "${projectPath}"`;
 
       const terminal = vscode.window.createTerminal("SustainaDev Analyzer");
@@ -128,7 +129,7 @@ export function activate(context: vscode.ExtensionContext) {
           }
 
           const jarPath = path.join(
-            "c:\\Users\\MM\\Downloads\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
+            "C:\\Users\\Sarah Wael\\Desktop\\NewSustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
           );
           const projectPath = path.dirname(filePath);
           const analyzerCmd = `java -jar "${jarPath}" "${projectPath}"`;
@@ -434,7 +435,7 @@ export function activate(context: vscode.ExtensionContext) {
           vscode.window.showInformationMessage("💡 Rename Variable chosen");
 
           const jarPath = path.join(
-            "c:\\Users\\MM\\Downloads\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
+            "C:\\Users\\Sarah Wael\\Desktop\\NewSustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
           );
           const projectPath = path.dirname(filePath);
           const analyzerCmd = `java -jar "${jarPath}" "${projectPath}"`;
@@ -756,7 +757,61 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
-  context.subscriptions.push(runAnalyzer, analyzeActiveFile, openDash);
+  const getSpecs = vscode.commands.registerCommand(
+    "sustainadev.getSpecs",
+    async () => {
+      vscode.window.showInformationMessage("🔍 Collecting system specs...");
+
+      try {
+        const cpu = await si.cpu();
+        const gpu = await si.graphics();
+        const mem = await si.mem();
+        const os = await si.osInfo();
+        const disks = await si.diskLayout();
+        const battery = await si.battery();
+        const gpuModel =
+          gpu.controllers && gpu.controllers.length > 0
+            ? gpu.controllers[0].model
+            : "No GPU detected";
+        const diskInfo = disks
+  .map((d, index) => {
+    const sizeGB = (d.size / 1024 / 1024 / 1024).toFixed(1);
+    const type = d.type || "Unknown";
+    const name = d.name || d.vendor || "Disk " + (index + 1);
+
+    return `• ${type} • ${name} • ${sizeGB} GB`;
+  })
+  .join("\n");
+
+     const batteryInfo = battery.hasBattery
+  ? `Health: ${
+      battery.designedCapacity && battery.maxCapacity
+        ? ((battery.maxCapacity / battery.designedCapacity) * 100).toFixed(0)
+        : "N/A"
+    }% • Charging: ${battery.isCharging} • Capacity: ${battery.percent}%`
+  : "No battery detected";
+
+        const msg = `
+💻 **System Specifications**
+
+🧠 **CPU:** ${cpu.manufacturer} ${cpu.brand} (${cpu.cores} cores)
+🎮 **GPU:** ${gpuModel}
+📦 **RAM:** ${(mem.total / 1024 / 1024 / 1024).toFixed(2)} GB
+🖥️ **OS:** ${os.distro} (${os.arch})
+
+💽 **Disks:**  ${diskInfo}
+
+🔋 **Battery:** ${batteryInfo}
+✔ Specs collected successfully!
+        `;
+
+        vscode.window.showInformationMessage(msg, { modal: true });
+      } catch (err: any) {
+        vscode.window.showErrorMessage("❌ Failed to read system specs: " + err.message);
+      }
+    }
+  );
+  context.subscriptions.push(runAnalyzer, analyzeActiveFile, openDash, getSpecs);
 }
 
 export function deactivate() {}

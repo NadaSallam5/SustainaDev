@@ -13,7 +13,9 @@
   "activationEvents": [
     "onCommand:sustainadev.runAnalyzer",
     "onCommand:sustainadev.analyzeActiveFile",
-    "onCommand:sustainadev.openDashboard"
+    "onCommand:sustainadev.openDashboard",
+   "onCommand:sustainadev.getSpecs"
+
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -29,6 +31,10 @@
       {
         "command": "sustainadev.openDashboard",
         "title": "SustainaDev: Open Dashboard"
+      },
+      {
+        "command": "sustainadev.getSpecs",
+        "title": "SustainaDev: Get System Specs"
       }
     ],
     "configuration": {
@@ -72,8 +78,10 @@
     "webpack-cli": "^6.0.1"
   },
   "dependencies": {
+    "dotenv": "^17.2.3",
     "java-parser": "^3.0.1",
     "openai": "^6.6.0",
+    "systeminformation": "^5.27.13",
     "vscode": "^1.1.37"
   }
 }
