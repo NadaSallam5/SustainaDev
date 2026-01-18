@@ -18,7 +18,7 @@ export async function buildExtractPatch(
     methodBody?: string;
     locals?: string[];
     targetMethodName?: string;
-  }
+  },
 ): Promise<{ preview: string; newMethod: string; callName: string }> {
   const workspace =
     vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
@@ -28,23 +28,23 @@ export async function buildExtractPatch(
   // Write ORIGINAL code to temp file for accurate Lizard measurement
   const tmpBefore = path.join(
     os.tmpdir(),
-    `sustainadev_extract_before_${Date.now()}.java`
+    `sustainadev_extract_before_${Date.now()}.java`,
   );
   fs.writeFileSync(tmpBefore, fullCode, "utf8");
 
   const beforeLizard = await safeRunLizard(tmpBefore);
   console.log(
     `🔍 Lizard BEFORE returned:`,
-    JSON.stringify(beforeLizard, null, 2)
+    JSON.stringify(beforeLizard, null, 2),
   );
   const beforeTotals = getMethodMetrics(
     beforeLizard,
-    context?.targetMethodName || ""
+    context?.targetMethodName || "",
   );
   const before = beforeTotals || { ccn: 0, nloc: 0 };
 
   console.log(
-    `📊 Before Extract Method: File CCN=${before.ccn}, NLOC=${before.nloc}`
+    `📊 Before Extract Method: File CCN=${before.ccn}, NLOC=${before.nloc}`,
   );
 
   // Cleanup temp file
@@ -56,9 +56,8 @@ export async function buildExtractPatch(
 
   // ---------------- AI Extraction Logic ----------------
   const client = new OpenAI({
-    apiKey:
-      "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",
-    project: "proj_LNUP8IUIyX6NsPPmk5Fg5e37",
+    baseURL: "http://localhost:11434/v1", // Local Ollama API
+    apiKey: "09e2e2edbe3b4e24af753696715f28d4.FimC2lyeq3EfreqbzEJ-7TXk", // Placeholder required by the library
   });
 
   const adjustedFrom = Math.max(0, range.from - 1);
@@ -163,7 +162,7 @@ Reason:
 
   // ✅ Use a system message to reset model context
   const resp = await client.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "qwen2.5-coder:3b",
     messages: [
       {
         role: "system",
@@ -187,7 +186,7 @@ Reason:
   const classCount = (preview.match(/\bclass\s+\w+/g) || []).length;
   if (classCount > 1) {
     vscode.window.showErrorMessage(
-      `⚠️ AI output contains ${classCount} class definitions But will continue`
+      `⚠️ AI output contains ${classCount} class definitions But will continue`,
     );
   }
 
@@ -198,7 +197,7 @@ Reason:
 
   if (!isBalanced(preview)) {
     vscode.window.showWarningMessage(
-      "⚠️ AI output braces unbalanced — review before applying."
+      "⚠️ AI output braces unbalanced — review before applying.",
     );
   }
 
@@ -206,23 +205,23 @@ Reason:
   // Write refactored code to a temp file for Lizard analysis
   const tmpAfter = path.join(
     os.tmpdir(),
-    `sustainadev_extract_after_${Date.now()}.java`
+    `sustainadev_extract_after_${Date.now()}.java`,
   );
   fs.writeFileSync(tmpAfter, preview, "utf8");
 
   const afterLizard = await safeRunLizard(tmpAfter);
   console.log(
     `🔍 Lizard AFTER returned:`,
-    JSON.stringify(afterLizard, null, 2)
+    JSON.stringify(afterLizard, null, 2),
   );
   const afterTotals = getMethodMetrics(
     afterLizard,
-    context?.targetMethodName || ""
+    context?.targetMethodName || "",
   );
   const after = afterTotals || { ccn: 0, nloc: 0 };
 
   console.log(
-    `📊 After Extract Method: File CCN=${after.ccn}, NLOC=${after.nloc}`
+    `📊 After Extract Method: File CCN=${after.ccn}, NLOC=${after.nloc}`,
   );
 
   // Cleanup temp file
@@ -271,7 +270,7 @@ Reason:
   fs.appendFileSync(logPath, JSON.stringify(logEntry) + "\n", "utf8");
 
   console.log(
-    `✅ Extract Method logged! Delta: CCN=${delta.ccn}, NLOC=${delta.nloc}`
+    `✅ Extract Method logged! Delta: CCN=${delta.ccn}, NLOC=${delta.nloc}`,
   );
 
   return { preview, newMethod, callName };
@@ -283,7 +282,7 @@ function getMethodMetrics(result: any, targetMethodName: string) {
   const fn = result.functions.find((f: any) => f.name === targetMethodName);
   if (!fn) {
     console.warn(
-      `⚠️ Could not find method ${targetMethodName}, using file sum fallback.`
+      `⚠️ Could not find method ${targetMethodName}, using file sum fallback.`,
     );
     return aggregateFileMetrics(result);
   }
@@ -392,7 +391,7 @@ function aggregateFileMetrics(lizardRes: any): { ccn: number; nloc: number } {
       acc.nloc += isNaN(nloc) ? 0 : nloc;
       return acc;
     },
-    { ccn: 0, nloc: 0 }
+    { ccn: 0, nloc: 0 },
   );
 
   console.log(`✅ Aggregated totals: CCN=${totals.ccn}, NLOC=${totals.nloc}`);
