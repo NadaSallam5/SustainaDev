@@ -2,24 +2,21 @@ import * as vscode from "vscode";
 import * as path from "path";
 import { exec } from "child_process";
 import * as fs from "fs";
-// NEW imports for PoC flow
-import { runLizard } from "./analyzer/lizardRunner";
-import { chooseRefactor } from "./analyzer/smellClassifier";
-import {
-  buildExtractPatch,
-  extractClassBlock,
-  isHelperFunction,
-} from "./refactor/extractMethod";
-import { buildExplanation } from "./refactor/explanation";
-import { gitCommit } from "./git/commit";
-import { verifyLastRefactor } from "./git/refactoringMiner";
-import { estimateEnergy, initPaths } from "./metrics/codeCarbon";
-import { appendLog } from "./metrics/logger";
 import * as fsp from "fs/promises";
-import { decideRefactorType } from "./refactor/chooseRefactor";
+
+// Project internal imports
+import { runLizard } from "./analyzer/lizardRunner";
+import { buildOptimizationPatch } from "./refactor/optimizeComplexity"; // New optimization module
 import { buildInlinePatch } from "./refactor/inlinemethod";
 import { buildRenamePatch } from "./refactor/rename-variable";
+import { decideRefactorType } from "./refactor/chooseRefactor";
+import { gitCommit } from "./git/commit";
+import { initPaths } from "./metrics/codeCarbon";
 
+/**
+ * SustainaDev Extension Activation
+ *
+ */
 export function activate(context: vscode.ExtensionContext) {
   console.log("🟢 SustainaDev Analyzer extension is active");
 
@@ -28,11 +25,11 @@ export function activate(context: vscode.ExtensionContext) {
     "sustainadev.runAnalyzer",
     () => {
       vscode.window.showInformationMessage(
-        "🚀 Running SustainaDev Java Analyzer..."
+        "🚀 Running SustainaDev Java Analyzer...",
       );
 
       const jarPath = path.join(
-        "c:\\Users\\MM\\Downloads\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
+        "c:\\Users\\MM\\Downloads\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar",
       );
       const projectPath = "c:\\Users\\MM\\Downloads\\SustainaDev\\testcode";
       const command = `java -jar "${jarPath}" "${projectPath}"`;
@@ -44,39 +41,39 @@ export function activate(context: vscode.ExtensionContext) {
       exec(command, (error, stdout, stderr) => {
         if (error) {
           vscode.window.showErrorMessage(
-            `❌ Analyzer failed: ${error.message}`
+            `❌ Analyzer failed: ${error.message}`,
           );
           return;
         }
         if (stderr) console.error(stderr);
         console.log(stdout);
         vscode.window.showInformationMessage(
-          "✅ Analysis complete! Check analysis-report.json"
+          "✅ Analysis complete! Check analysis-report.json",
         );
       });
-    }
+    },
   );
 
   let isRunning = false;
 
-  // ---- Analyze current file, suggest refactor, preview, apply, commit, verify (optional), log ----
+  // ---- Analyze current file, suggest refactor, preview, apply, commit, log ----
   const analyzeActiveFile = vscode.commands.registerCommand(
     "sustainadev.analyzeActiveFile",
     async () => {
       if (isRunning) {
         vscode.window.showWarningMessage(
-          "⏳ SustainaDev is still processing. Please wait until the current refactor completes."
+          "⏳ SustainaDev is still processing. Please wait until the current refactor completes.",
         );
         return;
       }
 
       isRunning = true;
       vscode.window.showInformationMessage(
-        "🚀 SustainaDev pipeline started..."
+        "🚀 SustainaDev pipeline started...",
       );
 
       try {
-        initPaths(context); // ✅ MUST BE CALLED HERE
+        initPaths(context);
 
         const editor = vscode.window.activeTextEditor;
         if (editor && editor.document.isDirty) {
@@ -87,14 +84,11 @@ export function activate(context: vscode.ExtensionContext) {
           return;
         }
 
-        const cfg = vscode.workspace.getConfiguration("sustainadev");
-        const useRM = cfg.get<boolean>("enableRefactoringMiner") === true;
-
         const originalUri = editor.document.uri;
         const filePath = originalUri.fsPath;
 
         const refreshedDoc = await vscode.workspace.openTextDocument(
-          editor.document.uri
+          editor.document.uri,
         );
         await refreshedDoc.save();
 
@@ -106,110 +100,48 @@ export function activate(context: vscode.ExtensionContext) {
         }
 
         const worst = analysis.functions.sort(
-          (a, b) => b.ccn - a.ccn || b.nloc - a.nloc
+          (a, b) => b.ccn - a.ccn || b.nloc - a.nloc,
         )[0];
 
+        const fullCode = refreshedDoc.getText();
         const decision = decideRefactorType({
           ...worst,
-          content: refreshedDoc.getText().toString(),
+          content: fullCode,
         });
-        const fullCode = refreshedDoc.getText();
 
         // =================================================================
-        // =========== EXTRACT METHOD BLOCK (FIXED - NO DUPLICATE LOGGING) ==
+        // =========== ALGORITHMIC OPTIMIZATION BLOCK ($O(N^2) -> O(N)) =====
         // =================================================================
-        if ((decision.type as string) === "Extract Method") {
-          if (isHelperFunction(worst, fullCode)) {
-            vscode.window.showInformationMessage(
-              `⏭️ Skipping "${worst.name}" — looks like a helper or extracted method.`
-            );
-            isRunning = false;
-            return;
-          }
-
-          const jarPath = path.join(
-            "c:\\Users\\MM\\Downloads\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
+        if (
+          decision.type === "Algorithmic Optimization" ||
+          decision.type === "Extract Method"
+        ) {
+          vscode.window.showInformationMessage(
+            `🤖 Optimizing Big-O for "${worst.name}"...`,
           );
-          const projectPath = path.dirname(filePath);
-          const analyzerCmd = `java -jar "${jarPath}" "${projectPath}"`;
 
-          console.log("🔍 Running Analyzer:", analyzerCmd);
-
-          try {
-            await new Promise((resolve, reject) => {
-              const proc = require("child_process").exec(
-                analyzerCmd,
-                { cwd: projectPath },
-                (err: any, stdout: string, stderr: string) => {
-                  if (err) {
-                    console.error("❌ Analyzer failed:", err.message);
-                    console.error("stderr:", stderr);
-                    reject(err);
-                  } else {
-                    console.log("✅ Analyzer output:", stdout);
-                    resolve(null);
-                  }
-                }
-              );
-            });
-          } catch (err: any) {
-            vscode.window.showWarningMessage(
-              `⚠️ Analyzer failed to run: ${err.message}. Using Lizard fallback.`
-            );
-            console.error("Analyzer execution error:", err);
-          }
-
-          let from = worst.start;
-          let to = worst.end;
-          let methodBody = "";
-          let locals: string[] = [];
-          const analyzerReport = path.join(
-            path.dirname(filePath),
-            "analysis-report.json"
-          );
-          if (fs.existsSync(analyzerReport)) {
-            try {
-              const report = JSON.parse(
-                fs.readFileSync(analyzerReport, "utf8")
-              );
-              const fileReport = report.find((r: any) =>
-                r.file.includes(path.basename(filePath))
-              );
-              const method = fileReport?.methods?.find(
-                (m: any) => m.name === worst.name
-              );
-
-              methodBody = method?.body ?? "";
-              locals = method?.locals ?? [];
-            } catch (err) {
-              console.error("❌ Failed reading analyzer output:", err);
-            }
-          }
-
-          // ✅ buildExtractPatch now handles ALL metrics and logging internally
-          const patch = await buildExtractPatch(
+          const patch = await buildOptimizationPatch(
             fullCode,
-            { from, to },
+            { from: worst.start, to: worst.end },
             filePath,
-            { methodBody, locals, targetMethodName: worst.name }
+            { targetMethodName: worst.name },
           );
 
-          console.log("🧠 AI Patch Response:", patch);
           if (!patch || !patch.preview || patch.preview.trim().length < 10) {
             vscode.window.showErrorMessage(
-              "AI returned incomplete or invalid refactor output."
+              "AI returned incomplete or invalid optimization output.",
             );
             return;
           }
 
           // 🧹 Close any old preview
           const oldDoc = vscode.workspace.textDocuments.find(
-            (d) => d.uri.toString() === "untitled:RefactorPreview.java"
+            (d) => d.uri.toString() === "untitled:RefactorPreview.java",
           );
           if (oldDoc) {
             await vscode.window.showTextDocument(oldDoc);
             await vscode.commands.executeCommand(
-              "workbench.action.revertAndCloseActiveEditor"
+              "workbench.action.revertAndCloseActiveEditor",
             );
           }
 
@@ -225,43 +157,42 @@ export function activate(context: vscode.ExtensionContext) {
             "vscode.diff",
             originalUri,
             right,
-            "🔄 Proposed Refactoring (Original ← → Refactored)",
-            { preview: true }
+            "🔄 SustainaDev: Algorithmic Optimization (Original ← → Optimized)",
+            { preview: true },
           );
 
           // 🧭 Ask user whether to apply
           const apply = await vscode.window.showQuickPick(
-            ["Apply refactor", "Cancel"],
-            {
-              placeHolder: "Apply Extract Method?",
-            }
+            ["Apply optimization", "Cancel"],
+            { placeHolder: "Apply Algorithmic Optimization to save energy?" },
           );
-          if (apply !== "Apply refactor") {
+
+          if (apply !== "Apply optimization") {
             const previewEditor = vscode.window.visibleTextEditors.find((e) =>
-              e.document.uri.toString().includes("RefactorPreview.java")
+              e.document.uri.toString().includes("RefactorPreview.java"),
             );
             if (previewEditor) {
               await vscode.window.showTextDocument(previewEditor.document, {
                 preview: false,
               });
               await vscode.commands.executeCommand(
-                "workbench.action.revertAndCloseActiveEditor"
+                "workbench.action.revertAndCloseActiveEditor",
               );
             }
-            vscode.window.showInformationMessage("❌ Refactor canceled.");
+            vscode.window.showInformationMessage("❌ Optimization canceled.");
             return;
           }
 
           // ✅ Close the preview
           const previewEditor = vscode.window.visibleTextEditors.find((e) =>
-            e.document.uri.toString().includes("Preview")
+            e.document.uri.toString().includes("Preview"),
           );
           if (previewEditor) {
             await vscode.window.showTextDocument(previewEditor.document, {
               preview: false,
             });
             await vscode.commands.executeCommand(
-              "workbench.action.revertAndCloseActiveEditor"
+              "workbench.action.revertAndCloseActiveEditor",
             );
           }
 
@@ -269,393 +200,165 @@ export function activate(context: vscode.ExtensionContext) {
           const we = new vscode.WorkspaceEdit();
           const fullRange = new vscode.Range(
             new vscode.Position(0, 0),
-            new vscode.Position(refreshedDoc.lineCount, 0)
+            new vscode.Position(refreshedDoc.lineCount, 0),
           );
           we.replace(originalUri, fullRange, patch.preview);
 
           const applied = await vscode.workspace.applyEdit(we);
           if (!applied) {
-            vscode.window.showErrorMessage("Failed to apply refactor edits.");
+            vscode.window.showErrorMessage(
+              "Failed to apply optimization edits.",
+            );
             return;
           }
 
           await vscode.commands.executeCommand("editor.action.formatDocument");
           await vscode.window.showTextDocument(originalUri, { preview: false });
           await refreshedDoc.save();
-          vscode.window.showInformationMessage(
-            "✅ Refactor applied successfully!"
-          );
 
-          // Show simple user message
-          vscode.window.showInformationMessage(
-            `Extract Method completed for ${worst.name}`
-          );
-
-          // Commit
           const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath!;
-          const msg = `Extract Method in ${worst.name}`;
-          await gitCommit(ws, msg);
-
-          vscode.window.showInformationMessage(
-            "Refactor applied, committed, and logged."
+          await gitCommit(
+            ws,
+            `Optimize Big-O in ${worst.name}: ${patch.reason}`,
           );
-
-          // === RefactoringMiner verification (optional) ===
-          /*  if (useRM) {
-            try {
-              const verified = (await verifyLastRefactor(ws)).length > 0;
-              vscode.window.showInformationMessage(
-                verified
-                  ? "✅ Refactor verified by RefactoringMiner"
-                  : "⚠️ Not verified"
-              );
-            } catch (e: any) {
-              vscode.window.showWarningMessage(
-                `RefactoringMiner verification failed: ${
-                  e?.message ?? ""
-                }`.trim()
-              );
-            }
-          } */
-
-          // ❌ REMOVED: Duplicate logging - buildExtractPatch already logged everything!
-          // No more appendLog() here - it's all done inside buildExtractPatch with correct metrics
+          vscode.window.showInformationMessage(
+            "✅ Optimization applied and logged!",
+          );
 
           // =================================================================
           // =========== INLINE METHOD BLOCK ==============
           // =================================================================
-        } else if ((decision.type as string) === "Inline Method") {
+        } else if (decision.type === "Inline Method") {
           vscode.window.showInformationMessage("💡 Inline Method chosen");
 
           const patch = await buildInlinePatch(fullCode, worst.name, filePath);
           if (!patch || !patch.preview || patch.preview.trim().length < 10) {
             vscode.window.showErrorMessage(
-              "AI failed to generate inline patch."
+              "AI failed to generate inline patch.",
             );
             return;
           }
 
-          // 🧹 Close any old preview
-          const oldDoc = vscode.workspace.textDocuments.find(
-            (d) => d.uri.toString() === "untitled:RefactorPreview.java"
-          );
-          if (oldDoc) {
-            await vscode.window.showTextDocument(oldDoc);
-            await vscode.commands.executeCommand(
-              "workbench.action.revertAndCloseActiveEditor"
-            );
-          }
-
-          // 🆕 Create a new in-memory preview document
           const right = vscode.Uri.parse("untitled:RefactorPreview.java");
           const edit = new vscode.WorkspaceEdit();
           edit.insert(right, new vscode.Position(0, 0), patch.preview);
           await vscode.workspace.applyEdit(edit);
           await new Promise((resolve) => setTimeout(resolve, 200));
 
-          // 💡 Show the diff preview
           await vscode.commands.executeCommand(
             "vscode.diff",
             originalUri,
             right,
             "🔄 Proposed Inline Refactoring (Original ← → Refactored)",
-            { preview: true }
+            { preview: true },
           );
 
-          // 🧭 Ask user whether to apply
           const apply = await vscode.window.showQuickPick(
             ["Apply refactor", "Cancel"],
-            {
-              placeHolder: "Apply Inline Method?",
-            }
+            { placeHolder: "Apply Inline Method?" },
           );
-          if (apply !== "Apply refactor") {
-            const previewEditor = vscode.window.visibleTextEditors.find((e) =>
-              e.document.uri.toString().includes("RefactorPreview.java")
+          if (apply === "Apply refactor") {
+            const we = new vscode.WorkspaceEdit();
+            const fullRange = new vscode.Range(
+              new vscode.Position(0, 0),
+              new vscode.Position(refreshedDoc.lineCount, 0),
             );
-            if (previewEditor) {
-              await vscode.window.showTextDocument(previewEditor.document, {
-                preview: false,
-              });
-              await vscode.commands.executeCommand(
-                "workbench.action.revertAndCloseActiveEditor"
-              );
-            }
-            vscode.window.showInformationMessage("❌ Refactor canceled.");
-            return;
-          }
-
-          // ✅ Close the preview
-          const previewEditor = vscode.window.visibleTextEditors.find((e) =>
-            e.document.uri.toString().includes("Preview")
-          );
-          if (previewEditor) {
-            await vscode.window.showTextDocument(previewEditor.document, {
-              preview: false,
-            });
+            we.replace(originalUri, fullRange, patch.preview);
+            await vscode.workspace.applyEdit(we);
             await vscode.commands.executeCommand(
-              "workbench.action.revertAndCloseActiveEditor"
+              "editor.action.formatDocument",
+            );
+            await refreshedDoc.save();
+            const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath!;
+            await gitCommit(ws, `Inline Method in ${worst.name}`);
+            vscode.window.showInformationMessage(
+              "✅ Inline Method applied successfully!",
             );
           }
-
-          // ✅ Apply the patch to the original file
-          const we = new vscode.WorkspaceEdit();
-          const fullRange = new vscode.Range(
-            new vscode.Position(0, 0),
-            new vscode.Position(refreshedDoc.lineCount, 0)
-          );
-          we.replace(originalUri, fullRange, patch.preview);
-
-          const applied = await vscode.workspace.applyEdit(we);
-          if (!applied) {
-            vscode.window.showErrorMessage("Failed to apply refactor edits.");
-            return;
-          }
-
-          await vscode.commands.executeCommand("editor.action.formatDocument");
-          await vscode.window.showTextDocument(originalUri, { preview: false });
-          await refreshedDoc.save();
-
-          // Show simple user message
-
-          vscode.window.showInformationMessage(
-            "✅ Inline Method applied successfully!"
+          await vscode.commands.executeCommand(
+            "workbench.action.revertAndCloseActiveEditor",
           );
 
-          // Commit
-          const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath!;
-          const msg = `Inline Method in ${worst.name}`;
-          await gitCommit(ws, msg);
-
-          vscode.window.showInformationMessage(
-            "Refactor applied, committed, and logged."
-          );
-        } else if ((decision.type as string) === "Rename Variable") {
+          // =================================================================
+          // =========== RENAME VARIABLE BLOCK ==============
+          // =================================================================
+        } else if (decision.type === "Rename Variable") {
           vscode.window.showInformationMessage("💡 Rename Variable chosen");
 
-          const jarPath = path.join(
-            "c:\\Users\\MM\\Downloads\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
-          );
-          const projectPath = path.dirname(filePath);
-          const analyzerCmd = `java -jar "${jarPath}" "${projectPath}"`;
-
-          console.log("🔍 Running Analyzer:", analyzerCmd);
-
-          try {
-            await new Promise((resolve, reject) => {
-              const proc = require("child_process").exec(
-                analyzerCmd,
-                { cwd: projectPath },
-                (err: any, stdout: string, stderr: string) => {
-                  if (err) {
-                    console.error("❌ Analyzer failed:", err.message);
-                    console.error("stderr:", stderr);
-                    reject(err);
-                  } else {
-                    console.log("✅ Analyzer output:", stdout);
-                    resolve(null);
-                  }
-                }
-              );
-            });
-          } catch (err: any) {
-            vscode.window.showWarningMessage(
-              `⚠️ Analyzer failed to run: ${err.message}. Using Lizard fallback.`
-            );
-            console.error("Analyzer execution error:", err);
-          }
-
-          let from = worst.start;
-          let to = worst.end;
-          let methodBody = "";
-          let locals: string[] = [];
-          const analyzerReport = path.join(
-            path.dirname(filePath),
-            "analysis-report.json"
-          );
-          if (fs.existsSync(analyzerReport)) {
-            try {
-              const report = JSON.parse(
-                fs.readFileSync(analyzerReport, "utf8")
-              );
-              const fileReport = report.find((r: any) =>
-                r.file.includes(path.basename(filePath))
-              );
-              const method = fileReport?.methods?.find(
-                (m: any) => m.name === worst.name
-              );
-
-              methodBody = method?.body ?? "";
-              locals = method?.locals ?? [];
-            } catch (err) {
-              console.error("❌ Failed reading analyzer output:", err);
-            }
-          }
-
-          const foundVars = decision.candidate ? [decision.candidate] : locals;
-          // Let user pick which one to rename
-          const oldName = await vscode.window.showQuickPick(foundVars, {
-            placeHolder: "Pick a unreadable variable to rename",
-          });
-          if (!oldName) return;
-
-          const refreshedDocLatest = await vscode.workspace.openTextDocument(
-            filePath
-          );
-          await refreshedDocLatest.save();
-          const fullCode = refreshedDocLatest.getText();
-
-          // 🤖 Call AI ONCE to suggest + rename
-          vscode.window.showInformationMessage(
-            `🤖 AI analyzing "${oldName}"...`
-          );
-
-          // Call AI to safely rename just that one variable
+          const oldName = decision.candidate || "variable";
           const patch = await buildRenamePatch(
             fullCode,
             oldName,
-            { from, to },
-            filePath
+            { from: worst.start, to: worst.end },
+            filePath,
           );
 
           if (!patch || !patch.preview || patch.preview.trim().length < 10) {
             vscode.window.showErrorMessage(
-              "AI failed to generate rename patch."
+              "AI failed to generate rename patch.",
             );
             return;
           }
-          // 🧹 Close any old preview
-          const oldDoc = vscode.workspace.textDocuments.find(
-            (d) => d.uri.toString() === "untitled:RefactorPreview.java"
-          );
-          if (oldDoc) {
-            await vscode.window.showTextDocument(oldDoc);
-            await vscode.commands.executeCommand(
-              "workbench.action.revertAndCloseActiveEditor"
-            );
-          }
 
-          // 🆕 Create a new in-memory preview document
           const right = vscode.Uri.parse("untitled:RefactorPreview.java");
-
           const edit = new vscode.WorkspaceEdit();
           edit.insert(right, new vscode.Position(0, 0), patch.preview);
           await vscode.workspace.applyEdit(edit);
-
-          // 🕒 Wait to ensure buffer registration
           await new Promise((resolve) => setTimeout(resolve, 200));
 
-          // 💡 Show the diff preview
           await vscode.commands.executeCommand(
             "vscode.diff",
             originalUri,
             right,
-            "🔄 Proposed Refactoring (Original ← → Refactored)",
-            { preview: true }
+            "🔄 Proposed Rename Refactoring (Original ← → Refactored)",
+            { preview: true },
           );
-          // 🧭 Ask user whether to apply
+
           const apply = await vscode.window.showQuickPick(
             ["Apply refactor", "Cancel"],
-            {
-              placeHolder: "Apply Rename Variable?",
-            }
+            { placeHolder: "Apply Rename Variable?" },
           );
-          if (apply !== "Apply refactor") {
-            // ✅ Find the diff preview safely
-            const previewEditor = vscode.window.visibleTextEditors.find((e) =>
-              e.document.uri.toString().includes("RefactorPreview.java")
+          if (apply === "Apply refactor") {
+            const we = new vscode.WorkspaceEdit();
+            const fullRange = new vscode.Range(
+              new vscode.Position(0, 0),
+              new vscode.Position(refreshedDoc.lineCount, 0),
             );
-
-            if (previewEditor) {
-              const doc = previewEditor.document;
-
-              // 🧹 Discard all changes silently (no save popup)
-              await vscode.window.showTextDocument(doc, { preview: false });
-
-              // Try revert first (silently discards content)
-              await vscode.commands.executeCommand(
-                "workbench.action.revertAndCloseActiveEditor"
-              );
-
-              // Fallback in case revert isn't supported (untitled docs sometimes)
-              if (!doc.isClosed) {
-                await vscode.commands.executeCommand(
-                  "workbench.action.closeActiveEditor"
-                );
-              }
-            }
-
-            vscode.window.showInformationMessage(
-              "❌ Refactor canceled — preview closed without saving."
-            );
-            return;
-          }
-
-          // ✅ Close the preview completely (no save popup)
-          const previewEditor = vscode.window.visibleTextEditors.find((e) =>
-            e.document.uri.toString().includes("Preview")
-          );
-          if (previewEditor) {
-            await vscode.window.showTextDocument(previewEditor.document, {
-              preview: false,
-            });
-
-            // Force discard unsaved buffer (since revert doesn’t work on untitled)
+            we.replace(originalUri, fullRange, patch.preview);
+            await vscode.workspace.applyEdit(we);
             await vscode.commands.executeCommand(
-              "workbench.action.revertAndCloseActiveEditor"
+              "editor.action.formatDocument",
+            );
+            await refreshedDoc.save();
+            const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath!;
+            await gitCommit(ws, `Rename Variable in ${worst.name}`);
+            vscode.window.showInformationMessage(
+              "✅ Rename applied successfully!",
             );
           }
-
-          // ✅ Apply the patch to the original file
-          const we = new vscode.WorkspaceEdit();
-          const fullRange = new vscode.Range(
-            new vscode.Position(0, 0),
-            new vscode.Position(refreshedDoc.lineCount, 0)
-          );
-          we.replace(originalUri, fullRange, patch.preview);
-
-          const applied = await vscode.workspace.applyEdit(we);
-          if (!applied) {
-            vscode.window.showErrorMessage("Failed to apply refactor edits.");
-            isRunning = false;
-            return;
-          }
-
-          await vscode.commands.executeCommand("editor.action.formatDocument");
-          await vscode.window.showTextDocument(originalUri, { preview: false });
-          await refreshedDoc.save();
-          vscode.window.showInformationMessage(
-            "✅ renameRefactor applied successfully!"
-          );
-
-          // Commit
-          const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath!;
-          const msg = `Rename Variable in ${worst.name}`;
-          await gitCommit(ws, msg);
-
-          vscode.window.showInformationMessage(
-            "Refactor applied, committed, and logged."
+          await vscode.commands.executeCommand(
+            "workbench.action.revertAndCloseActiveEditor",
           );
         } else {
           vscode.window.showInformationMessage(
-            "No actionable refactor suggested."
+            "No actionable refactor suggested.",
           );
           return;
         }
       } catch (err: any) {
         vscode.window.showErrorMessage(
-          `❌ SustainaDev failed: ${err.message || err}`
+          `❌ SustainaDev failed: ${err.message || err}`,
         );
       } finally {
         isRunning = false;
         vscode.window.showInformationMessage(
-          "🟢 SustainaDev pipeline ready for next run."
+          "🟢 SustainaDev pipeline ready for next run.",
         );
       }
-    }
+    },
   );
 
-  // ---- Dashboard (reads analysis-report.json and .sustainadev/log.jsonl) ----
+  // ---- Dashboard Command ----
   const openDash = vscode.commands.registerCommand(
     "sustainadev.openDashboard",
     async () => {
@@ -669,61 +372,34 @@ export function activate(context: vscode.ExtensionContext) {
           localResourceRoots: [
             vscode.Uri.file(path.join(context.extensionPath, "media")),
           ],
-        }
+        },
       );
 
       const dashboardPath = path.join(
         context.extensionPath,
         "media",
-        "dashboard.html"
+        "dashboard.html",
       );
       let html = "";
       try {
         html = await fsp.readFile(dashboardPath, "utf8");
       } catch (e: any) {
-        html = `<html><body><h3>Dashboard error</h3><pre>${
-          e?.message ?? e
-        }</pre></body></html>`;
+        html = `<html><body><h3>Dashboard error</h3><pre>${e?.message ?? e}</pre></body></html>`;
       }
       panel.webview.html = html;
 
       panel.webview.onDidReceiveMessage(
         async (message: any) => {
           const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-          if (!workspaceFolder) {
-            if (message?.type === "readAnalysis") {
-              panel.webview.postMessage({
-                type: "analysisError",
-                error: "No workspace folder open.",
-              });
-            }
-            if (message?.type === "readLog") {
-              panel.webview.postMessage({
-                type: "logError",
-                error: "No workspace folder open.",
-              });
-            }
-            return;
-          }
+          if (!workspaceFolder) return;
           const ws = workspaceFolder.uri.fsPath;
-
-          if (message?.type === "readFile") {
-            try {
-              const filePath = path.join(ws, "analysis-report.json");
-              const content = await fsp.readFile(filePath, "utf8");
-              panel.webview.postMessage({ type: "fileContent", content });
-            } catch (e: any) {
-              panel.webview.postMessage({
-                type: "fileError",
-                error: e?.message ?? String(e),
-              });
-            }
-          }
 
           if (message?.type === "readAnalysis") {
             try {
-              const filePath = path.join(ws, "analysis-report.json");
-              const content = await fsp.readFile(filePath, "utf8");
+              const content = await fsp.readFile(
+                path.join(ws, "analysis-report.json"),
+                "utf8",
+              );
               panel.webview.postMessage({ type: "analysisContent", content });
             } catch (e: any) {
               panel.webview.postMessage({
@@ -736,9 +412,6 @@ export function activate(context: vscode.ExtensionContext) {
           if (message?.type === "readLog") {
             try {
               const logPath = path.join(ws, ".sustainadev", "log.jsonl");
-              if (!fs.existsSync(logPath)) {
-                throw new Error("log.jsonl not found in .sustainadev/");
-              }
               const raw = await fsp.readFile(logPath, "utf8");
               const lines = raw.split(/\r?\n/).filter(Boolean);
               panel.webview.postMessage({ type: "logContent", lines });
@@ -751,9 +424,9 @@ export function activate(context: vscode.ExtensionContext) {
           }
         },
         undefined,
-        context.subscriptions
+        context.subscriptions,
       );
-    }
+    },
   );
 
   context.subscriptions.push(runAnalyzer, analyzeActiveFile, openDash);
