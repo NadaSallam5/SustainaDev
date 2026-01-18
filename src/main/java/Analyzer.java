@@ -34,6 +34,7 @@ public class Analyzer {
 
         Files.walk(root)
                 .filter(p -> p.toString().endsWith(".java"))
+                .sorted() // ✅ ensures deterministic order
                 .forEach(p -> {
                     try {
                         CompilationUnit cu = StaticJavaParser.parse(p);

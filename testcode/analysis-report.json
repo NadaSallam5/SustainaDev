@@ -1,85 +1,74 @@
 [ {
   "file" : "C:\\Users\\MM\\Downloads\\SustainaDev\\testcode\\complexsample.java",
   "methods" : [ {
-    "ifCount" : 3,
+    "ifCount" : 0,
     "isLongMethod" : false,
-    "name" : "processOrder",
-    "lines" : 23,
-    "params" : 1,
-    "extractableStart" : 8,
-    "extractableEnd" : 15,
-    "forCount" : 1
-  }, {
-    "ifCount" : 2,
-    "isLongMethod" : false,
-    "name" : "printPriceCategories",
+    "name" : "main",
     "lines" : 11,
     "params" : 1,
-    "extractableStart" : 29,
-    "extractableEnd" : 37,
+    "forCount" : 0
+  }, {
+    "ifCount" : 7,
+    "isLongMethod" : false,
+    "name" : "processUsers",
+    "lines" : 46,
+    "params" : 1,
+    "extractableStart" : 23,
+    "extractableEnd" : 56,
     "forCount" : 1
   }, {
     "ifCount" : 0,
     "isLongMethod" : false,
-    "name" : "calculateAverage",
+    "name" : "getName",
     "lines" : 3,
-    "params" : 2,
+    "params" : 0,
     "forCount" : 0
   }, {
-    "ifCount" : 1,
+    "ifCount" : 0,
     "isLongMethod" : false,
-    "name" : "printInvalidPrices",
-    "lines" : 7,
-    "params" : 1,
-    "extractableStart" : 45,
-    "extractableEnd" : 49,
-    "forCount" : 1
+    "name" : "getAge",
+    "lines" : 3,
+    "params" : 0,
+    "forCount" : 0
+  }, {
+    "ifCount" : 0,
+    "isLongMethod" : false,
+    "name" : "isActive",
+    "lines" : 3,
+    "params" : 0,
+    "forCount" : 0
   } ]
 }, {
   "file" : "C:\\Users\\MM\\Downloads\\SustainaDev\\testcode\\InvoiceCalculator.java",
   "methods" : [ {
-    "ifCount" : 1,
+    "ifCount" : 0,
     "isLongMethod" : false,
-    "name" : "processOrder",
-    "lines" : 16,
+    "name" : "main",
+    "lines" : 8,
     "params" : 1,
-    "extractableStart" : 7,
-    "extractableEnd" : 12,
-    "forCount" : 1
-  } ]
-}, {
-  "file" : "C:\\Users\\MM\\Downloads\\SustainaDev\\testcode\\Mysample.java",
-  "methods" : [ {
-    "ifCount" : 1,
-    "isLongMethod" : false,
-    "name" : "processOrder",
-    "lines" : 15,
-    "params" : 1,
-    "extractableStart" : 7,
-    "extractableEnd" : 12,
-    "forCount" : 1
+    "forCount" : 0
   }, {
     "ifCount" : 0,
     "isLongMethod" : false,
-    "name" : "calculateAverage",
-    "lines" : 3,
-    "params" : 2,
+    "name" : "processOrder",
+    "lines" : 10,
+    "params" : 1,
     "forCount" : 0
   }, {
     "ifCount" : 0,
     "isLongMethod" : false,
     "name" : "printOrderSummary",
-    "lines" : 3,
-    "params" : 1,
+    "lines" : 5,
+    "params" : 2,
     "forCount" : 0
   }, {
     "ifCount" : 1,
     "isLongMethod" : false,
-    "name" : "calculateTotalAndCount",
-    "lines" : 12,
-    "params" : 2,
-    "extractableStart" : 30,
-    "extractableEnd" : 35,
+    "name" : "calculateTotals",
+    "lines" : 14,
+    "params" : 1,
+    "extractableStart" : 33,
+    "extractableEnd" : 40,
     "forCount" : 1
   } ]
 } ]

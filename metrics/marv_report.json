@@ -1,0 +1,35 @@
+{
+  "average_similarity": 0.4076221654220259,
+  "results": [
+    {
+      "index": 1,
+      "total": 0.228,
+      "token": 0.238,
+      "struct": 0.214
+    },
+    {
+      "index": 2,
+      "total": 0.213,
+      "token": 0.222,
+      "struct": 0.2
+    },
+    {
+      "index": 3,
+      "total": 0.515,
+      "token": 0.536,
+      "struct": 0.482
+    },
+    {
+      "index": 4,
+      "total": 0.588,
+      "token": 0.613,
+      "struct": 0.551
+    },
+    {
+      "index": 5,
+      "total": 0.494,
+      "token": 0.515,
+      "struct": 0.463
+    }
+  ]
+}

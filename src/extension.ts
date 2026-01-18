@@ -107,7 +107,6 @@ export function activate(context: vscode.ExtensionContext) {
           return;
         }
 
-        // 🧠 Run Java Analyzer (same as runAnalyzer)
         const jarPath = path.join(
           "C:\\Users\\mosta\\OneDrive - Misr International University\\Desktop\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
         );
