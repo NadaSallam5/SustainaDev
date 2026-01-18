@@ -8,7 +8,7 @@ public class DataMatcher {
         List<String> matches = new ArrayList<>();
         HashSet<String> localSet = new HashSet<>(localCache);
 
-        // Single pass using a HashSet for O(N+M) complexity
+        // Use a single pass to check for matches
         for (String externalId : externalDatabase) {
             if (localSet.contains(externalId)) {
                 matches.add(externalId);
