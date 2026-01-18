@@ -92,35 +92,39 @@ async function callOptimizationAI(
 }
 
 /**
- * Template for the AI prompt with explicit import instructions
+ * Authoritative prompt focusing on Import Management and Algorithmic Complexity.
  */
 function getOptimizationPrompt(code: string, imports: string): string {
   return `
-### Objective
-Optimize Time Complexity (O(N*M) -> O(N+M)) to reduce energy consumption.
+### ROLE
+You are an expert Java Performance Engineer specializing in Green Computing. Your goal is to minimize energy consumption by reducing CPU cycles.
 
-### Instructions
-1. **Maintain Imports**: Start your response with the existing imports provided below.
-2. **Add New Imports**: If you use new classes (e.g., java.util.HashSet, java.util.HashMap), add their import statements to the top.
-3. **Full File**: Return the ENTIRE file content (imports + class) in the Preview section.
-4. **Optimization**: Focus ONLY on Big-O complexity.
+### TASK
+1. Analyze the target code for O(N*M) nested loops or inefficient lookups.
+2. Optimize the algorithmic complexity to O(N+M) or better using efficient data structures (e.g., HashSet, HashMap).
 
-### Existing Header/Imports
+### IMPORT RULES (CRITICAL)
+- **Maintain Current Header**: You MUST include the existing package and import statements provided below at the very top of your response.
+- **Auto-Include New Imports**: If your optimization uses new classes (e.g., java.util.HashSet, java.util.HashMap), you MUST explicitly add their import statements to the header.
+- **Full File Output**: Your "Preview" section MUST contain the complete, compilable Java file (Imports + Class).
+
+### DATA FOR REFACTORING
+**Existing Header/Imports:**
 ${imports}
 
-### Code to Optimize
+**Target Code Block:**
 \`\`\`java
 ${code}
 \`\`\`
 
-### Format
+### OUTPUT FORMAT
 Preview:
 \`\`\`java
-(full updated file with all imports and the optimized class)
+(The ENTIRE file: existing header + any new imports + the optimized class)
 \`\`\`
 
 Reason:
-(One sentence explaining the Big-O improvement)
+(Technical explanation of the complexity improvement, e.g., "Reduced complexity from O(N*M) to O(N+M) using a HashSet lookup.")
 `;
 }
 

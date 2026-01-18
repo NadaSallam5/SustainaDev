@@ -1,0 +1,23 @@
+import java.util.HashSet;
+import java.util.List;
+import java.util.ArrayList;
+
+/**
+ * SustainaDev Test: List Reconciliation
+ * Goal: Optimize nested loop comparison and add HashSet import.
+ */
+public class InventoryReconciler {
+    public List<String> findDiscrepancies(List<String> warehouseStock, List<String> systemRecords) {
+        List<String> discrepancies = new ArrayList<>();
+        HashSet<String> systemRecordSet = new HashSet<>(systemRecords);
+
+        // TRIGGER: O(N) - Every item in warehouse is checked against the HashSet for
+        // efficiency.
+        for (String stockItem : warehouseStock) {
+            if (!systemRecordSet.contains(stockItem)) {
+                discrepancies.add(stockItem);
+            }
+        }
+        return discrepancies;
+    }
+}
