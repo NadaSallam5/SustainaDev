@@ -6,8 +6,6 @@ public class InvoiceCalculator {
         calculator.processOrder(prices);
     }
 
-    // ✅ THIS METHOD IS GOOD FOR TESTING EXTRACT METHOD
-    // It has multiple responsibilities: validation, calculation, and printing
     public void processOrder(int[] prices) {
         int total = 0;
         int count = 0;
@@ -18,9 +16,7 @@ public class InvoiceCalculator {
 
         double average = (count == 0) ? 0 : (double) total / count;
 
-        for (int i = 0; i < count; i++) {
-            System.out.println("Verifying item #" + (i + 1));
-        }
+        printVerification(count);
         System.out.println("Order processed.");
         System.out.println("Total price: " + total);
         System.out.println("Average price: " + average);
@@ -37,5 +33,11 @@ public class InvoiceCalculator {
             }
         }
         return new int[] { total, count };
+    }
+
+    private void printVerification(int count) {
+        for (int i = 0; i < count; i++) {
+            System.out.println("Verifying item #" + (i + 1));
+        }
     }
 }
