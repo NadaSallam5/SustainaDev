@@ -124,7 +124,7 @@ Preview:
 \`\`\`
 
 Reason:
-(Technical explanation of the complexity improvement, e.g., "Reduced complexity from O(N*M) to O(N+M) using a HashSet lookup.")
+(Technical explanation of the complexity improvement.")
 `;
 }
 

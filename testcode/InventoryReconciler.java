@@ -9,12 +9,12 @@ import java.util.ArrayList;
 public class InventoryReconciler {
     public List<String> findDiscrepancies(List<String> warehouseStock, List<String> systemRecords) {
         List<String> discrepancies = new ArrayList<>();
-        HashSet<String> systemRecordSet = new HashSet<>(systemRecords);
+        HashSet<String> systemRecordsSet = new HashSet<>(systemRecords);
+        // 
 
-        // TRIGGER: O(N) - Every item in warehouse is checked against the HashSet for
-        // efficiency.
+        // TRIGGER: O(N) - Every item in warehouse is checked against a set of system records.
         for (String stockItem : warehouseStock) {
-            if (!systemRecordSet.contains(stockItem)) {
+            if (!systemRecordsSet.contains(stockItem)) {
                 discrepancies.add(stockItem);
             }
         }
