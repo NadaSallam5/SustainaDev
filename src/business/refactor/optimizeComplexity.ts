@@ -4,7 +4,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { runLizard } from "../analyzer/lizardRunner";
-import { estimateEnergy } from "../metrics/codeCarbon";
+import { estimateEnergy } from "../../data/metrics/codeCarbon";
 
 /**
  * Interface for the final optimization result
@@ -78,7 +78,7 @@ async function callOptimizationAI(
 ) {
   const client = new OpenAI({
     baseURL: "http://localhost:11434/v1",
-    apiKey: "ollama",
+    apiKey: "ollamadfghfdg",
   });
 
   const { classBlock } = extractClassBlock(

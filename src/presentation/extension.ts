@@ -5,10 +5,10 @@ import * as fs from "fs";
 import * as fsp from "fs/promises";
 
 // Project internal imports
-import { runLizard } from "./analyzer/lizardRunner";
-import { buildOptimizationPatch } from "./refactor/optimizeComplexity";
-import { decideRefactorType } from "./refactor/chooseRefactor";
-import { initPaths } from "./metrics/codeCarbon";
+import { runLizard } from "../business/analyzer/lizardRunner";
+import { buildOptimizationPatch } from "../business/refactor/optimizeComplexity";
+import { decideRefactorType } from "../business/refactor/chooseRefactor";
+import { initPaths } from "../data/metrics/codeCarbon";
 
 /**
  * Global state to prevent concurrent executions

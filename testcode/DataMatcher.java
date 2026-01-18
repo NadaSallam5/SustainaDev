@@ -1,16 +1,13 @@
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.ArrayList;
 
 public class DataMatcher {
 
     public List<String> findMatches(List<String> externalDatabase, List<String> localCache) {
-        List<String> matches = new ArrayList<>();
         HashSet<String> localCacheSet = new HashSet<>(localCache);
+        List<String> matches = new ArrayList<>();
 
-        // TRIGGER: Nested loop results in O(N*M) complexity.
-        // Your extension should detect this pattern and suggest an
-        // "Algorithmic Optimization" using a HashSet.
         for (String externalId : externalDatabase) {
             if (localCacheSet.contains(externalId)) {
                 matches.add(externalId);
