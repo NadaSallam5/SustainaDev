@@ -6,7 +6,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { runLizard } from "../analyzer/lizardRunner";
-import { estimateEnergy } from "../metrics/codeCarbon";
+import { estimateEnergy } from "../../data/metrics/codeCarbon";
 
 export async function buildRenamePatch(
   fullCode: string,

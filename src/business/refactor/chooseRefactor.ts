@@ -1,4 +1,4 @@
-import { FunctionMetrics } from "../types";
+import { FunctionMetrics } from "../../presentation/types";
 
 /**
  * Decides which refactor type fits this function based on metrics + code smell patterns.

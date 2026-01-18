@@ -17,12 +17,7 @@ public class InvoiceCalculator {
 
         // Calculate average
         double avg = calculateAverage(total, count);
-
-        // Print results
-        System.out.println("Total: $" + total);
-        System.out.println("Count: " + count);
-        System.out.println("Average price: $" + avg);
-        System.out.println("Order processed successfully.");
+        printResults(total, count, avg);
 
         // Apply discount if total is high
         if (total > 500) {
@@ -49,5 +44,12 @@ public class InvoiceCalculator {
 
     private double calculateAverage(int total, int count) {
         return (count == 0) ? 0 : (double) total / count;
+    }
+
+    private void printResults(int total, int count, double avg) {
+        System.out.println("Total: $" + total);
+        System.out.println("Count: " + count);
+        System.out.println("Average price: $" + avg);
+        System.out.println("Order processed successfully.");
     }
 }

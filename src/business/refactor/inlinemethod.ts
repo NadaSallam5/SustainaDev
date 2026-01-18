@@ -5,8 +5,8 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { runLizard } from "../analyzer/lizardRunner";
-import { estimateEnergy } from "../metrics/codeCarbon";
-import { appendLog } from "../metrics/logger";
+import { estimateEnergy } from "../../data/metrics/codeCarbon";
+import { appendLog } from "../../infrastructure/logger";
 
 /**
  * Performs Inline Method refactor + metrics & logging

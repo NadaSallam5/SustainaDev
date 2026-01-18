@@ -5,7 +5,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { runLizard } from "../analyzer/lizardRunner";
-import { estimateEnergy } from "../metrics/codeCarbon";
+import { estimateEnergy } from "../../data/metrics/codeCarbon";
 
 /**
  * Performs Extract Method refactoring with full metrics tracking and logging

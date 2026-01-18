@@ -3,22 +3,22 @@ import * as path from "path";
 import { exec } from "child_process";
 import * as fs from "fs";
 // NEW imports for PoC flow
-import { runLizard } from "./analyzer/lizardRunner";
-import { chooseRefactor } from "./analyzer/smellClassifier";
+import { runLizard } from "../business/analyzer/lizardRunner";
+import { chooseRefactor } from "../business/analyzer/smellClassifier";
 import {
   buildExtractPatch,
   extractClassBlock,
   isHelperFunction,
-} from "./refactor/extractMethod";
-import { buildExplanation } from "./refactor/explanation";
-import { gitCommit } from "./git/commit";
-import { verifyLastRefactor } from "./git/refactoringMiner";
-import { estimateEnergy, initPaths } from "./metrics/codeCarbon";
-import { appendLog } from "./metrics/logger";
+} from "../business/refactor/extractMethod";
+import { buildExplanation } from "../business/refactor/explanation";
+import { gitCommit } from "../infrastructure/git/commit";
+import { verifyLastRefactor } from "../infrastructure/git/refactoringMiner";
+import { estimateEnergy, initPaths } from "../data/metrics/codeCarbon";
+import { appendLog } from "../infrastructure/logger";
 import * as fsp from "fs/promises";
-import { decideRefactorType } from "./refactor/chooseRefactor";
-import { buildInlinePatch } from "./refactor/inlinemethod";
-import { buildRenamePatch } from "./refactor/rename-variable";
+import { decideRefactorType } from "../business/refactor/chooseRefactor";
+import { buildInlinePatch } from "../business/refactor/inlinemethod";
+import { buildRenamePatch } from "../business/refactor/rename-variable";
 
 export function activate(context: vscode.ExtensionContext) {
   console.log("🟢 SustainaDev Analyzer extension is active");
