@@ -7,38 +7,78 @@ import { runLizard } from "../analyzer/lizardRunner";
 import { estimateEnergy } from "../metrics/codeCarbon";
 
 /**
- * Performs Algorithmic Complexity Optimization (e.g., O(N^2) -> O(N))
- * tailored for SustainaDev Green Code objectives.
+ * Interface for the final optimization result
+ */
+interface OptimizationResult {
+  preview: string;
+  reason: string;
+}
+
+/**
+ * Main entry point for algorithmic optimization
  */
 export async function buildOptimizationPatch(
   fullCode: string,
   range: { from: number; to: number },
   fileName?: string,
   context?: { targetMethodName?: string },
-): Promise<{ preview: string; reason: string }> {
+): Promise<OptimizationResult> {
   const workspace =
     vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
-  const actualFileName = fileName || "UnknownFile.java";
+  const methodName = context?.targetMethodName || "UnknownMethod";
 
-  // 1. BEFORE METRICS
-  const tmpBefore = path.join(
-    os.tmpdir(),
-    `sustainadev_opt_before_${Date.now()}.java`,
-  );
-  fs.writeFileSync(tmpBefore, fullCode, "utf8");
-  const beforeLizard = await safeRunLizard(tmpBefore);
-  const before = getMethodMetrics(
-    beforeLizard,
-    context?.targetMethodName || "",
-  );
-  try {
-    fs.unlinkSync(tmpBefore);
-  } catch (e) {}
+  // 1. Initial Measurement
+  const beforeMetrics = await measureCode(fullCode, methodName);
 
-  // 2. AI OPTIMIZATION LOGIC (Local Ollama)
+  // 2. Extract Existing Imports/Header
+  // Captures everything from the start of the file up to the class keyword
+  const fileHeader = fullCode.split(/\bclass\b/)[0].trim();
+
+  // 3. AI Generation
+  const rawAiResponse = await callOptimizationAI(fullCode, range, fileHeader);
+
+  // 4. Extraction & Validation
+  const patch = parseAiResponse(rawAiResponse);
+
+  // 🛡️ NO-OP CHECK: The "Logic Gate"
+  // We strip comments and all whitespace to see if the execution logic changed.
+  // This catches "Shuffled Lines" where AI moves code but doesn't refactor.
+  const logicOnlyOriginal = fullCode.replace(/\/\/.*|\/\*[\s\S]*?\*\/|\s/g, "");
+  const logicOnlyPatch = patch.preview.replace(
+    /\/\/.*|\/\*[\s\S]*?\*\/|\s/g,
+    "",
+  );
+
+  if (logicOnlyOriginal === logicOnlyPatch) {
+    vscode.window.showInformationMessage("✅ Code logic is already optimized.");
+    throw new Error("ALREADY_OPTIMIZED");
+  }
+
+  // 5. Final Measurement & Logging
+  const afterMetrics = await measureCode(patch.preview, methodName);
+  await logSustainabilityMetrics(
+    workspace,
+    fileName,
+    beforeMetrics,
+    afterMetrics,
+    patch,
+    fullCode,
+  );
+
+  return patch;
+}
+
+/**
+ * Handles communication with local Ollama instance
+ */
+async function callOptimizationAI(
+  fullCode: string,
+  range: { from: number },
+  existingImports: string,
+) {
   const client = new OpenAI({
     baseURL: "http://localhost:11434/v1",
-    apiKey: "09e2e2edbe3b4e24af753696715f28d4.FimC2lyeq3EfreqbzEJ-7TXk",
+    apiKey: "ollama",
   });
 
   const { classBlock } = extractClassBlock(
@@ -46,168 +86,169 @@ export async function buildOptimizationPatch(
     Math.max(0, range.from - 1),
   );
 
-  const prompt = `
-You are a senior Java engineer specializing in Algorithmic Efficiency for Green Computing.
-
-### Task
-Optimize the following Java code to minimize CPU cycles and energy consumption. 
-Replace O(N*M) nested loops with O(N+M) using HashMaps or HashSets.
-
-### Requirements
-- Return ONLY valid, compilable Java code.
-- Do NOT extract methods or change structure; focus ONLY on algorithmic complexity.
-
-### Input
-\`\`\`java
-${classBlock}
-\`\`\`
-
-### Output Format
-Preview:
-\`\`\`java
-(optimized code here)
-\`\`\`
-
-Reason:
-(One sentence explaining the Big-O improvement)
-`;
-
-  const resp = await client.chat.completions.create({
+  const response = await client.chat.completions.create({
     model: "qwen2.5-coder:3b",
     messages: [
       {
         role: "system",
-        content: "You are a stateless algorithmic optimization expert.",
+        content:
+          "You are a senior Java engineer focused on Big-O optimization for Green Computing.",
       },
-      { role: "user", content: prompt },
+      {
+        role: "user",
+        content: getOptimizationPrompt(classBlock, existingImports),
+      },
     ],
     temperature: 0.1,
   });
 
-  const text = resp.choices?.[0]?.message?.content ?? "";
-  console.log("🤖 RAW AI RESPONSE:\n", text);
+  return response.choices?.[0]?.message?.content ?? "";
+}
 
-  // 🛠️ ROBUST EXTRACTION: Catches code even if AI skips labels
-  const preview = extractSection(text, "Preview");
-  const reason = extractReason(text, "Reason");
+/**
+ * Authoritative prompt focusing on Import Management and Algorithmic Complexity.
+ */
+function getOptimizationPrompt(code: string, imports: string): string {
+  return `
+### ROLE
+You are an expert Java Performance Engineer specializing in Green Computing. Your goal is to minimize energy consumption by reducing CPU cycles.
 
-  if (!preview || preview.length < 20) {
-    console.error("❌ Failed to extract code from response:", text);
-    throw new Error(
-      "AI failed to generate a valid optimization block. Check the Output console for raw text.",
-    );
+### TASK
+1. Analyze the target code for O(N*M) nested loops or inefficient lookups.
+2. Optimize the algorithmic complexity to O(N+M) or better using efficient data structures (e.g., HashSet, HashMap).
+
+
+
+### IMPORT RULES (CRITICAL)
+- **Maintain Current Header**: You MUST include the existing package and import statements provided below at the very top of your response.
+- **Auto-Include New Imports**: If your optimization uses new classes (e.g., java.util.HashSet, java.util.HashMap), you MUST explicitly add their import statements to the header.
+- **Full File Output**: Your "Preview" section MUST contain the complete, compilable Java file (Imports + Class).
+
+### DATA FOR REFACTORING
+**Existing Header/Imports:**
+${imports}
+
+**Target Code Block:**
+\`\`\`java
+${code}
+\`\`\`
+
+### OUTPUT FORMAT
+Preview:
+\`\`\`java
+(The ENTIRE file: existing header + any new imports + the optimized class)
+\`\`\`
+
+Reason:
+(Technical explanation of the complexity improvement.")
+`;
+}
+
+/**
+ * Robustly parses AI markdown response
+ */
+function parseAiResponse(text: string): OptimizationResult {
+  console.log("🤖 Raw AI Output:", text);
+
+  const codeBlockRegex = /\`{3}(?:java)?([\s\S]*?)\`{3}/gi;
+  const blocks: string[] = [];
+  let match;
+  while ((match = codeBlockRegex.exec(text)) !== null) {
+    blocks.push(match[1].trim());
   }
 
-  // 3. AFTER METRICS
-  const tmpAfter = path.join(
-    os.tmpdir(),
-    `sustainadev_opt_after_${Date.now()}.java`,
-  );
-  fs.writeFileSync(tmpAfter, preview, "utf8");
-  const afterLizard = await safeRunLizard(tmpAfter);
-  const after = getMethodMetrics(afterLizard, context?.targetMethodName || "");
-  try {
-    fs.unlinkSync(tmpAfter);
-  } catch (e) {}
+  const preview =
+    blocks.length > 0
+      ? blocks.reduce((a, b) => (a.length > b.length ? a : b))
+      : "";
 
-  // 4. LOGGING
-  const complexityWin =
-    fullCode.includes("for") &&
-    (preview.includes("HashSet") || preview.includes("HashMap"))
-      ? 20
-      : 0;
-  const delta = {
-    ccn: Math.max(before.ccn - after.ccn, complexityWin),
-    nloc: after.nloc - before.nloc,
-  };
+  const reasonMatch = text.match(/Reason:?\s*([\s\S]*)$/i);
+  const reason = reasonMatch
+    ? reasonMatch[1].trim()
+    : "Optimized algorithmic complexity.";
 
-  const energy = await estimateEnergy(delta.ccn);
-  const logPath = path.join(workspace, ".sustainadev", "log.jsonl");
-  const logEntry = {
-    timestamp: new Date().toISOString(),
-    file: path.basename(actualFileName),
-    refactor: "Algorithmic Optimization",
-    before,
-    after,
-    delta,
-    energy,
-    commit: { message: reason },
-  };
-
-  if (!fs.existsSync(path.dirname(logPath)))
-    fs.mkdirSync(path.dirname(logPath), { recursive: true });
-  fs.appendFileSync(logPath, JSON.stringify(logEntry) + "\n", "utf8");
+  if (!preview || preview.length < 20) {
+    throw new Error("AI failed to provide a valid code block.");
+  }
 
   return { preview, reason };
 }
 
 /**
- * 🛠️ Standardized Section Extractor
- * Handles cases where labels are missing or lowercase.
+ * Measures CCN and NLOC using Lizard
  */
-function extractSection(output: string, label: string): string {
-  // Pattern: Label followed by optional colon, spaces, and triple backticks
-  const labelRegex = new RegExp(
-    `${label}:?\\s*[\\s\\S]*?(\`{3}(?:java)?([\\s\\S]*?)\`{3})`,
-    "i",
+async function measureCode(code: string, methodName: string) {
+  const tmpPath = path.join(
+    os.tmpdir(),
+    `sustainadev_metrics_${Date.now()}.java`,
   );
-  const labelMatch = output.match(labelRegex);
-
-  if (labelMatch && labelMatch[2]) {
-    return labelMatch[2].trim();
+  try {
+    fs.writeFileSync(tmpPath, code, "utf8");
+    const analysis = await runLizard(tmpPath);
+    const fn = analysis.functions.find((f: any) => f.name === methodName);
+    return {
+      ccn: fn?.ccn || 0,
+      nloc: fn?.nloc || 0,
+    };
+  } catch (e) {
+    console.error("Lizard measurement failed:", e);
+    return { ccn: 0, nloc: 0 };
+  } finally {
+    if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
   }
-
-  // FALLBACK: If "Preview" label is missing, just find the LONGEST code block in the entire response
-  if (label.toLowerCase() === "preview") {
-    const blockRegex = /\`{3}(?:java)?([\s\S]*?)\`{3}/gi;
-    let blocks: string[] = [];
-    let b;
-    while ((b = blockRegex.exec(output)) !== null) {
-      blocks.push(b[1].trim());
-    }
-    if (blocks.length > 0) {
-      return blocks.reduce((a, b) => (a.length > b.length ? a : b));
-    }
-  }
-  return "";
 }
 
 /**
- * 🛠️ Standardized Reason Extractor
- * Captures everything following the "Reason:" label.
+ * Logs sustainability data
  */
-function extractReason(output: string, label: string): string {
-  const re = new RegExp(`${label}:?\\s*([\\s\\S]*)$`, "i");
-  const match = output.match(re);
-  return match
-    ? match[1].trim()
-    : "Optimized algorithmic complexity for sustainability.";
+async function logSustainabilityMetrics(
+  workspace: string,
+  fileName: string | undefined,
+  before: { ccn: number },
+  after: { ccn: number },
+  patch: OptimizationResult,
+  originalCode: string,
+) {
+  const isBigOWin =
+    originalCode.includes("for") &&
+    (patch.preview.includes("HashSet") || patch.preview.includes("HashMap"));
+  const virtualDelta = isBigOWin ? 20 : 0;
+
+  const deltaCCN = Math.max(before.ccn - after.ccn, virtualDelta);
+  const energy = await estimateEnergy(deltaCCN);
+
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    file: fileName ? path.basename(fileName) : "unknown",
+    refactor: "Algorithmic Optimization",
+    metrics: { before, after, deltaCCN },
+    energy,
+    reason: patch.reason,
+  };
+
+  const logDir = path.join(workspace, ".sustainadev");
+  if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+  fs.appendFileSync(
+    path.join(logDir, "log.jsonl"),
+    JSON.stringify(logEntry) + "\n",
+    "utf8",
+  );
 }
 
-function getMethodMetrics(result: any, name: string) {
-  if (!result?.functions) return { ccn: 0, nloc: 0 };
-  const fn = result.functions.find((f: any) => f.name === name);
-  return fn ? { ccn: fn.ccn, nloc: fn.nloc } : { ccn: 0, nloc: 0 };
-}
-
-async function safeRunLizard(file: string) {
-  try {
-    return await runLizard(file);
-  } catch {
-    return { functions: [] };
-  }
-}
-
-export function extractClassBlock(fullCode: string, functionStart: number) {
+/**
+ * Utility to isolate the class context
+ */
+export function extractClassBlock(fullCode: string, startLine: number) {
   const lines = fullCode.split(/\r?\n/);
   let classStart = -1;
-  for (let i = functionStart; i >= 0; i--) {
+  for (let i = startLine; i >= 0; i--) {
     if (/\bclass\s+\w+/.test(lines[i])) {
       classStart = i;
       break;
     }
   }
-  if (classStart === -1) classStart = 0;
+  classStart = classStart === -1 ? 0 : classStart;
+
   let braceCount = 0,
     foundBrace = false,
     classEnd = lines.length - 1;
