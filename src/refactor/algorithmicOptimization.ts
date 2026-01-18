@@ -8,7 +8,7 @@ import { estimateEnergy } from "../metrics/codeCarbon";
 
 /**
  * Performs Algorithmic Complexity Optimization (e.g., O(N^2) -> O(N))
- * specifically for Green Code and Sustainability.
+ * tailored for SustainaDev Green Code objectives.
  */
 export async function buildOptimizationPatch(
   fullCode: string,
@@ -35,10 +35,10 @@ export async function buildOptimizationPatch(
     fs.unlinkSync(tmpBefore);
   } catch (e) {}
 
-  // 2. AI OPTIMIZATION LOGIC (Local Qwen via Ollama)
+  // 2. AI OPTIMIZATION LOGIC (Local Ollama)
   const client = new OpenAI({
     baseURL: "http://localhost:11434/v1",
-    apiKey: "788f53b2d7f94995a5b453ad91aa05e6.ukm_ArZmxq4kqhPq5qCxoKcR",
+    apiKey: "09e2e2edbe3b4e24af753696715f28d4.FimC2lyeq3EfreqbzEJ-7TXk",
   });
 
   const { classBlock } = extractClassBlock(
@@ -47,19 +47,17 @@ export async function buildOptimizationPatch(
   );
 
   const prompt = `
-You are a senior Java engineer specializing in Algorithmic Efficiency and Green Computing.
+You are a senior Java engineer specializing in Algorithmic Efficiency for Green Computing.
 
-### Objective
-Minimize CPU cycles and energy consumption by optimizing Time Complexity.
-Target: Replace inefficient O(N*M) nested loops with O(N+M) using HashMaps or HashSets.
+### Task
+Optimize the following Java code to minimize CPU cycles and energy consumption. 
+Replace O(N*M) nested loops with O(N+M) using HashMaps or HashSets.
 
-### Constraints
-- Do NOT perform method extraction or structural refactoring for maintainability.
-- Focus ONLY on improving Big-O complexity.
-- Maintain identical functional logic and output.
+### Requirements
 - Return ONLY valid, compilable Java code.
+- Do NOT extract methods or change structure; focus ONLY on algorithmic complexity.
 
-### Input Code
+### Input
 \`\`\`java
 ${classBlock}
 \`\`\`
@@ -67,15 +65,15 @@ ${classBlock}
 ### Output Format
 Preview:
 \`\`\`java
-(full updated class with algorithmic optimizations)
+(optimized code here)
 \`\`\`
 
 Reason:
-(One short sentence explaining the Big-O improvement, e.g., "Optimized nested loop from O(N*M) to O(N+M) using a HashMap lookup.")
+(One sentence explaining the Big-O improvement)
 `;
 
   const resp = await client.chat.completions.create({
-    model: "qwen2.5-coder:3b", // Adjusted for your RTX 2060
+    model: "qwen2.5-coder:3b",
     messages: [
       {
         role: "system",
@@ -87,11 +85,17 @@ Reason:
   });
 
   const text = resp.choices?.[0]?.message?.content ?? "";
+  console.log("🤖 RAW AI RESPONSE:\n", text);
+
+  // 🛠️ ROBUST EXTRACTION: Catches code even if AI skips labels
   const preview = extractSection(text, "Preview");
   const reason = extractReason(text, "Reason");
 
-  if (!preview || preview === "none") {
-    throw new Error("AI failed to generate an optimization patch.");
+  if (!preview || preview.length < 20) {
+    console.error("❌ Failed to extract code from response:", text);
+    throw new Error(
+      "AI failed to generate a valid optimization block. Check the Output console for raw text.",
+    );
   }
 
   // 3. AFTER METRICS
@@ -106,17 +110,18 @@ Reason:
     fs.unlinkSync(tmpAfter);
   } catch (e) {}
 
-  // 4. LOGGING & ENERGY SAVINGS
-  // Note: Since CCN might not drop, we use a virtual delta for algorithmic wins
+  // 4. LOGGING
   const complexityWin =
-    fullCode.includes("for") && preview.includes("HashMap") ? 15 : 0;
+    fullCode.includes("for") &&
+    (preview.includes("HashSet") || preview.includes("HashMap"))
+      ? 20
+      : 0;
   const delta = {
     ccn: Math.max(before.ccn - after.ccn, complexityWin),
     nloc: after.nloc - before.nloc,
   };
 
   const energy = await estimateEnergy(delta.ccn);
-
   const logPath = path.join(workspace, ".sustainadev", "log.jsonl");
   const logEntry = {
     timestamp: new Date().toISOString(),
@@ -124,6 +129,7 @@ Reason:
     refactor: "Algorithmic Optimization",
     before,
     after,
+    delta,
     energy,
     commit: { message: reason },
   };
@@ -135,28 +141,53 @@ Reason:
   return { preview, reason };
 }
 
-/* --- REUSE HELPERS FROM YOUR EXTRACTMETHOD.TS --- */
-function getMethodMetrics(result: any, name: string) {
-  const fn = result.functions.find((f: any) => f.name === name);
-  return fn ? { ccn: fn.ccn, nloc: fn.nloc } : { ccn: 0, nloc: 0 };
+/**
+ * 🛠️ Standardized Section Extractor
+ * Handles cases where labels are missing or lowercase.
+ */
+function extractSection(output: string, label: string): string {
+  // Pattern: Label followed by optional colon, spaces, and triple backticks
+  const labelRegex = new RegExp(
+    `${label}:?\\s*[\\s\\S]*?(\`{3}(?:java)?([\\s\\S]*?)\`{3})`,
+    "i",
+  );
+  const labelMatch = output.match(labelRegex);
+
+  if (labelMatch && labelMatch[2]) {
+    return labelMatch[2].trim();
+  }
+
+  // FALLBACK: If "Preview" label is missing, just find the LONGEST code block in the entire response
+  if (label.toLowerCase() === "preview") {
+    const blockRegex = /\`{3}(?:java)?([\s\S]*?)\`{3}/gi;
+    let blocks: string[] = [];
+    let b;
+    while ((b = blockRegex.exec(output)) !== null) {
+      blocks.push(b[1].trim());
+    }
+    if (blocks.length > 0) {
+      return blocks.reduce((a, b) => (a.length > b.length ? a : b));
+    }
+  }
+  return "";
 }
 
-function extractSection(output: string, label: string): string {
-  const re = new RegExp(`${label}:\\s*\\\`\\\`\\\`[\\s\\S]*?\\\`\\\`\\\``, "i");
+/**
+ * 🛠️ Standardized Reason Extractor
+ * Captures everything following the "Reason:" label.
+ */
+function extractReason(output: string, label: string): string {
+  const re = new RegExp(`${label}:?\\s*([\\s\\S]*)$`, "i");
   const match = output.match(re);
   return match
-    ? match[0]
-        .replace(new RegExp(`${label}:`, "i"), "")
-        .replace(/```java/i, "")
-        .replace(/```/g, "")
-        .trim()
-    : "";
+    ? match[1].trim()
+    : "Optimized algorithmic complexity for sustainability.";
 }
 
-function extractReason(output: string, label: string): string {
-  const re = new RegExp(`${label}:\\s*(.*)`);
-  const match = output.match(re);
-  return match ? match[1].trim() : "";
+function getMethodMetrics(result: any, name: string) {
+  if (!result?.functions) return { ccn: 0, nloc: 0 };
+  const fn = result.functions.find((f: any) => f.name === name);
+  return fn ? { ccn: fn.ccn, nloc: fn.nloc } : { ccn: 0, nloc: 0 };
 }
 
 async function safeRunLizard(file: string) {
@@ -171,21 +202,24 @@ export function extractClassBlock(fullCode: string, functionStart: number) {
   const lines = fullCode.split(/\r?\n/);
   let classStart = -1;
   for (let i = functionStart; i >= 0; i--) {
-    if (/class\s+\w+/.test(lines[i])) {
+    if (/\bclass\s+\w+/.test(lines[i])) {
       classStart = i;
       break;
     }
   }
   if (classStart === -1) classStart = 0;
-
-  let braceCount = 0;
-  let classEnd = lines.length - 1;
+  let braceCount = 0,
+    foundBrace = false,
+    classEnd = lines.length - 1;
   for (let i = classStart; i < lines.length; i++) {
     for (const ch of lines[i]) {
-      if (ch === "{") braceCount++;
+      if (ch === "{") {
+        braceCount++;
+        foundBrace = true;
+      }
       if (ch === "}") braceCount--;
     }
-    if (braceCount === 0 && i > classStart) {
+    if (foundBrace && braceCount === 0) {
       classEnd = i;
       break;
     }
