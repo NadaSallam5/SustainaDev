@@ -1,14 +1,13 @@
 public class InvoiceCalculator {
 
     public static void main(String[] args) {
-        // 🧪 Sample input
         int[] prices = { 100, 50, -20, 200 };
-
-        // Run the unrefactored process
         InvoiceCalculator calculator = new InvoiceCalculator();
         calculator.processOrder(prices);
     }
 
+    // ✅ THIS METHOD IS GOOD FOR TESTING EXTRACT METHOD
+    // It has multiple responsibilities: validation, calculation, and printing
     public void processOrder(int[] prices) {
         int total = 0;
         int count = 0;
@@ -34,10 +33,9 @@ public class InvoiceCalculator {
                 total += price;
                 count++;
             } else {
-                System.out.println("Invalid price skipped: ");
+                System.out.println("Invalid price skipped: " + price);
             }
         }
         return new int[] { total, count };
     }
-
 }
