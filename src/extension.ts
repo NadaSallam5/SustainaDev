@@ -6,6 +6,7 @@ import * as fs from "fs";
 import { runLizard } from "./analyzer/lizardRunner";
 import { chooseRefactor } from "./analyzer/smellClassifier";
 import { buildExtractPatch, extractClassBlock } from "./refactor/extractMethod";
+import { buildOptimizationPatch } from "./refactor/optimizeComplexity";
 import { buildExplanation } from "./refactor/explanation";
 import { gitCommit } from "./git/commit";
 import { verifyLastRefactor } from "./git/refactoringMiner";
@@ -24,14 +25,12 @@ export function activate(context: vscode.ExtensionContext) {
         "🚀 Running SustainaDev Java Analyzer..."
       );
 
-      // 👉 adjust these paths if needed (escaped backslashes for Windows)
       const jarPath = path.join(
         "C:\\Users\\mosta\\OneDrive - Misr International University\\Desktop\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
       );
       const projectPath = "C:\\Users\\mosta\\OneDrive - Misr International University\\Desktop\\SustainaDev\\testcode";
 
       const command = `java -jar "${jarPath}" "${projectPath}"`;
-      
 
       const terminal = vscode.window.createTerminal("SustainaDev Analyzer");
       terminal.show();
@@ -54,6 +53,202 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   let isRunning = false;
+
+  // ---- NEW: Algorithmic Optimization Command ----
+  const optimizeAlgorithm = vscode.commands.registerCommand(
+    "sustainadev.optimizeAlgorithm",
+    async () => {
+      if (isRunning) {
+        vscode.window.showWarningMessage(
+          "⏳ SustainaDev is still processing. Please wait until the current operation completes."
+        );
+        return;
+      }
+
+      isRunning = true;
+      vscode.window.showInformationMessage(
+        "🚀 SustainaDev Algorithmic Optimization started..."
+      );
+
+      try {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+          vscode.window.showErrorMessage("No active editor found.");
+          isRunning = false;
+          return;
+        }
+
+        if (editor.document.isDirty) {
+          await editor.document.save();
+        }
+
+        const originalUri = editor.document.uri;
+        const filePath = originalUri.fsPath;
+
+        // Ensure document is still open and valid
+        if (editor.document.isClosed) {
+          vscode.window.showErrorMessage("Document was closed.");
+          isRunning = false;
+          return;
+        }
+
+        // Run analysis
+        const analysis = await runLizard(filePath);
+        if (!analysis.functions.length) {
+          vscode.window.showInformationMessage("No functions found to optimize.");
+          isRunning = false;
+          return;
+        }
+
+        // Find the most complex function
+        const worst = analysis.functions.sort(
+          (a, b) => b.ccn - a.ccn || b.nloc - a.nloc
+        )[0];
+
+        vscode.window.showInformationMessage(
+          `🎯 Targeting: ${worst.name} (CCN: ${worst.ccn}, NLOC: ${worst.nloc})`
+        );
+
+        const fullCode = editor.document.getText();
+
+        // Build optimization patch
+        const patch = await buildOptimizationPatch(
+          fullCode,
+          { from: worst.start, to: worst.end },
+          path.basename(filePath),
+          { targetMethodName: worst.name }
+        );
+
+        if (!patch || !patch.preview || patch.preview.trim().length < 10) {
+          vscode.window.showErrorMessage(
+            "AI returned incomplete or invalid optimization output."
+          );
+          isRunning = false;
+          return;
+        }
+
+        // Close any old preview documents
+        for (const doc of vscode.workspace.textDocuments) {
+          if (doc.uri.scheme === "untitled" && 
+              doc.uri.path.includes("OptimizationPreview")) {
+            const previewTab = vscode.window.tabGroups.all
+              .flatMap(g => g.tabs)
+              .find(t => t.input instanceof vscode.TabInputText && 
+                         t.input.uri.toString() === doc.uri.toString());
+            if (previewTab) {
+              await vscode.window.tabGroups.close(previewTab);
+            }
+          }
+        }
+
+        // Create new preview
+        const right = vscode.Uri.parse("untitled:OptimizationPreview.java");
+        const edit = new vscode.WorkspaceEdit();
+        edit.insert(right, new vscode.Position(0, 0), patch.preview);
+        await vscode.workspace.applyEdit(edit);
+
+        await new Promise((resolve) => setTimeout(resolve, 200));
+
+        // Show diff
+        await vscode.commands.executeCommand(
+          "vscode.diff",
+          originalUri,
+          right,
+          "🔄 Algorithmic Optimization (Original ← → Optimized)",
+          { preview: true }
+        );
+
+        // Ask user to apply
+        const apply = await vscode.window.showQuickPick(
+          ["Apply optimization", "Cancel"],
+          {
+            placeHolder: `Apply algorithmic optimization? ${patch.reason}`,
+          }
+        );
+
+        if (apply !== "Apply optimization") {
+          // Close preview without saving
+          for (const doc of vscode.workspace.textDocuments) {
+            if (doc.uri.scheme === "untitled" && 
+                doc.uri.path.includes("OptimizationPreview")) {
+              const previewTab = vscode.window.tabGroups.all
+                .flatMap(g => g.tabs)
+                .find(t => t.input instanceof vscode.TabInputText && 
+                           t.input.uri.toString() === doc.uri.toString());
+              if (previewTab) {
+                await vscode.window.tabGroups.close(previewTab);
+              }
+            }
+          }
+
+          vscode.window.showInformationMessage(
+            "❌ Optimization canceled — preview closed without saving."
+          );
+          isRunning = false;
+          return;
+        }
+
+        // Close preview before applying
+        for (const doc of vscode.workspace.textDocuments) {
+          if (doc.uri.scheme === "untitled" && 
+              doc.uri.path.includes("Preview")) {
+            const previewTab = vscode.window.tabGroups.all
+              .flatMap(g => g.tabs)
+              .find(t => t.input instanceof vscode.TabInputText && 
+                         t.input.uri.toString() === doc.uri.toString());
+            if (previewTab) {
+              await vscode.window.tabGroups.close(previewTab);
+            }
+          }
+        }
+
+        // Reopen original document to ensure it's active
+        const activeDoc = await vscode.workspace.openTextDocument(originalUri);
+        await vscode.window.showTextDocument(activeDoc, { preview: false });
+
+        // Apply patch
+        const we = new vscode.WorkspaceEdit();
+        const fullRange = new vscode.Range(
+          new vscode.Position(0, 0),
+          new vscode.Position(activeDoc.lineCount, 0)
+        );
+        we.replace(originalUri, fullRange, patch.preview);
+
+        const applied = await vscode.workspace.applyEdit(we);
+        if (!applied) {
+          vscode.window.showErrorMessage("Failed to apply optimization edits.");
+          isRunning = false;
+          return;
+        }
+
+        await vscode.commands.executeCommand("editor.action.formatDocument");
+        await activeDoc.save();
+        
+        vscode.window.showInformationMessage(
+          `✅ Algorithmic optimization applied! ${patch.reason}`
+        );
+
+        // Commit
+        const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath!;
+        const msg = `Algorithmic Optimization in ${worst.name}: ${patch.reason}`;
+        await gitCommit(ws, msg);
+
+        vscode.window.showInformationMessage(
+          "✅ Optimization committed successfully!"
+        );
+      } catch (err: any) {
+        vscode.window.showErrorMessage(
+          `❌ Algorithmic Optimization failed: ${err.message || err}`
+        );
+      } finally {
+        isRunning = false;
+        vscode.window.showInformationMessage(
+          "🟢 SustainaDev ready for next operation."
+        );
+      }
+    }
+  );
+
   // ---- Analyze current file, suggest refactor, preview, apply, commit, verify (optional), log ----
   const analyzeActiveFile = vscode.commands.registerCommand(
     "sustainadev.analyzeActiveFile",
@@ -141,8 +336,8 @@ export function activate(context: vscode.ExtensionContext) {
         // 3️⃣ Read analyzer output (if exists)
         let from = worst.start;
         let to = worst.end;
-        let methodBody = ""; // ✅ Declare outside
-        let locals: string[] = []; // ✅ Declare outside
+        let methodBody = "";
+        let locals: string[] = [];
         const analyzerReport = path.join(
           path.dirname(filePath),
           "analysis-report.json"
@@ -191,37 +386,6 @@ export function activate(context: vscode.ExtensionContext) {
           return;
         }
 
-        /*  // 🧹 Close any old preview
-        const oldDoc = vscode.workspace.textDocuments.find(
-          (d) => d.uri.toString() === "untitled:RefactorPreview.java"
-        );
-        if (oldDoc) {
-          await vscode.window.showTextDocument(oldDoc);
-          await vscode.commands.executeCommand(
-            "workbench.action.closeActiveEditor"
-          );
-        }
-
-        // 🆕 Create a new in-memory preview document
-        const right = vscode.Uri.parse("untitled:RefactorPreview.java");
-
-        const edit = new vscode.WorkspaceEdit();
-        edit.insert(right, new vscode.Position(0, 0), patch.preview);
-        await vscode.workspace.applyEdit(edit);
-
-        // 🕒 Wait to ensure buffer registration
-        await new Promise((resolve) => setTimeout(resolve, 100));
-
-        // 💡 Show the diff preview only
-        await vscode.commands.executeCommand(
-          "vscode.diff",
-          originalUri,
-          right,
-          "AI Suggested Changes",
-          { preview: true }
-        );
- */
-
         // 🧹 Close any old preview
         const oldDoc = vscode.workspace.textDocuments.find(
           (d) => d.uri.toString() === "untitled:RefactorPreview.java"
@@ -251,6 +415,7 @@ export function activate(context: vscode.ExtensionContext) {
           "🔄 Proposed Refactoring (Original ← → Refactored)",
           { preview: true }
         );
+        
         // 🧭 Ask user whether to apply
         const apply = await vscode.window.showQuickPick(
           ["Apply refactor", "Cancel"],
@@ -258,24 +423,19 @@ export function activate(context: vscode.ExtensionContext) {
             placeHolder: "Apply Extract Method?",
           }
         );
+        
         if (apply !== "Apply refactor") {
-          // ✅ Find the diff preview safely
           const previewEditor = vscode.window.visibleTextEditors.find((e) =>
             e.document.uri.toString().includes("RefactorPreview.java")
           );
 
           if (previewEditor) {
             const doc = previewEditor.document;
-
-            // 🧹 Discard all changes silently (no save popup)
             await vscode.window.showTextDocument(doc, { preview: false });
-
-            // Try revert first (silently discards content)
             await vscode.commands.executeCommand(
               "workbench.action.revertAndCloseActiveEditor"
             );
 
-            // Fallback in case revert isn't supported (untitled docs sometimes)
             if (!doc.isClosed) {
               await vscode.commands.executeCommand(
                 "workbench.action.closeActiveEditor"
@@ -289,7 +449,7 @@ export function activate(context: vscode.ExtensionContext) {
           return;
         }
 
-        // ✅ Close the preview completely (no save popup)
+        // ✅ Close the preview completely
         const previewEditor = vscode.window.visibleTextEditors.find((e) =>
           e.document.uri.toString().includes("Preview")
         );
@@ -297,8 +457,6 @@ export function activate(context: vscode.ExtensionContext) {
           await vscode.window.showTextDocument(previewEditor.document, {
             preview: false,
           });
-
-          // Force discard unsaved buffer (since revert doesn’t work on untitled)
           await vscode.commands.executeCommand(
             "workbench.action.revertAndCloseActiveEditor"
           );
@@ -361,7 +519,6 @@ export function activate(context: vscode.ExtensionContext) {
             "RefactoringMiner is disabled; skipping verification."
           );
         }
-        // ================================================
 
         // energy estimate
         const deltaCCN = Math.max(worst.ccn - afterFn.ccn, 0);
@@ -500,7 +657,12 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
-  context.subscriptions.push(runAnalyzer, analyzeActiveFile, openDash);
+  context.subscriptions.push(
+    runAnalyzer,
+    analyzeActiveFile,
+    optimizeAlgorithm,
+    openDash
+  );
 }
 
 export function deactivate() {}
