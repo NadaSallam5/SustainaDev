@@ -1,5 +1,5 @@
 [ {
-  "file" : "c:\\Users\\Dell\\Desktop\\SustainaDev\\testcode\\DiscountCalculator.java",
+  "file" : "c:\\Users\\MM\\Downloads\\SustainaDev\\testcode\\DiscountCalculator.java",
   "methods" : [ {
     "ifCount" : 0,
     "isLongMethod" : false,
@@ -11,7 +11,7 @@
     "locals" : [ "discountedPrice" ]
   } ]
 }, {
-  "file" : "c:\\Users\\Dell\\Desktop\\SustainaDev\\testcode\\InvoiceCalculator.java",
+  "file" : "c:\\Users\\MM\\Downloads\\SustainaDev\\testcode\\InvoiceCalculator.java",
   "methods" : [ {
     "ifCount" : 0,
     "isLongMethod" : false,
@@ -41,7 +41,7 @@
     "locals" : [ "i" ]
   } ]
 }, {
-  "file" : "c:\\Users\\Dell\\Desktop\\SustainaDev\\testcode\\OrderProcessor.java",
+  "file" : "c:\\Users\\MM\\Downloads\\SustainaDev\\testcode\\OrderProcessor.java",
   "methods" : [ {
     "ifCount" : 0,
     "isLongMethod" : false,
