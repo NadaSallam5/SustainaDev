@@ -78,7 +78,7 @@ async function callOptimizationAI(
 ) {
   const client = new OpenAI({
     baseURL: "http://localhost:11434/v1",
-    apiKey: "ollamadfghfdg",
+    apiKey: "788f53b2d7f94995a5b453ad91aa05e6.ukm_ArZmxq4kqhPq5qCxoKcR",
   });
 
   const { classBlock } = extractClassBlock(

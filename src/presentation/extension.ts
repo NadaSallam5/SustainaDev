@@ -56,10 +56,11 @@ function executeRunAnalyzer() {
     "🚀 Running SustainaDev Java Analyzer...",
   );
 
-  const jarPath = path.join(
-    "c:\\Users\\MM\\Downloads\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar",
-  );
-  const projectPath = "c:\\Users\\MM\\Downloads\\SustainaDev\\testcode";
+const jarPath = path.join(
+        "C:\\Users\\mosta\\OneDrive - Misr International University\\Desktop\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar"
+      );
+      const projectPath =
+        "C:\\Users\\mosta\\OneDrive - Misr International University\\Desktop\\SustainaDev\\testcode";
   const command = `java -jar "${jarPath}" "${projectPath}"`;
 
   const terminal = vscode.window.createTerminal("SustainaDev Analyzer");
