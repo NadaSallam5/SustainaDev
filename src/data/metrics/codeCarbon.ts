@@ -56,9 +56,7 @@ export async function estimateEnergy(deltaCCN: number): Promise<any> {
       emissions_kg: result.emissions_kg || 0,
       estimated_kwh_saved: result.estimated_kwh_saved || 0,
       estimated_co2_saved_kg:
-        result.estimated_co2_saved_kg ||
-        result.estimated_kwh_saved * 0.475 ||
-        0,
+        result.estimated_co2_saved_kg || result.estimated_kwh_saved * 0.5 || 0,
       estimated_cost_saved_usd: result.estimated_cost_saved_usd || 0,
       // Optional: Include equivalents if available
       equivalents: result.equivalents || undefined,
