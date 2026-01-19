@@ -10,27 +10,6 @@ public class InvoiceCalculator {
         int total = 0;
         int count = 0;
 
-        // Loop through prices and calculate
-        int[] results = calculateTotalAndCount(prices);
-        total = results[0];
-        count = results[1];
-
-        // Calculate average
-        double avg = calculateAverage(total, count);
-        printResults(total, count, avg);
-
-        // Apply discount if total is high
-        if (total > 500) {
-            double discount = total * 0.1;
-            System.out.println("Discount applied: $" + discount);
-            System.out.println("Final total: $" + (total - discount));
-        }
-    }
-
-    private int[] calculateTotalAndCount(int[] prices) {
-        int total = 0;
-        int count = 0;
-
         for (int price : prices) {
             if (price > 0) {
                 total += price;
@@ -38,18 +17,24 @@ public class InvoiceCalculator {
             } else {
                 System.out.println("Invalid price skipped: " + price);
             }
+
+            double average = calculateAverage(total, count);
+
+            printVerification(count);
+            System.out.println("Order processed.");
+            System.out.println("Total price: " + total);
+            System.out.println("Average price: " + average);
+            System.out.println("Number of valid items: " + count);
         }
-        return new int[] { total, count };
+    }
+
+    private void printVerification(int count) {
+        for (int i = 0; i < count; i++) {
+            System.out.println("Verifying item #" + (i + 1));
+        }
     }
 
     private double calculateAverage(int total, int count) {
         return (count == 0) ? 0 : (double) total / count;
-    }
-
-    private void printResults(int total, int count, double avg) {
-        System.out.println("Total: $" + total);
-        System.out.println("Count: " + count);
-        System.out.println("Average price: $" + avg);
-        System.out.println("Order processed successfully.");
     }
 }
