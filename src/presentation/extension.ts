@@ -125,15 +125,17 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
 
     const fullCode = refreshedDoc.getText();
     const decision = decideRefactorType({ ...worst, content: fullCode });
+    const validSmells = ["RECURSION", "NESTED_LOOPS", "GENERAL"];
 
     // 3. Execution Logic
-    if (decision.type === "Algorithmic Optimization") {
+    if (validSmells.includes(decision.type)) {
       await handleAlgorithmicOptimization(
         worst,
         fullCode,
         filePath,
         originalUri,
         refreshedDoc,
+        decision.type, // Ensure this parameter is accepted
       );
     } else {
       vscode.window.showInformationMessage("No actionable refactor suggested.");
@@ -164,6 +166,7 @@ async function handleAlgorithmicOptimization(
   filePath: string,
   originalUri: vscode.Uri,
   doc: vscode.TextDocument,
+  smellType: string,
 ) {
   vscode.window.showInformationMessage(
     `🤖 Optimizing Big-O for "${worst.name}"...`,
@@ -173,7 +176,7 @@ async function handleAlgorithmicOptimization(
     fullCode,
     { from: worst.start, to: worst.end },
     filePath,
-    { targetMethodName: worst.name },
+    { targetMethodName: worst.name, smellType: smellType },
   );
 
   if (!patch || !patch.preview || patch.preview.trim().length < 10) {

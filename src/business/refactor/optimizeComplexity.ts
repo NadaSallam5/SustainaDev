@@ -21,12 +21,13 @@ export async function buildOptimizationPatch(
   fullCode: string,
   range: { from: number; to: number },
   fileName?: string,
-  context?: { targetMethodName?: string },
+  context?: { targetMethodName?: string; smellType?: string },
 ): Promise<OptimizationResult> {
   const workspace =
     vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
   const methodName = context?.targetMethodName || "UnknownMethod";
-
+  const smellType = context?.smellType || "GENERAL";
+  console.log(`🛠️ Patch Builder received type: ${smellType}`);
   // 1. Initial Measurement
   const beforeMetrics = await measureCode(fullCode, methodName);
 
@@ -35,8 +36,12 @@ export async function buildOptimizationPatch(
   const fileHeader = fullCode.split(/\bclass\b/)[0].trim();
 
   // 3. AI Generation
-  const rawAiResponse = await callOptimizationAI(fullCode, range, fileHeader);
-
+  const rawAiResponse = await callOptimizationAI(
+    fullCode,
+    range,
+    fileHeader,
+    smellType,
+  );
   // 4. Extraction & Validation
   const patch = parseAiResponse(rawAiResponse);
 
@@ -75,10 +80,11 @@ async function callOptimizationAI(
   fullCode: string,
   range: { from: number },
   existingImports: string,
+  smellType: string, // Added smellType
 ) {
   const client = new OpenAI({
     baseURL: "http://localhost:11434/v1",
-    apiKey: "ollamadfghfdg",
+    apiKey: "ollama",
   });
 
   const { classBlock } = extractClassBlock(
@@ -86,8 +92,12 @@ async function callOptimizationAI(
     Math.max(0, range.from - 1),
   );
 
+  const MODEL_NAME = "qwen2.5-coder:3b";
+
+  console.log(`🤖 SustainaDev is calling model: ${MODEL_NAME}`);
+  console.log(`🤖 SustainaDev is calling model for: ${smellType} Optimization`);
   const response = await client.chat.completions.create({
-    model: "qwen2.5-coder:3b",
+    model: MODEL_NAME,
     messages: [
       {
         role: "system",
@@ -96,7 +106,7 @@ async function callOptimizationAI(
       },
       {
         role: "user",
-        content: getOptimizationPrompt(classBlock, existingImports),
+        content: getOptimizationPrompt(classBlock, existingImports, smellType),
       },
     ],
     temperature: 0.1,
@@ -106,24 +116,51 @@ async function callOptimizationAI(
 }
 
 /**
+ * Provides specific instructions for each sustainability smell.
+ * Keeping these separate allows for easy expansion without touching prompt logic.
+ */
+function getTaskInstructions(smellType: string): string {
+  const TaskLibrary: Record<string, string> = {
+    RECURSION:
+      "Refactor recursion to a PURE iterative loop (for/while). DO NOT use memoization, HashMaps, or any secondary storage. Achieve O(1) space complexity by using only primitive variables (int/long) and completely removing self-calls.",
+    NESTED_LOOPS:
+      "Optimize O(N^2) complexity to O(N) or better using efficient data structures like HashSet/HashMap.",
+    GENERAL:
+      "Audit the code for general Green Coding principles: reduce CPU cycles and minimize memory footprints.",
+  };
+
+  return TaskLibrary[smellType] || TaskLibrary["GENERAL"];
+}
+
+/**
  * Authoritative prompt focusing on Import Management and Algorithmic Complexity.
  */
-function getOptimizationPrompt(code: string, imports: string): string {
+function getOptimizationPrompt(
+  code: string,
+  imports: string,
+  smellType: string,
+): string {
+  const selectedTask = getTaskInstructions(smellType);
+  console.log(smellType + selectedTask);
   return `
 ### ROLE
-You are an expert Java Performance Engineer specializing in Green Computing. Your goal is to minimize energy consumption by reducing CPU cycles.
+Expert Java Performance Engineer (Sustainability Specialist).
 
 ### TASK
-1. Analyze the target code for O(N*M) nested loops or inefficient lookups.
-2. Optimize the algorithmic complexity to O(N+M) or better using efficient data structures (e.g., HashSet, HashMap).
+1. ${selectedTask}
+2. Use the most energy-efficient approach available in standard Java libraries.
+3. **Efficiency Goal**: Minimize both CPU cycles and memory allocations.
 
-
+### BEHAVIORAL INTEGRITY (CRITICAL)
+- **Zero Logic Change**: The refactored code MUST produce the exact same output for the same input.
+- **Signature Lock**: Do NOT change method names, return types, or parameter lists.
+- **Edge Cases**: Ensure all edge cases (null checks, empty lists, base cases) are preserved.
 
 ### IMPORT RULES (CRITICAL)
 - **Maintain Current Header**: You MUST include the existing package and import statements provided below at the very top of your response.
-- **Auto-Include New Imports**: If your optimization uses new classes (e.g., java.util.HashSet, java.util.HashMap), you MUST explicitly add their import statements to the header.
+- **Library Autonomy**: You are free to use ANY standard java.util or java.io classes required for the most energy-efficient solution.
+- **Auto-Include New Imports**: If your optimization uses classes not present in the original header (e.g., StringBuilder, Map, Set, Collections), you MUST explicitly add their full import statements to the header.
 - **Full File Output**: Your "Preview" section MUST contain the complete, compilable Java file (Imports + Class).
-
 ### DATA FOR REFACTORING
 **Existing Header/Imports:**
 ${imports}
@@ -140,7 +177,7 @@ Preview:
 \`\`\`
 
 Reason:
-(Technical explanation of the complexity improvement.")
+(Technical explanation of the complexity improvement and why this is greener.")
 `;
 }
 
@@ -157,10 +194,21 @@ function parseAiResponse(text: string): OptimizationResult {
     blocks.push(match[1].trim());
   }
 
-  const preview =
+  let preview =
     blocks.length > 0
       ? blocks.reduce((a, b) => (a.length > b.length ? a : b))
       : "";
+
+  // 🛡️ CLEANING LOGIC: Remove stray words like a leading 'public'
+  // that isn't part of the class declaration.
+  if (
+    preview.startsWith("public") &&
+    !preview.match(/^public\s+(class|final|abstract|interface|@interface|enum)/)
+  ) {
+    // If it starts with 'public' but isn't a class definition,
+    // it's likely a hallucinated word before the imports.
+    preview = preview.replace(/^public\s+/, "").trim();
+  }
 
   const reasonMatch = text.match(/Reason:?\s*([\s\S]*)$/i);
   const reason = reasonMatch
