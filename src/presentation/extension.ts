@@ -224,29 +224,45 @@ async function executeOpenDashboard(context: vscode.ExtensionContext) {
       enableScripts: true,
       retainContextWhenHidden: true,
       localResourceRoots: [
-        vscode.Uri.file(path.join(context.extensionPath, "media")),
+        vscode.Uri.file(
+          path.join(
+            context.extensionPath,
+            "src",
+            "presentation",
+            "media"
+          )
+        ),
       ],
-    },
+    }
   );
 
   const dashboardPath = path.join(
     context.extensionPath,
+    "src",
+    "presentation",
     "media",
-    "dashboard.html",
+    "dashboard.html"
   );
 
   try {
     const html = await fsp.readFile(dashboardPath, "utf8");
     panel.webview.html = html;
   } catch (e: any) {
-    panel.webview.html = `<html><body><h3>Dashboard error</h3><pre>${e?.message ?? e}</pre></body></html>`;
+    panel.webview.html = `
+      <html>
+        <body>
+          <h3>Dashboard error</h3>
+          <pre>${e?.message ?? e}</pre>
+        </body>
+      </html>`;
   }
 
-  // Message Handling
+  // Message Handling (this part was already correct)
   panel.webview.onDidReceiveMessage(
     async (message: any) => {
       const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
       if (!workspaceFolder) return;
+
       const ws = workspaceFolder.uri.fsPath;
 
       if (message?.type === "readAnalysis") {
@@ -256,9 +272,10 @@ async function executeOpenDashboard(context: vscode.ExtensionContext) {
       }
     },
     undefined,
-    context.subscriptions,
+    context.subscriptions
   );
 }
+
 
 /* =========================================================================
    HELPER FUNCTIONS

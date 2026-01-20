@@ -11,8 +11,8 @@ public class InventoryReconciler {
         List<String> discrepancies = new ArrayList<>();
         HashSet<String> systemRecordsSet = new HashSet<>(systemRecords);
 
-        // TRIGGER: O(N+M) - Every item in warehouse is checked against the
-        // HashSet for efficiency.
+        // TRIGGER: O(N+M) - Every item in warehouse is checked against the set of
+        // system records.
         for (String stockItem : warehouseStock) {
             if (!systemRecordsSet.contains(stockItem)) {
                 discrepancies.add(stockItem);
