@@ -1,21 +1,14 @@
-import java.util.*;
-
-class FactorialCalculator {
+public class FactorialCalculator {
 
     public long calculateFactorial(int n) {
-        // Base case
-        if (n <= 1) {
-            return 1;
-        }
-        
-        // Initialize result variable
+        // Initialize result to 1
         long result = 1;
-
-        // Iterative loop to calculate factorial
+        
+        // Use a loop to calculate factorial iteratively
         for (int i = 2; i <= n; i++) {
             result *= i;
         }
-
+        
         return result;
     }
 }
