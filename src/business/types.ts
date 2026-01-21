@@ -1,8 +1,14 @@
-export interface FunctionMetrics {
-  name: string;
-  ccn: number;
-  nloc: number;
-  tokenCount?: number;
-  callCount?: number;
-  content?: string; // 🧩 Add this line
+export interface MethodFacts {
+  // existing (KEEP)
+  methodName: string;
+  callsSelf: boolean;
+  maxLoopDepth: number;
+  cyclomaticComplexity: number;
+
+  // new (ADD)
+  isLinearRecursion: boolean;
+  isPureAccumulation: boolean;
+  hasOverlappingSubproblems: boolean;
+
+   hasStringConcatInLoop?: boolean;
 }
