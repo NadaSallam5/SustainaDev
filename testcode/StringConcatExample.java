@@ -1,5 +1,3 @@
-
-
 public class StringConcatExample {
     public String buildString(int n) {
         StringBuilder sb = new StringBuilder();

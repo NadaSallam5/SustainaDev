@@ -5,7 +5,7 @@ import { buildOptimizationPatch } from "../refactor/optimizeComplexity";
 
 import { runJavaAnalyzer } from "./javaRunner";
 import * as vscode from "vscode";
-import * as path from "path";
+
 
 
 export async function analyzeAndOptimize(
@@ -21,8 +21,6 @@ if (!editor) {
   throw new Error("No active editor");
 }
 
-// حلّل فولدر الملف المفتوح نفسه
-const targetFile = editor.document.uri.fsPath;
 
 
 const factsList = await runJavaAnalyzer(context);

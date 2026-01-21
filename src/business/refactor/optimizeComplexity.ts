@@ -12,7 +12,6 @@ import {
 
 import { MethodFacts } from "../types";
 
-
 /**
  * Interface for the final optimization result
  */
@@ -38,29 +37,24 @@ export async function buildOptimizationPatch(
   const workspace =
     vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
   const { targetMethodName, smellType, methodFacts } = context;
-const methodName = targetMethodName;
+  const methodName = targetMethodName;
 
   console.log(`🛠️ Patch Builder received type: ${smellType}`);
-  
+
   // 🧠 STRATEGY DECISION (CRITICAL)
+  const strategy = chooseOptimizationStrategy(methodFacts);
 
+  console.log(`🧠 Chosen optimization strategy: ${strategy}`);
+  if (strategy === OptimizationStrategy.KEEP_RECURSION) {
+    vscode.window.showInformationMessage(
+      "ℹ️ No greener refactor available for this method."
+    );
 
-const strategy = chooseOptimizationStrategy(methodFacts);
-
-
-
-console.log(`🧠 Chosen optimization strategy: ${strategy}`);
-if (strategy === OptimizationStrategy.KEEP_RECURSION) {
-  vscode.window.showInformationMessage(
-    "ℹ️ No greener refactor available for this method."
-  );
-
-  return {
-    preview: fullCode,
-    reason: "No energy-efficient refactor detected for this method."
-  };
-}
-
+    return {
+      preview: fullCode,
+      reason: "No energy-efficient refactor detected for this method."
+    };
+  }
 
   // 1. Initial Measurement
   const beforeMetrics = await measureCode(fullCode, methodName);
@@ -72,37 +66,81 @@ if (strategy === OptimizationStrategy.KEEP_RECURSION) {
   // 3. AI Generation
   let rawAiResponse = "";
 
-if (strategy === OptimizationStrategy.ITERATIVE_REWRITE) {
+  if (strategy === OptimizationStrategy.ITERATIVE_REWRITE) {
+    rawAiResponse = await callOptimizationAI(
+      fullCode,
+      range,
+      fileHeader,
+      "RECURSION" // force iterative instruction
+    );
+  }
+
+  if (strategy === OptimizationStrategy.MEMOIZATION) {
+    rawAiResponse = await callOptimizationAI(
+      fullCode,
+      range,
+      fileHeader,
+      smellType
+    );
+  }
+
+  if (strategy === OptimizationStrategy.STRING_BUILDER) {
+    rawAiResponse = await callOptimizationAI(
+      fullCode,
+      range,
+      fileHeader,
+      "STRING_BUILDER"
+    );
+  }
+
+  // ✅✅✅ Duplicate computation optimization call
+  if (strategy === OptimizationStrategy.DUPLICATE_COMPUTATION) {
+    rawAiResponse = await callOptimizationAI(
+      fullCode,
+      range,
+      fileHeader,
+      "DUPLICATE_COMPUTATION"
+    );
+  }
+if (strategy === OptimizationStrategy.NESTED_LOOPS) {
   rawAiResponse = await callOptimizationAI(
     fullCode,
     range,
     fileHeader,
-    "RECURSION" // force iterative instruction
+    "NESTED_LOOPS"
   );
 }
 
-if (strategy === OptimizationStrategy.MEMOIZATION) {
-  rawAiResponse = await callOptimizationAI(
-    fullCode,
-    range,
-    fileHeader,
-    smellType
-  );
-}
-if (strategy === OptimizationStrategy.STRING_BUILDER) {
-  rawAiResponse = await callOptimizationAI(
-    fullCode,
-    range,
-    fileHeader,
-    "STRING_BUILDER"
-  );
-}
   // 4. Extraction & Validation
   const patch = parseAiResponse(rawAiResponse);
 
+  // ✅✅✅ HARD VALIDATION for Duplicate Computation refactor
+  // Prevent invalid changes (AtomicInteger, Map caching, method signature changes)
+  if (strategy === OptimizationStrategy.DUPLICATE_COMPUTATION) {
+    const invalidPatterns = [
+      "AtomicInteger",
+      "HashMap",
+      "Map<",
+      "ConcurrentHashMap",
+      "cache",
+      "memo",
+    ];
+
+    const hasInvalid = invalidPatterns.some(p => patch.preview.includes(p));
+    if (hasInvalid) {
+      throw new Error(
+        "AI produced invalid refactor for DUPLICATE_COMPUTATION (added caching/AtomicInteger/Map)."
+      );
+    }
+
+    // Ensure method signatures are unchanged (basic guard)
+    // If original has "private int expensive(" then preview must also have it.
+    if (fullCode.includes("private int expensive(") && !patch.preview.includes("private int expensive(")) {
+      throw new Error("AI changed method signature for expensive().");
+    }
+  }
+
   // 🛡️ NO-OP CHECK: The "Logic Gate"
-  // We strip comments and all whitespace to see if the execution logic changed.
-  // This catches "Shuffled Lines" where AI moves code but doesn't refactor.
   const logicOnlyOriginal = fullCode.replace(/\/\/.*|\/\*[\s\S]*?\*\/|\s/g, "");
   const logicOnlyPatch = patch.preview.replace(
     /\/\/.*|\/\*[\s\S]*?\*\/|\s/g,
@@ -113,29 +151,29 @@ if (strategy === OptimizationStrategy.STRING_BUILDER) {
     vscode.window.showInformationMessage("✅ Code logic is already optimized.");
     throw new Error("ALREADY_OPTIMIZED");
   }
+
   // 🔍 SHOW PREVIEW (Original ↔ Optimized)
-if (fileName) {
-  const originalUri = vscode.Uri.file(fileName);
+  if (fileName) {
+    const originalUri = vscode.Uri.file(fileName);
 
-  const previewUri = vscode.Uri.file(
-    path.join(
-      os.tmpdir(),
-      `sustainadev-preview-${Date.now()}.java`
-    )
-  );
+    const previewUri = vscode.Uri.file(
+      path.join(
+        os.tmpdir(),
+        `sustainadev-preview-${Date.now()}.java`
+      )
+    );
 
-  // Write optimized content to temp preview file
-  fs.writeFileSync(previewUri.fsPath, patch.preview, "utf8");
+    // Write optimized content to temp preview file
+    fs.writeFileSync(previewUri.fsPath, patch.preview, "utf8");
 
-  await vscode.commands.executeCommand(
-    "vscode.diff",
-    originalUri,
-    previewUri,
-    "🧠 SustainaDev: Algorithmic Optimization (Original ↔ Optimized)",
-    { preview: true }
-  );
-}
-
+    await vscode.commands.executeCommand(
+      "vscode.diff",
+      originalUri,
+      previewUri,
+      "🧠 SustainaDev: Algorithmic Optimization (Original ↔ Optimized)",
+      { preview: true }
+    );
+  }
 
   // 5. Final Measurement & Logging
   const afterMetrics = await measureCode(patch.preview, methodName);
@@ -158,7 +196,7 @@ async function callOptimizationAI(
   fullCode: string,
   range: { from: number },
   existingImports: string,
-  smellType: string, // Added smellType
+  smellType: string,
 ) {
   const client = new OpenAI({
     baseURL: "http://localhost:11434/v1",
@@ -180,7 +218,7 @@ async function callOptimizationAI(
       {
         role: "system",
         content:
-          "You are a senior Java engineer focused on Big-O optimization for Green Computing.",
+          "You are a senior Java engineer focused on Big-O optimization for Green Computing. Always follow the output format exactly.",
       },
       {
         role: "user",
@@ -195,16 +233,25 @@ async function callOptimizationAI(
 
 /**
  * Provides specific instructions for each sustainability smell.
- * Keeping these separate allows for easy expansion without touching prompt logic.
  */
 function getTaskInstructions(smellType: string): string {
   const TaskLibrary: Record<string, string> = {
     RECURSION:
       "Refactor recursion to a PURE iterative loop (for/while). DO NOT use memoization, HashMaps, or any secondary storage. Achieve O(1) space complexity by using only primitive variables (int/long) and completely removing self-calls.",
+
     NESTED_LOOPS:
       "Optimize O(N^2) complexity to O(N) or better using efficient data structures like HashSet/HashMap.",
+
     STRING_BUILDER:
       "Replace String concatenation inside loops with StringBuilder. Avoid using '+' on Strings inside loops. Preserve logic and output.",
+
+    // ✅✅✅ NEW: Duplicate computation task (STRONG + STRICT)
+    DUPLICATE_COMPUTATION:
+      "Fix duplicate computation inside the SAME method when the SAME call is repeated (e.g., expensive(x) + expensive(x)). " +
+      "Refactor ONLY by calling it ONCE and storing the result in a LOCAL variable. Example: `int v = expensive(x); return v + v;`. " +
+      "STRICT RULES: Do NOT add Map/HashMap/caching/memoization. Do NOT add AtomicInteger. Do NOT add fields/state. Do NOT change ANY method signature. " +
+      "No new helper methods. Only local variable reuse.",
+
     GENERAL:
       "Audit the code for general Green Coding principles: reduce CPU cycles and minimize memory footprints.",
   };
@@ -234,13 +281,14 @@ Expert Java Performance Engineer (Sustainability Specialist).
 ### BEHAVIORAL INTEGRITY (CRITICAL)
 - **Zero Logic Change**: The refactored code MUST produce the exact same output for the same input.
 - **Signature Lock**: Do NOT change method names, return types, or parameter lists.
-- **Edge Cases**: Ensure all edge cases (null checks, empty lists, base cases) are preserved.
+- **No Extra State**: Do NOT add fields, caches, or global/static state.
+- **Edge Cases**: Ensure all edge cases are preserved.
 
 ### IMPORT RULES (CRITICAL)
 - **Maintain Current Header**: You MUST include the existing package and import statements provided below at the very top of your response.
-- **Library Autonomy**: You are free to use ANY standard java.util or java.io classes required for the most energy-efficient solution.
-- **Auto-Include New Imports**: If your optimization uses classes not present in the original header (e.g., StringBuilder, Map, Set, Collections), you MUST explicitly add their full import statements to the header.
+- **Auto-Include New Imports**: If your optimization uses classes not present in the original header, you MUST explicitly add their import statements.
 - **Full File Output**: Your "Preview" section MUST contain the complete, compilable Java file (Imports + Class).
+
 ### DATA FOR REFACTORING
 **Existing Header/Imports:**
 ${imports}
@@ -250,14 +298,14 @@ ${imports}
 ${code}
 \`\`\`
 
-### OUTPUT FORMAT
+### OUTPUT FORMAT (MUST FOLLOW EXACTLY)
 Preview:
 \`\`\`java
-(The ENTIRE file: existing header + any new imports + the optimized class)
+(Complete Java file)
 \`\`\`
 
 Reason:
-(Technical explanation of the complexity improvement and why this is greener.")
+(Short technical explanation.)
 `;
 }
 
@@ -279,14 +327,10 @@ function parseAiResponse(text: string): OptimizationResult {
       ? blocks.reduce((a, b) => (a.length > b.length ? a : b))
       : "";
 
-  // 🛡️ CLEANING LOGIC: Remove stray words like a leading 'public'
-  // that isn't part of the class declaration.
   if (
     preview.startsWith("public") &&
     !preview.match(/^public\s+(class|final|abstract|interface|@interface|enum)/)
   ) {
-    // If it starts with 'public' but isn't a class definition,
-    // it's likely a hallucinated word before the imports.
     preview = preview.replace(/^public\s+/, "").trim();
   }
 

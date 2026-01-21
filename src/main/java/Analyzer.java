@@ -4,12 +4,19 @@ import java.nio.file.Paths;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.expr.MethodCallExpr;
-import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.BinaryExpr;
+import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.stmt.ForEachStmt;
+import com.github.javaparser.ast.stmt.ForStmt;
+import com.github.javaparser.ast.stmt.IfStmt;
+import com.github.javaparser.ast.stmt.ReturnStmt;
+import com.github.javaparser.ast.stmt.Statement;
+import com.github.javaparser.ast.stmt.WhileStmt;
+
 public class Analyzer {
+
 private static boolean isLinearRecursion(MethodDeclaration m) {
     long recursiveCalls =
         m.findAll(MethodCallExpr.class)
@@ -19,6 +26,7 @@ private static boolean isLinearRecursion(MethodDeclaration m) {
 
     return recursiveCalls == 1;
 }
+
 private static boolean isPureAccumulation(MethodDeclaration m) {
     return m.findAll(ReturnStmt.class).stream().anyMatch(ret ->
         ret.getExpression().isPresent() &&
@@ -40,7 +48,7 @@ private static boolean hasStringConcatInLoop(MethodDeclaration m) {
     return m.findAll(BinaryExpr.class).stream().anyMatch(b -> {
         if (b.getOperator() != BinaryExpr.Operator.PLUS) return false;
 
-        // لازم يكون جوّه loop
+        // must be inside a loop
         Node parent = b;
         while (parent.getParentNode().isPresent()) {
             parent = parent.getParentNode().get();
@@ -52,8 +60,17 @@ private static boolean hasStringConcatInLoop(MethodDeclaration m) {
     });
 }
 
+// ✅ NEW: Duplicate Computation Detector (same call repeated)
+private static boolean hasDuplicateComputation(MethodDeclaration m) {
+    var calls = m.findAll(MethodCallExpr.class).stream()
+        .filter(c -> !c.getNameAsString().equals(m.getNameAsString())) // ignore recursion
+        .map(c -> c.toString()) // full call text (method + args)
+        .toList();
 
-   public static void main(String[] args) throws Exception {
+    return calls.stream().distinct().count() < calls.size();
+}
+
+public static void main(String[] args) throws Exception {
     if (args.length == 0) {
         System.err.println("Usage: java Analyzer <java-file>");
         return;
@@ -65,42 +82,43 @@ private static boolean hasStringConcatInLoop(MethodDeclaration m) {
     CompilationUnit cu = StaticJavaParser.parse(file);
 
     for (MethodDeclaration m : cu.findAll(MethodDeclaration.class)) {
-    MethodFacts facts = new MethodFacts();
-    facts.methodName = m.getNameAsString();
+        MethodFacts facts = new MethodFacts();
+        facts.methodName = m.getNameAsString();
 
-    facts.isLinearRecursion = isLinearRecursion(m);
-    facts.isPureAccumulation = isPureAccumulation(m);
-    facts.hasOverlappingSubproblems = hasOverlappingSubproblems(m);
-    facts.hasStringConcatInLoop = hasStringConcatInLoop(m);
+        facts.isLinearRecursion = isLinearRecursion(m);
+        facts.isPureAccumulation = isPureAccumulation(m);
+        facts.hasOverlappingSubproblems = hasOverlappingSubproblems(m);
+        facts.hasStringConcatInLoop = hasStringConcatInLoop(m);
 
-    facts.callsSelf =
-        m.findAll(MethodCallExpr.class)
-         .stream()
-         .anyMatch(c -> c.getNameAsString().equals(facts.methodName));
+        // ✅ store duplicate computation smell
+        facts.hasDuplicateComputation = hasDuplicateComputation(m);
 
-    int maxDepth = 0;
-    for (Statement s : m.findAll(Statement.class)) {
-        int depth = 0;
-        Node n = s;
-        while (n.getParentNode().isPresent()) {
-            n = n.getParentNode().get();
-            if (n instanceof ForStmt || n instanceof ForEachStmt) {
-                depth++;
+        facts.callsSelf =
+            m.findAll(MethodCallExpr.class)
+             .stream()
+             .anyMatch(c -> c.getNameAsString().equals(facts.methodName));
+
+        int maxDepth = 0;
+        for (Statement s : m.findAll(Statement.class)) {
+            int depth = 0;
+            Node n = s;
+            while (n.getParentNode().isPresent()) {
+                n = n.getParentNode().get();
+                if (n instanceof ForStmt || n instanceof ForEachStmt) {
+                    depth++;
+                }
             }
+            maxDepth = Math.max(maxDepth, depth);
         }
-        maxDepth = Math.max(maxDepth, depth);
+        facts.maxLoopDepth = maxDepth;
+
+        facts.cyclomaticComplexity =
+              1
+            + m.findAll(IfStmt.class).size()
+            + m.findAll(ForStmt.class).size()
+            + m.findAll(ForEachStmt.class).size();
+
+        System.out.println(om.writeValueAsString(facts));
     }
-    facts.maxLoopDepth = maxDepth;
-
-    facts.cyclomaticComplexity =
-          1
-        + m.findAll(IfStmt.class).size()
-        + m.findAll(ForStmt.class).size()
-        + m.findAll(ForEachStmt.class).size();
-
-    // ✅ JSON مرة واحدة فقط
-    System.out.println(om.writeValueAsString(facts));
-}
-
 }
 }

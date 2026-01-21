@@ -11,4 +11,7 @@ export interface MethodFacts {
   hasOverlappingSubproblems: boolean;
 
    hasStringConcatInLoop?: boolean;
+   
+
+    hasDuplicateComputation: boolean;
 }
