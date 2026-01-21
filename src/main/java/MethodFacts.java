@@ -10,4 +10,7 @@ public class MethodFacts {
     public boolean isLinearRecursion;       // exactly one recursive call
     public boolean isPureAccumulation;      // n * f(n-1), n + f(n-1), etc.
     public boolean hasOverlappingSubproblems; // Fibonacci-style reuse
+
+    public boolean hasStringConcatInLoop;
+
 }

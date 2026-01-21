@@ -1,18 +1,18 @@
 import { MethodFacts } from "../types";
 
 export enum OptimizationStrategy {
-  ITERATIVE_REWRITE = "ITERATIVE_REWRITE",
+ITERATIVE_REWRITE = "ITERATIVE_REWRITE",
   MEMOIZATION = "MEMOIZATION",
+ STRING_BUILDER = "STRING_BUILDER", // 👈 جديد
   KEEP_RECURSION = "KEEP_RECURSION",
 }
 export function chooseOptimizationStrategy(
   facts: MethodFacts
 ): OptimizationStrategy {
 
-  // 🔥 NEW: Nested loops optimization
-  if (facts.maxLoopDepth >= 2) {
-    return OptimizationStrategy.MEMOIZATION; 
-    // or a new enum: SET_BASED_OPTIMIZATION لو حابة
+  // 🔥 String concat in loop
+  if (facts.hasStringConcatInLoop) {
+    return OptimizationStrategy.STRING_BUILDER;
   }
 
   if (!facts.callsSelf) {
@@ -29,3 +29,4 @@ export function chooseOptimizationStrategy(
 
   return OptimizationStrategy.KEEP_RECURSION;
 }
+

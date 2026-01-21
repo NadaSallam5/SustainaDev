@@ -8,6 +8,7 @@ import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.expr.BinaryExpr;
 public class Analyzer {
 private static boolean isLinearRecursion(MethodDeclaration m) {
     long recursiveCalls =
@@ -35,6 +36,22 @@ private static boolean hasOverlappingSubproblems(MethodDeclaration m) {
     return recursiveCalls.stream().distinct().count()
            < recursiveCalls.size();
 }
+private static boolean hasStringConcatInLoop(MethodDeclaration m) {
+    return m.findAll(BinaryExpr.class).stream().anyMatch(b -> {
+        if (b.getOperator() != BinaryExpr.Operator.PLUS) return false;
+
+        // لازم يكون جوّه loop
+        Node parent = b;
+        while (parent.getParentNode().isPresent()) {
+            parent = parent.getParentNode().get();
+            if (parent instanceof ForStmt || parent instanceof WhileStmt) {
+                return true;
+            }
+        }
+        return false;
+    });
+}
+
 
    public static void main(String[] args) throws Exception {
     if (args.length == 0) {
@@ -48,43 +65,42 @@ private static boolean hasOverlappingSubproblems(MethodDeclaration m) {
     CompilationUnit cu = StaticJavaParser.parse(file);
 
     for (MethodDeclaration m : cu.findAll(MethodDeclaration.class)) {
-        MethodFacts facts = new MethodFacts();
-        facts.methodName = m.getNameAsString();
+    MethodFacts facts = new MethodFacts();
+    facts.methodName = m.getNameAsString();
 
-        facts.isLinearRecursion = isLinearRecursion(m);
-        facts.isPureAccumulation = isPureAccumulation(m);
-        facts.hasOverlappingSubproblems = hasOverlappingSubproblems(m);
+    facts.isLinearRecursion = isLinearRecursion(m);
+    facts.isPureAccumulation = isPureAccumulation(m);
+    facts.hasOverlappingSubproblems = hasOverlappingSubproblems(m);
+    facts.hasStringConcatInLoop = hasStringConcatInLoop(m);
 
-        // recursion
-        facts.callsSelf =
-            m.findAll(MethodCallExpr.class)
-             .stream()
-             .anyMatch(c -> c.getNameAsString().equals(facts.methodName));
+    facts.callsSelf =
+        m.findAll(MethodCallExpr.class)
+         .stream()
+         .anyMatch(c -> c.getNameAsString().equals(facts.methodName));
 
-        // loop depth
-        int maxDepth = 0;
-        for (Statement s : m.findAll(Statement.class)) {
-            int depth = 0;
-            Node n = s;
-            while (n.getParentNode().isPresent()) {
-                n = n.getParentNode().get();
-                if (n instanceof ForStmt || n instanceof ForEachStmt) {
-                    depth++;
-                }
+    int maxDepth = 0;
+    for (Statement s : m.findAll(Statement.class)) {
+        int depth = 0;
+        Node n = s;
+        while (n.getParentNode().isPresent()) {
+            n = n.getParentNode().get();
+            if (n instanceof ForStmt || n instanceof ForEachStmt) {
+                depth++;
             }
-            maxDepth = Math.max(maxDepth, depth);
         }
-        facts.maxLoopDepth = maxDepth;
-
-        // cyclomatic complexity
-        facts.cyclomaticComplexity =
-              1
-            + m.findAll(IfStmt.class).size()
-            + m.findAll(ForStmt.class).size()
-            + m.findAll(ForEachStmt.class).size();
-
-        // 🔥 JSON ONLY
-        System.out.println(om.writeValueAsString(facts));
+        maxDepth = Math.max(maxDepth, depth);
     }
+    facts.maxLoopDepth = maxDepth;
+
+    facts.cyclomaticComplexity =
+          1
+        + m.findAll(IfStmt.class).size()
+        + m.findAll(ForStmt.class).size()
+        + m.findAll(ForEachStmt.class).size();
+
+    // ✅ JSON مرة واحدة فقط
+    System.out.println(om.writeValueAsString(facts));
+}
+
 }
 }

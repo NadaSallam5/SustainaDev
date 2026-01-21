@@ -9,4 +9,6 @@ export interface MethodFacts {
   isLinearRecursion: boolean;
   isPureAccumulation: boolean;
   hasOverlappingSubproblems: boolean;
+
+   hasStringConcatInLoop?: boolean;
 }

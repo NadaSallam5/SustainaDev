@@ -89,7 +89,14 @@ if (strategy === OptimizationStrategy.MEMOIZATION) {
     smellType
   );
 }
-
+if (strategy === OptimizationStrategy.STRING_BUILDER) {
+  rawAiResponse = await callOptimizationAI(
+    fullCode,
+    range,
+    fileHeader,
+    "STRING_BUILDER"
+  );
+}
   // 4. Extraction & Validation
   const patch = parseAiResponse(rawAiResponse);
 
@@ -196,6 +203,8 @@ function getTaskInstructions(smellType: string): string {
       "Refactor recursion to a PURE iterative loop (for/while). DO NOT use memoization, HashMaps, or any secondary storage. Achieve O(1) space complexity by using only primitive variables (int/long) and completely removing self-calls.",
     NESTED_LOOPS:
       "Optimize O(N^2) complexity to O(N) or better using efficient data structures like HashSet/HashMap.",
+    STRING_BUILDER:
+      "Replace String concatenation inside loops with StringBuilder. Avoid using '+' on Strings inside loops. Preserve logic and output.",
     GENERAL:
       "Audit the code for general Green Coding principles: reduce CPU cycles and minimize memory footprints.",
   };
