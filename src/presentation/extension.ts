@@ -1,19 +1,21 @@
 import * as vscode from "vscode";
 import * as path from "path";
-import { exec } from "child_process";
-import * as fs from "fs";
+
+
 import * as fsp from "fs/promises";
 
 // Project internal imports
-import { runLizard } from "../business/analyzer/lizardRunner";
+
 import { buildOptimizationPatch } from "../business/refactor/optimizeComplexity";
-import { decideRefactorType } from "../business/refactor/chooseRefactor";
+import { chooseRefactor } from "../business/refactor/chooseRefactor";
 import { initPaths } from "../data/metrics/codeCarbon";
+import { runJavaAnalyzer } from "../business/analyzer/javaRunner";
 
 /**
  * Global state to prevent concurrent executions
  */
 let isRunning = false;
+const validSmells = ["RECURSION", "NESTED_LOOPS", "GENERAL"];
 
 /**
  * SustainaDev Extension Activation
@@ -22,10 +24,7 @@ export function activate(context: vscode.ExtensionContext) {
   console.log("🟢 SustainaDev Analyzer extension is active");
 
   // 1. Register Analyzer Command
-  const runAnalyzer = vscode.commands.registerCommand(
-    "sustainadev.runAnalyzer",
-    () => executeRunAnalyzer(),
-  );
+ 
 
   // 2. Register Active File Analysis Command
   const analyzeActiveFile = vscode.commands.registerCommand(
@@ -39,7 +38,7 @@ export function activate(context: vscode.ExtensionContext) {
     () => executeOpenDashboard(context),
   );
 
-  context.subscriptions.push(runAnalyzer, analyzeActiveFile, openDash);
+  context.subscriptions.push( analyzeActiveFile, openDash);
 }
 
 export function deactivate() {}
@@ -51,33 +50,7 @@ export function deactivate() {}
 /**
  * Logic for 'sustainadev.runAnalyzer'
  */
-function executeRunAnalyzer() {
-  vscode.window.showInformationMessage(
-    "🚀 Running SustainaDev Java Analyzer...",
-  );
 
-  const jarPath = path.join(
-    "c:\\Users\\MM\\Downloads\\SustainaDev\\target\\javatool-1.0-SNAPSHOT-jar-with-dependencies.jar",
-  );
-  const projectPath = "c:\\Users\\MM\\Downloads\\SustainaDev\\testcode";
-  const command = `java -jar "${jarPath}" "${projectPath}"`;
-
-  const terminal = vscode.window.createTerminal("SustainaDev Analyzer");
-  terminal.show();
-  terminal.sendText(command);
-
-  exec(command, (error, stdout, stderr) => {
-    if (error) {
-      vscode.window.showErrorMessage(`❌ Analyzer failed: ${error.message}`);
-      return;
-    }
-    if (stderr) console.error(stderr);
-    console.log(stdout);
-    vscode.window.showInformationMessage(
-      "✅ Analysis complete! Check analysis-report.json",
-    );
-  });
-}
 
 /**
  * Logic for 'sustainadev.analyzeActiveFile'
@@ -111,32 +84,63 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
     const refreshedDoc = await vscode.workspace.openTextDocument(originalUri);
     await refreshedDoc.save();
 
-    // 2. Metrics Analysis
-    const analysis = await runLizard(filePath);
-    if (!analysis.functions.length) {
-      vscode.window.showInformationMessage("No functions found.");
-      isRunning = false;
-      return;
-    }
+const fullCode = refreshedDoc.getText();
 
-    const worst = analysis.functions.sort(
-      (a: any, b: any) => b.ccn - a.ccn || b.nloc - a.nloc,
-    )[0];
+const factsList = await runJavaAnalyzer(context);
 
-    const fullCode = refreshedDoc.getText();
-    const decision = decideRefactorType({ ...worst, content: fullCode });
-    const validSmells = ["RECURSION", "NESTED_LOOPS", "GENERAL"];
+if (!factsList.length) {
+  vscode.window.showInformationMessage("No methods detected by analyzer.");
+  isRunning = false;
+  return;
+}
+
+
+// OPTIONAL: choose one method (first or highest complexity later)
+const facts = factsList[0];
+
+// 🔥 RULE ENGINE (WHAT to do)
+const decision = chooseRefactor(facts);
 
     // 3. Execution Logic
     if (validSmells.includes(decision.type)) {
-      await handleAlgorithmicOptimization(
-        worst,
-        fullCode,
-        filePath,
-        originalUri,
-        refreshedDoc,
-        decision.type, // Ensure this parameter is accepted
-      );
+     const patch = await buildOptimizationPatch(
+  fullCode,
+  {
+    from: editor.selection.start.line,
+    to: editor.selection.end.line,
+  },
+  filePath,
+  {
+    targetMethodName: facts.methodName,
+    smellType: decision.type,
+    methodFacts: facts, // ✅ REQUIRED
+  }
+);
+
+void vscode.window.showQuickPick(
+  ["✅ Accept Optimization", "❌ Reject"],
+  {
+    placeHolder: "Apply the optimized code?",
+  }
+).then(async (choice) => {
+  if (choice === "✅ Accept Optimization") {
+    await applyPatchToDocument(
+      originalUri,
+      patch.preview,
+      refreshedDoc.lineCount
+    );
+
+    vscode.window.showInformationMessage(
+      "✅ Optimization applied successfully."
+    );
+  } else if (choice) {
+    vscode.window.showInformationMessage(
+      "❌ Optimization discarded."
+    );
+  }
+});
+
+
     } else {
       vscode.window.showInformationMessage("No actionable refactor suggested.");
     }
@@ -160,60 +164,6 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
 /**
  * Helper to handle the specific optimization workflow
  */
-async function handleAlgorithmicOptimization(
-  worst: any,
-  fullCode: string,
-  filePath: string,
-  originalUri: vscode.Uri,
-  doc: vscode.TextDocument,
-  smellType: string,
-) {
-  vscode.window.showInformationMessage(
-    `🤖 Optimizing Big-O for "${worst.name}"...`,
-  );
-
-  const patch = await buildOptimizationPatch(
-    fullCode,
-    { from: worst.start, to: worst.end },
-    filePath,
-    { targetMethodName: worst.name, smellType: smellType },
-  );
-
-  if (!patch || !patch.preview || patch.preview.trim().length < 10) {
-    vscode.window.showErrorMessage(
-      "AI returned incomplete or invalid optimization output.",
-    );
-    return;
-  }
-
-  // Close old preview if exists
-  await closeExistingPreview("untitled:RefactorPreview.java");
-
-  // Create new preview
-  const previewUri = vscode.Uri.parse("untitled:RefactorPreview.java");
-  await createAndShowPreview(previewUri, patch.preview, originalUri);
-
-  // User Choice
-  const apply = await vscode.window.showQuickPick(
-    ["Apply optimization", "Cancel"],
-    { placeHolder: "Apply Algorithmic Optimization to save energy?" },
-  );
-
-  if (apply !== "Apply optimization") {
-    await closeExistingPreview("RefactorPreview.java");
-    vscode.window.showInformationMessage("❌ Optimization canceled.");
-    return;
-  }
-
-  // Apply Patch
-  await closeExistingPreview("Preview");
-  await applyPatchToDocument(originalUri, patch.preview, doc.lineCount);
-
-  // Finalize
-  await doc.save();
-  /* await gitCommit(...) */
-  vscode.window.showInformationMessage("✅ Optimization applied and logged!");
-}
 
 /**
  * Logic for 'sustainadev.openDashboard'

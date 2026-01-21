@@ -5,6 +5,13 @@ import * as os from "os";
 import * as path from "path";
 import { runLizard } from "../analyzer/lizardRunner";
 import { estimateEnergy } from "../../data/metrics/codeCarbon";
+import {
+  chooseOptimizationStrategy,
+  OptimizationStrategy,
+} from "./chooseOptimizationStrategy";
+
+import { MethodFacts } from "../types";
+
 
 /**
  * Interface for the final optimization result
@@ -20,14 +27,41 @@ interface OptimizationResult {
 export async function buildOptimizationPatch(
   fullCode: string,
   range: { from: number; to: number },
-  fileName?: string,
-  context?: { targetMethodName?: string; smellType?: string },
+  fileName: string,
+  context: {
+    targetMethodName: string;
+    smellType: string;
+    methodFacts: MethodFacts;
+  },
 ): Promise<OptimizationResult> {
+
   const workspace =
     vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
-  const methodName = context?.targetMethodName || "UnknownMethod";
-  const smellType = context?.smellType || "GENERAL";
+  const { targetMethodName, smellType, methodFacts } = context;
+const methodName = targetMethodName;
+
   console.log(`🛠️ Patch Builder received type: ${smellType}`);
+  
+  // 🧠 STRATEGY DECISION (CRITICAL)
+
+
+const strategy = chooseOptimizationStrategy(methodFacts);
+
+
+
+console.log(`🧠 Chosen optimization strategy: ${strategy}`);
+if (strategy === OptimizationStrategy.KEEP_RECURSION) {
+  vscode.window.showInformationMessage(
+    "ℹ️ No greener refactor available for this method."
+  );
+
+  return {
+    preview: fullCode,
+    reason: "No energy-efficient refactor detected for this method."
+  };
+}
+
+
   // 1. Initial Measurement
   const beforeMetrics = await measureCode(fullCode, methodName);
 
@@ -36,12 +70,26 @@ export async function buildOptimizationPatch(
   const fileHeader = fullCode.split(/\bclass\b/)[0].trim();
 
   // 3. AI Generation
-  const rawAiResponse = await callOptimizationAI(
+  let rawAiResponse = "";
+
+if (strategy === OptimizationStrategy.ITERATIVE_REWRITE) {
+  rawAiResponse = await callOptimizationAI(
     fullCode,
     range,
     fileHeader,
-    smellType,
+    "RECURSION" // force iterative instruction
   );
+}
+
+if (strategy === OptimizationStrategy.MEMOIZATION) {
+  rawAiResponse = await callOptimizationAI(
+    fullCode,
+    range,
+    fileHeader,
+    smellType
+  );
+}
+
   // 4. Extraction & Validation
   const patch = parseAiResponse(rawAiResponse);
 
@@ -58,6 +106,29 @@ export async function buildOptimizationPatch(
     vscode.window.showInformationMessage("✅ Code logic is already optimized.");
     throw new Error("ALREADY_OPTIMIZED");
   }
+  // 🔍 SHOW PREVIEW (Original ↔ Optimized)
+if (fileName) {
+  const originalUri = vscode.Uri.file(fileName);
+
+  const previewUri = vscode.Uri.file(
+    path.join(
+      os.tmpdir(),
+      `sustainadev-preview-${Date.now()}.java`
+    )
+  );
+
+  // Write optimized content to temp preview file
+  fs.writeFileSync(previewUri.fsPath, patch.preview, "utf8");
+
+  await vscode.commands.executeCommand(
+    "vscode.diff",
+    originalUri,
+    previewUri,
+    "🧠 SustainaDev: Algorithmic Optimization (Original ↔ Optimized)",
+    { preview: true }
+  );
+}
+
 
   // 5. Final Measurement & Logging
   const afterMetrics = await measureCode(patch.preview, methodName);
