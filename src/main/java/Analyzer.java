@@ -27,15 +27,15 @@ private static boolean isPureAccumulation(MethodDeclaration m) {
 }
 
 private static boolean hasOverlappingSubproblems(MethodDeclaration m) {
-    var recursiveCalls =
+    long recursiveCalls =
         m.findAll(MethodCallExpr.class).stream()
          .filter(c -> c.getNameAsString().equals(m.getNameAsString()))
-         .map(c -> c.getArguments().toString())
-         .toList();
+         .count();
 
-    return recursiveCalls.stream().distinct().count()
-           < recursiveCalls.size();
+    // Fibonacci-style: more than one self-call
+    return recursiveCalls > 1;
 }
+
 private static boolean hasStringConcatInLoop(MethodDeclaration m) {
     return m.findAll(BinaryExpr.class).stream().anyMatch(b -> {
         if (b.getOperator() != BinaryExpr.Operator.PLUS) return false;

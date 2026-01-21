@@ -15,18 +15,15 @@ export function chooseOptimizationStrategy(
     return OptimizationStrategy.STRING_BUILDER;
   }
 
-  if (!facts.callsSelf) {
-    return OptimizationStrategy.KEEP_RECURSION;
-  }
-
-  if (facts.isLinearRecursion) {
-    return OptimizationStrategy.ITERATIVE_REWRITE;
-  }
-
+  // 🔥 Fibonacci-style recursion (highest priority)
   if (facts.hasOverlappingSubproblems) {
     return OptimizationStrategy.MEMOIZATION;
   }
 
+  // 🔁 Linear recursion → iterative
+  if (facts.isLinearRecursion) {
+    return OptimizationStrategy.ITERATIVE_REWRITE;
+  }
+
   return OptimizationStrategy.KEEP_RECURSION;
 }
-
