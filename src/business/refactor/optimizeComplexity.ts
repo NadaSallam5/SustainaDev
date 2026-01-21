@@ -93,15 +93,7 @@ export async function buildOptimizationPatch(
     );
   }
 
-  // ✅✅✅ Duplicate computation optimization call
-  if (strategy === OptimizationStrategy.DUPLICATE_COMPUTATION) {
-    rawAiResponse = await callOptimizationAI(
-      fullCode,
-      range,
-      fileHeader,
-      "DUPLICATE_COMPUTATION"
-    );
-  }
+  
 if (strategy === OptimizationStrategy.NESTED_LOOPS) {
   rawAiResponse = await callOptimizationAI(
     fullCode,
@@ -114,31 +106,7 @@ if (strategy === OptimizationStrategy.NESTED_LOOPS) {
   // 4. Extraction & Validation
   const patch = parseAiResponse(rawAiResponse);
 
-  // ✅✅✅ HARD VALIDATION for Duplicate Computation refactor
-  // Prevent invalid changes (AtomicInteger, Map caching, method signature changes)
-  if (strategy === OptimizationStrategy.DUPLICATE_COMPUTATION) {
-    const invalidPatterns = [
-      "AtomicInteger",
-      "HashMap",
-      "Map<",
-      "ConcurrentHashMap",
-      "cache",
-      "memo",
-    ];
-
-    const hasInvalid = invalidPatterns.some(p => patch.preview.includes(p));
-    if (hasInvalid) {
-      throw new Error(
-        "AI produced invalid refactor for DUPLICATE_COMPUTATION (added caching/AtomicInteger/Map)."
-      );
-    }
-
-    // Ensure method signatures are unchanged (basic guard)
-    // If original has "private int expensive(" then preview must also have it.
-    if (fullCode.includes("private int expensive(") && !patch.preview.includes("private int expensive(")) {
-      throw new Error("AI changed method signature for expensive().");
-    }
-  }
+  
 
   // 🛡️ NO-OP CHECK: The "Logic Gate"
   const logicOnlyOriginal = fullCode.replace(/\/\/.*|\/\*[\s\S]*?\*\/|\s/g, "");

@@ -60,15 +60,7 @@ private static boolean hasStringConcatInLoop(MethodDeclaration m) {
     });
 }
 
-// ✅ NEW: Duplicate Computation Detector (same call repeated)
-private static boolean hasDuplicateComputation(MethodDeclaration m) {
-    var calls = m.findAll(MethodCallExpr.class).stream()
-        .filter(c -> !c.getNameAsString().equals(m.getNameAsString())) // ignore recursion
-        .map(c -> c.toString()) // full call text (method + args)
-        .toList();
 
-    return calls.stream().distinct().count() < calls.size();
-}
 
 public static void main(String[] args) throws Exception {
     if (args.length == 0) {
@@ -90,9 +82,7 @@ public static void main(String[] args) throws Exception {
         facts.hasOverlappingSubproblems = hasOverlappingSubproblems(m);
         facts.hasStringConcatInLoop = hasStringConcatInLoop(m);
 
-        // ✅ store duplicate computation smell
-        facts.hasDuplicateComputation = hasDuplicateComputation(m);
-
+        
         facts.callsSelf =
             m.findAll(MethodCallExpr.class)
              .stream()

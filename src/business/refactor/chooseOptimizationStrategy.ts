@@ -4,7 +4,7 @@ export enum OptimizationStrategy {
   ITERATIVE_REWRITE = "ITERATIVE_REWRITE",
   MEMOIZATION = "MEMOIZATION",
   STRING_BUILDER = "STRING_BUILDER",
-  DUPLICATE_COMPUTATION = "DUPLICATE_COMPUTATION",
+  
   NESTED_LOOPS = "NESTED_LOOPS", // ✅ NEW
   KEEP_RECURSION = "KEEP_RECURSION",
 }
@@ -18,10 +18,6 @@ export function chooseOptimizationStrategy(
     return OptimizationStrategy.STRING_BUILDER;
   }
 
-  // ✅ Duplicate computation (same call repeated)
-  if (facts.hasDuplicateComputation) {
-    return OptimizationStrategy.DUPLICATE_COMPUTATION;
-  }
 
   // ✅ Nested loops (O(n^2) pattern)
   if (facts.maxLoopDepth >= 2) {

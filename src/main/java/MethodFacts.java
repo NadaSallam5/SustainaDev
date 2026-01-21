@@ -13,6 +13,5 @@ public class MethodFacts {
 
     public boolean hasStringConcatInLoop;
 
-    // ✅ NEW FIELD for duplicate expensive computation detection
-    public boolean hasDuplicateComputation;
+    
 }

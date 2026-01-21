@@ -13,5 +13,4 @@ export interface MethodFacts {
    hasStringConcatInLoop?: boolean;
    
 
-    hasDuplicateComputation: boolean;
 }
