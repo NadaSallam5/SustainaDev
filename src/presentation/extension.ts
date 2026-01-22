@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import * as path from "path";
+import { buildOptimizationReport } from "../business/complexity/report";
 
 
 import * as fsp from "fs/promises";
@@ -15,6 +16,8 @@ import { runJavaAnalyzer } from "../business/analyzer/javaRunner";
  * Global state to prevent concurrent executions
  */
 let isRunning = false;
+export let sustainaDevOutput: vscode.OutputChannel;
+
 const validSmells = ["RECURSION", "NESTED_LOOPS", "GENERAL"];
 
 /**
@@ -22,6 +25,8 @@ const validSmells = ["RECURSION", "NESTED_LOOPS", "GENERAL"];
  */
 export function activate(context: vscode.ExtensionContext) {
   console.log("🟢 SustainaDev Analyzer extension is active");
+sustainaDevOutput = vscode.window.createOutputChannel("SustainaDev");
+sustainaDevOutput.appendLine("SustainaDev activated ✅");
 
   // 1. Register Analyzer Command
  
@@ -123,17 +128,40 @@ void vscode.window.showQuickPick(
     placeHolder: "Apply the optimized code?",
   }
 ).then(async (choice) => {
-  if (choice === "✅ Accept Optimization") {
-    await applyPatchToDocument(
-      originalUri,
-      patch.preview,
-      refreshedDoc.lineCount
-    );
+if (choice === "✅ Accept Optimization") {
+  await applyPatchToDocument(
+    originalUri,
+    patch.preview,
+    refreshedDoc.lineCount
+  );
+
+  await refreshedDoc.save();
+
+  vscode.window.showInformationMessage("✅ Optimization applied successfully.");
+
+  // ✅ Run analyzer AFTER applying patch
+  const afterFactsList = await runJavaAnalyzer(context);
+  const afterFacts = afterFactsList.find(m => m.methodName === facts.methodName);
+
+ if (afterFacts) {
+    const report = buildOptimizationReport(facts, afterFacts);
+
+    sustainaDevOutput.appendLine("=== Complexity Report ===");
+    sustainaDevOutput.appendLine(`Before: ${report.before}`);
+    sustainaDevOutput.appendLine(`After:  ${report.after}`);
+    sustainaDevOutput.appendLine(`Improvement: ${report.improvement}`);
 
     vscode.window.showInformationMessage(
-      "✅ Optimization applied successfully."
+      `Complexity improved: ${report.before} → ${report.after}`
     );
-  } else if (choice) {
+}
+ else {
+    sustainaDevOutput.appendLine(
+      `⚠️ Could not find AFTER facts for method: ${facts.methodName}`
+    );
+  }
+}
+ else if (choice) {
     vscode.window.showInformationMessage(
       "❌ Optimization discarded."
     );

@@ -1,0 +1,13 @@
+export type BigONotation =
+  | "O(1)"
+  | "O(n)"
+  | "O(n^2)"
+  | "O(n^3)"
+  | "O(2^n)"
+  | "Unknown";
+
+export interface OptimizationReport {
+  before: BigONotation;
+  after: BigONotation;
+  improvement: string;
+}

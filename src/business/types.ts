@@ -10,7 +10,7 @@ export interface MethodFacts {
   isPureAccumulation: boolean;
   hasOverlappingSubproblems: boolean;
 
-   hasStringConcatInLoop?: boolean;
+   hasStringConcatInLoop: boolean;
    
 
     hasDuplicateComputation: boolean;

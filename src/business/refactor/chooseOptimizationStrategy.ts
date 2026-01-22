@@ -5,38 +5,38 @@ export enum OptimizationStrategy {
   MEMOIZATION = "MEMOIZATION",
   STRING_BUILDER = "STRING_BUILDER",
   DUPLICATE_COMPUTATION = "DUPLICATE_COMPUTATION",
-  NESTED_LOOPS = "NESTED_LOOPS", // ✅ NEW
+  NESTED_LOOPS = "NESTED_LOOPS",
   KEEP_RECURSION = "KEEP_RECURSION",
 }
 
-export function chooseOptimizationStrategy(
-  facts: MethodFacts
-): OptimizationStrategy {
+export function chooseOptimizationStrategy(facts: MethodFacts): OptimizationStrategy {
 
-  // 🔥 String concat in loop
-  if (facts.hasStringConcatInLoop) {
+  // ✅ 1) STRING CONCAT — 
+
+  if (facts.hasStringConcatInLoop === true) {
     return OptimizationStrategy.STRING_BUILDER;
   }
 
-  // ✅ Duplicate computation (same call repeated)
-  if (facts.hasDuplicateComputation) {
+  // ✅ 2) DUPLICATE COMPUTATION
+  if (facts.hasDuplicateComputation === true) {
     return OptimizationStrategy.DUPLICATE_COMPUTATION;
   }
 
-  // ✅ Nested loops (O(n^2) pattern)
+  // ✅ 3) Nested loops → O(n^2)
   if (facts.maxLoopDepth >= 2) {
     return OptimizationStrategy.NESTED_LOOPS;
   }
 
-  // 🔥 Fibonacci-style recursion (highest priority)
-  if (facts.hasOverlappingSubproblems) {
+  // ✅ 4) Fibonacci-style recursion 
+  if (facts.hasOverlappingSubproblems === true) {
     return OptimizationStrategy.MEMOIZATION;
   }
 
-  // 🔁 Linear recursion → iterative
-  if (facts.isLinearRecursion) {
+  // ✅ 5) Linear recursion 
+  if (facts.isLinearRecursion === true) {
     return OptimizationStrategy.ITERATIVE_REWRITE;
   }
 
+  // ❗ 6) No optimization available
   return OptimizationStrategy.KEEP_RECURSION;
 }
