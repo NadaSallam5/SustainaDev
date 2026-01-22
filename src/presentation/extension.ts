@@ -144,12 +144,34 @@ if (choice === "✅ Accept Optimization") {
   const afterFacts = afterFactsList.find(m => m.methodName === facts.methodName);
 
  if (afterFacts) {
-    const report = buildOptimizationReport(facts, afterFacts);
+   const report = buildOptimizationReport(facts, afterFacts);
 
-    sustainaDevOutput.appendLine("=== Complexity Report ===");
-    sustainaDevOutput.appendLine(`Before: ${report.before}`);
-    sustainaDevOutput.appendLine(`After:  ${report.after}`);
-    sustainaDevOutput.appendLine(`Improvement: ${report.improvement}`);
+const title =
+  report.metric === "space"
+    ? "=== Space Complexity Report ==="
+    : "=== Complexity Report ===";
+
+const label =
+  report.metric === "space" ? "Space" : "Before";
+
+sustainaDevOutput.appendLine(title);
+
+if (report.metric === "space") {
+  sustainaDevOutput.appendLine(`Space Before: ${report.before}`);
+  sustainaDevOutput.appendLine(`Space After:  ${report.after}`);
+} else {
+  sustainaDevOutput.appendLine(`Before: ${report.before}`);
+  sustainaDevOutput.appendLine(`After:  ${report.after}`);
+}
+
+sustainaDevOutput.appendLine(`Improvement: ${report.improvement}`);
+
+vscode.window.showInformationMessage(
+  report.metric === "space"
+    ? `Space improved: ${report.before} → ${report.after}`
+    : `Complexity improved: ${report.before} → ${report.after}`
+);
+
 
     vscode.window.showInformationMessage(
       `Complexity improved: ${report.before} → ${report.after}`

@@ -34,6 +34,26 @@ export function estimateBigO(f: MethodFacts): BigONotation {
 }
 
 /**
+ * Space Big-O estimation (for factorial-style recursion).
+ *
+ * Simple rules:
+ * - Linear recursion (like factorial) uses O(n) space بسبب call stack depth.
+ * - Other cases default to O(1) extra space in our simplified model.
+ *
+ * NOTE: This does NOT try to model data-structure memory (e.g., HashSet memory).
+ * It is focused on stack/recursion overhead for the factorial case you requested.
+ */
+export function estimateSpaceBigO(f: MethodFacts): BigONotation {
+  // Factorial-style recursion: one recursive call per frame -> stack depth n
+  if (f.callsSelf && f.isLinearRecursion && !f.hasOverlappingSubproblems) {
+    return "O(n)";
+  }
+
+  // Default: constant extra space
+  return "O(1)";
+}
+
+/**
  * Convert Big-O to a comparable operation estimate.
  * This is an estimate, not runtime measurement.
  */
