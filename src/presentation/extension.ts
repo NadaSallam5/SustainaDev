@@ -1,8 +1,6 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import { buildOptimizationReport } from "../business/complexity/report";
-import * as fs from "fs";
-import { estimateEnergy } from "../data/metrics/codeCarbon";
 
 
 import * as fsp from "fs/promises";
@@ -178,16 +176,6 @@ vscode.window.showInformationMessage(
     vscode.window.showInformationMessage(
       `Complexity improved: ${report.before} → ${report.after}`
     );
-    const workspace = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-if (workspace) {
-  await logAlgorithmicOptimization(
-    workspace,
-    filePath,
-    report,
-    patch.reason
-  );
-}
-
 }
  else {
     sustainaDevOutput.appendLine(
@@ -373,79 +361,10 @@ async function handleReadAnalysis(panel: vscode.WebviewPanel, ws: string) {
     });
   }
 }
-function bigOToScore(bigO: string): number {
-  const s = (bigO || "").replace(/\s+/g, "").toLowerCase();
-
-  // Order: smaller = better
-  if (s.includes("o(1)")) return 1;
-  if (s.includes("o(logn)") || s.includes("o(log(n))")) return 2;
-  if (s.includes("o(n)")) return 3;
-  if (s.includes("o(nlogn)") || s.includes("o(nlog(n))")) return 4;
-  if (s.includes("o(n^2)") || s.includes("o(n2)")) return 5;
-  if (s.includes("o(n^3)") || s.includes("o(n3)")) return 6;
-  if (s.includes("o(2^n)") || s.includes("o(2n)")) return 7;
-  if (s.includes("o(n!)")) return 8;
-
-  // Unknown format -> neutral
-  return 0;
-}
-
-async function logAlgorithmicOptimization(
-  workspace: string,
-  filePath: string,
-  report: { metric: string; before: string; after: string; improvement: string },
-  reason: string
-) {
-  const beforeScore = bigOToScore(report.before);
-  const afterScore = bigOToScore(report.after);
-
-  // Positive means improvement
-  const scoreDelta = Math.max(0, beforeScore - afterScore);
-
-  // Reuse your existing energy estimator (it expects a number).
-  // We scale delta a bit so improvements have noticeable values.
-  const energy = await estimateEnergy(scoreDelta * 5);
-
-  const logEntry = {
-    timestamp: new Date().toISOString(),
-    file: path.basename(filePath),
-    refactor: "Algorithmic Optimization",
-    complexity: {
-      metric: report.metric,        // "space" or "time" (whatever your report uses)
-      before: report.before,        // e.g. "O(n^2)"
-      after: report.after,          // e.g. "O(n)"
-      improvement: report.improvement
-    },
-    energy,
-    reason
-  };
-
-  const logDir = path.join(workspace, ".sustainadev");
-  if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
-
-  fs.appendFileSync(
-    path.join(logDir, "log.jsonl"),
-    JSON.stringify(logEntry) + "\n",
-    "utf8"
-  );
-}
 
 async function handleReadLog(panel: vscode.WebviewPanel, ws: string) {
   try {
-    const logDir = path.join(ws, ".sustainadev");
-    const logPath = path.join(logDir, "log.jsonl");
-
-    await fsp.mkdir(logDir, { recursive: true });
-
-    // If log doesn't exist yet, return empty logs instead of error
-    try {
-      await fsp.access(logPath);
-    } catch {
-      await fsp.writeFile(logPath, "", "utf8");
-      panel.webview.postMessage({ type: "logContent", lines: [] });
-      return;
-    }
-
+    const logPath = path.join(ws, ".sustainadev", "log.jsonl");
     const raw = await fsp.readFile(logPath, "utf8");
     const lines = raw.split(/\r?\n/).filter(Boolean);
     panel.webview.postMessage({ type: "logContent", lines });
@@ -456,5 +375,3 @@ async function handleReadLog(panel: vscode.WebviewPanel, ws: string) {
     });
   }
 }
-
-

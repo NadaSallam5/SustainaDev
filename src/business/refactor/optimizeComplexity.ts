@@ -23,11 +23,6 @@ interface OptimizationResult {
 /**
  * Main entry point for algorithmic optimization
  */
-/**
- * Main entry point for algorithmic optimization
- * ✅ Updated: removed CCN/NLOC measurement + removed log.jsonl writing from here.
- * Logging should happen ONLY after user accepts (in extension.ts), using Big-O report.
- */
 export async function buildOptimizationPatch(
   fullCode: string,
   range: { from: number; to: number },
@@ -38,9 +33,9 @@ export async function buildOptimizationPatch(
     methodFacts: MethodFacts;
   },
 ): Promise<OptimizationResult> {
+
   const workspace =
     vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
-
   const { targetMethodName, smellType, methodFacts } = context;
   const methodName = targetMethodName;
 
@@ -55,18 +50,20 @@ export async function buildOptimizationPatch(
       "ℹ️ No greener refactor available for this method."
     );
 
-    // Return no-op patch (still valid shape)
     return {
       preview: fullCode,
       reason: "No energy-efficient refactor detected for this method."
     };
   }
 
-  // 1. Extract Existing Imports/Header
+  // 1. Initial Measurement
+  const beforeMetrics = await measureCode(fullCode, methodName);
+
+  // 2. Extract Existing Imports/Header
   // Captures everything from the start of the file up to the class keyword
   const fileHeader = fullCode.split(/\bclass\b/)[0].trim();
 
-  // 2. AI Generation
+  // 3. AI Generation
   let rawAiResponse = "";
 
   if (strategy === OptimizationStrategy.ITERATIVE_REWRITE) {
@@ -96,7 +93,7 @@ export async function buildOptimizationPatch(
     );
   }
 
-  // ✅ Duplicate computation optimization call
+  // ✅✅✅ Duplicate computation optimization call
   if (strategy === OptimizationStrategy.DUPLICATE_COMPUTATION) {
     rawAiResponse = await callOptimizationAI(
       fullCode,
@@ -105,20 +102,19 @@ export async function buildOptimizationPatch(
       "DUPLICATE_COMPUTATION"
     );
   }
+if (strategy === OptimizationStrategy.NESTED_LOOPS) {
+  rawAiResponse = await callOptimizationAI(
+    fullCode,
+    range,
+    fileHeader,
+    "NESTED_LOOPS"
+  );
+}
 
-  if (strategy === OptimizationStrategy.NESTED_LOOPS) {
-    rawAiResponse = await callOptimizationAI(
-      fullCode,
-      range,
-      fileHeader,
-      "NESTED_LOOPS"
-    );
-  }
-
-  // 3. Extraction & Validation
+  // 4. Extraction & Validation
   const patch = parseAiResponse(rawAiResponse);
 
-  // ✅ HARD VALIDATION for Duplicate Computation refactor
+  // ✅✅✅ HARD VALIDATION for Duplicate Computation refactor
   // Prevent invalid changes (AtomicInteger, Map caching, method signature changes)
   if (strategy === OptimizationStrategy.DUPLICATE_COMPUTATION) {
     const invalidPatterns = [
@@ -138,10 +134,8 @@ export async function buildOptimizationPatch(
     }
 
     // Ensure method signatures are unchanged (basic guard)
-    if (
-      fullCode.includes("private int expensive(") &&
-      !patch.preview.includes("private int expensive(")
-    ) {
+    // If original has "private int expensive(" then preview must also have it.
+    if (fullCode.includes("private int expensive(") && !patch.preview.includes("private int expensive(")) {
       throw new Error("AI changed method signature for expensive().");
     }
   }
@@ -181,12 +175,19 @@ export async function buildOptimizationPatch(
     );
   }
 
-  // ✅ Updated behavior:
-  // ❌ NO logging here (because user may reject the optimization)
-  // ✅ Return patch only (preview + reason). After acceptance, extension.ts logs Big-O.
+  // 5. Final Measurement & Logging
+  const afterMetrics = await measureCode(patch.preview, methodName);
+  await logSustainabilityMetrics(
+    workspace,
+    fileName,
+    beforeMetrics,
+    afterMetrics,
+    patch,
+    fullCode,
+  );
+
   return patch;
 }
-
 
 /**
  * Handles communication with local Ollama instance

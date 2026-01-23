@@ -1,95 +1,181 @@
-import java.io.File;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.expr.BinaryExpr;
+import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.stmt.DoStmt;
 import com.github.javaparser.ast.stmt.ForEachStmt;
 import com.github.javaparser.ast.stmt.ForStmt;
 import com.github.javaparser.ast.stmt.IfStmt;
+import com.github.javaparser.ast.stmt.ReturnStmt;
+import com.github.javaparser.ast.stmt.WhileStmt;
+import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 
 public class Analyzer {
+
+    private static boolean isLinearRecursion(MethodDeclaration m) {
+        long recursiveCalls =
+            m.findAll(MethodCallExpr.class)
+             .stream()
+             .filter(c -> c.getNameAsString().equals(m.getNameAsString()))
+             .count();
+
+        return recursiveCalls == 1;
+    }
+
+    private static boolean isPureAccumulation(MethodDeclaration m) {
+        return m.findAll(ReturnStmt.class).stream().anyMatch(ret ->
+            ret.getExpression().isPresent() &&
+            ret.getExpression().get().toString().contains(m.getNameAsString() + "(")
+        );
+    }
+
+    private static boolean hasOverlappingSubproblems(MethodDeclaration m) {
+        long recursiveCalls =
+            m.findAll(MethodCallExpr.class).stream()
+             .filter(c -> c.getNameAsString().equals(m.getNameAsString()))
+             .count();
+
+        // Fibonacci-style: more than one self-call
+        return recursiveCalls > 1;
+    }
+
+private static boolean hasStringConcatInLoop(MethodDeclaration m) {
+
+    // اجمع كل المتغيرات اللي نوعها String داخل الميثود
+    var stringVars = m.findAll(com.github.javaparser.ast.body.VariableDeclarator.class)
+        .stream()
+        .filter(v -> v.getType().asString().equals("String") || v.getType().asString().equals("java.lang.String"))
+        .map(v -> v.getNameAsString())
+        .collect(java.util.stream.Collectors.toSet());
+
+    return m.findAll(BinaryExpr.class).stream().anyMatch(b -> {
+        if (b.getOperator() != BinaryExpr.Operator.PLUS) return false;
+
+
+        if (!isInsideLoop(b)) return false;
+
+        
+        if (b.getLeft().isStringLiteralExpr() || b.getRight().isStringLiteralExpr()) return true;
+
+        if (b.getLeft().isNameExpr() && stringVars.contains(b.getLeft().asNameExpr().getNameAsString())) return true;
+        if (b.getRight().isNameExpr() && stringVars.contains(b.getRight().asNameExpr().getNameAsString())) return true;
+
+        return false;
+    });
+}
+
+private static boolean isInsideLoop(Node node) {
+    Node parent = node;
+    while (parent.getParentNode().isPresent()) {
+        parent = parent.getParentNode().get();
+        if (parent instanceof ForStmt
+            || parent instanceof ForEachStmt
+            || parent instanceof WhileStmt
+            || parent instanceof DoStmt) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
+
+    // ✅ NEW: Duplicate Computation Detector (same call repeated)
+    private static boolean hasDuplicateComputation(MethodDeclaration m) {
+        var calls = m.findAll(MethodCallExpr.class).stream()
+            .filter(c -> !c.getNameAsString().equals(m.getNameAsString())) // ignore recursion
+            .map(c -> c.toString()) // full call text (method + args)
+            .toList();
+
+        return calls.stream().distinct().count() < calls.size();
+    }
+
+    // ✅ FIXED: Proper loop-depth computation using a visitor
+    private static int computeMaxLoopDepth(MethodDeclaration m) {
+
+        class LoopDepthVisitor extends VoidVisitorAdapter<Void> {
+            int current = 0;
+            int max = 0;
+
+            private void enterLoop(Runnable visitChildren) {
+                current++;
+                max = Math.max(max, current);
+                visitChildren.run();
+                current--;
+            }
+
+            @Override
+            public void visit(ForStmt n, Void arg) {
+                enterLoop(() -> super.visit(n, arg));
+            }
+
+            @Override
+            public void visit(ForEachStmt n, Void arg) {
+                enterLoop(() -> super.visit(n, arg));
+            }
+
+            @Override
+            public void visit(WhileStmt n, Void arg) {
+                enterLoop(() -> super.visit(n, arg));
+            }
+
+            @Override
+            public void visit(DoStmt n, Void arg) {
+                enterLoop(() -> super.visit(n, arg));
+            }
+        }
+
+        LoopDepthVisitor v = new LoopDepthVisitor();
+        v.visit(m, null);
+        return v.max;
+    }
+
     public static void main(String[] args) throws Exception {
         if (args.length == 0) {
-            System.out.println("Usage: java -jar analyzer.jar <path-to-java-project>");
+            System.err.println("Usage: java Analyzer <java-file>");
             return;
         }
 
-        Path root = Paths.get(args[0]);
-        if (!Files.exists(root)) {
-            System.out.println("❌ Path does not exist: " + root);
-            return;
+        Path file = Paths.get(args[0]);
+        ObjectMapper om = new ObjectMapper();
+
+        CompilationUnit cu = StaticJavaParser.parse(file);
+
+        for (MethodDeclaration m : cu.findAll(MethodDeclaration.class)) {
+            MethodFacts facts = new MethodFacts();
+            facts.methodName = m.getNameAsString();
+
+            facts.isLinearRecursion = isLinearRecursion(m);
+            facts.isPureAccumulation = isPureAccumulation(m);
+            facts.hasOverlappingSubproblems = hasOverlappingSubproblems(m);
+            facts.hasStringConcatInLoop = hasStringConcatInLoop(m);
+
+            // ✅ store duplicate computation smell
+            facts.hasDuplicateComputation = hasDuplicateComputation(m);
+
+            facts.callsSelf =
+                m.findAll(MethodCallExpr.class)
+                 .stream()
+                 .anyMatch(c -> c.getNameAsString().equals(facts.methodName));
+
+            // ✅ NEW fixed loop depth
+            facts.maxLoopDepth = computeMaxLoopDepth(m);
+
+            facts.cyclomaticComplexity =
+                  1
+                + m.findAll(IfStmt.class).size()
+                + m.findAll(ForStmt.class).size()
+                + m.findAll(ForEachStmt.class).size()
+                + m.findAll(WhileStmt.class).size()
+                + m.findAll(DoStmt.class).size();
+
+            System.out.println(om.writeValueAsString(facts));
         }
-
-        List<Map<String, Object>> reports = new ArrayList<>();
-
-        Files.walk(root)
-                .filter(p -> p.toString().endsWith(".java"))
-                .sorted() // ✅ ensures deterministic order
-                .forEach(p -> {
-                    try {
-                        CompilationUnit cu = StaticJavaParser.parse(p);
-
-                        Map<String, Object> fileReport = new HashMap<>();
-                        fileReport.put("file", p.toString());
-
-                        List<Map<String, Object>> methods = new ArrayList<>();
-
-                        System.out.println("✅ Parsed file: " + p + " | Total methods: "
-                                + cu.findAll(MethodDeclaration.class).size());
-
-                        for (MethodDeclaration m : cu.findAll(MethodDeclaration.class)) {
-                            System.out.println("Analyzing method: " + m.getNameAsString() + " in " + p);
-
-                            Map<String, Object> methodInfo = new HashMap<>();
-                            methodInfo.put("name", m.getNameAsString());
-
-                            int start = m.getBegin().map(pos -> pos.line).orElse(0);
-                            int end = m.getEnd().map(pos -> pos.line).orElse(0);
-                            int lines = end - start + 1;
-
-                            methodInfo.put("lines", lines);
-                            methodInfo.put("params", m.getParameters().size());
-                            methodInfo.put("ifCount", m.findAll(IfStmt.class).size());
-                            methodInfo.put("forCount",
-                                    m.findAll(ForStmt.class).size() + m.findAll(ForEachStmt.class).size());
-                            methodInfo.put("isLongMethod", lines >= 50);
-
-                            String methodBody = m.getBody().map(Object::toString).orElse("");
-                            methodInfo.put("body", methodBody);
-
-                            List<String> localVars = m.findAll(VariableDeclarator.class)
-                                    .stream()
-                                    .map(v -> v.getNameAsString())
-                                    .toList();
-                            methodInfo.put("locals", localVars);
-
-                            // ✅ FIX: add method info to the list!
-                            methods.add(methodInfo);
-                        }
-
-                        fileReport.put("methods", methods);
-                        reports.add(fileReport);
-                    } catch (Exception e) {
-                        System.err.println("⚠️ Error parsing " + p + ": " + e.getMessage());
-                    }
-                });
-
-        // Save JSON output
-        ObjectMapper om = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
-        File outputFile = new File("analysis-report.json");
-        om.writeValue(outputFile, reports);
-
-        System.out.println("✅ Analysis complete! Results saved to: " + outputFile.getAbsolutePath());
-
     }
 }
