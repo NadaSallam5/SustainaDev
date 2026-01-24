@@ -12,11 +12,13 @@ export function buildOptimizationReport(
   const beforeSpace = estimateSpaceBigO(beforeFacts);
   const afterSpace = estimateSpaceBigO(afterFacts);
 
+  // Special-case: factorial-style recursion optimized to iterative
+  // In this case, time is still O(n), but space improves (stack -> O(1))
   const isFactorialCase =
     beforeFacts.callsSelf &&
     beforeFacts.isLinearRecursion &&
     !beforeFacts.hasOverlappingSubproblems && // not Fibonacci
-    !afterFacts.callsSelf;                    // optimized becomes non-recursive
+    !afterFacts.callsSelf; // optimized becomes non-recursive
 
   if (isFactorialCase) {
     return {

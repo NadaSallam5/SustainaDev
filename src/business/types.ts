@@ -10,8 +10,11 @@ export interface MethodFacts {
   isPureAccumulation: boolean;
   hasOverlappingSubproblems: boolean;
 
-   hasStringConcatInLoop: boolean;
-   
+  hasStringConcatInLoop: boolean;
 
-    hasDuplicateComputation: boolean;
+
+
+  // ✅ NEW FOR SORTING
+  hasSortingCall: boolean;     // Arrays.sort / Collections.sort / list.sort
+  sortInsideLoop: boolean;     // Sorting call occurs inside a loop
 }

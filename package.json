@@ -80,7 +80,7 @@
     "dotenv": "^17.2.3",
     "java-parser": "^3.0.1",
     "openai": "^6.6.0",
-    "systeminformation": "^5.30.5",
+    "systeminformation": "^5.30.6",
     "vscode": "^1.1.37"
   }
 }
