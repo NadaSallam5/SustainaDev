@@ -1,7 +1,7 @@
 public class FactorialCalculator {
 
     public long calculateFactorial(int n) {
-        // Initialize result to 1
+        // Initialize result variable to 1
         long result = 1;
         
         // Use a loop to calculate factorial iteratively

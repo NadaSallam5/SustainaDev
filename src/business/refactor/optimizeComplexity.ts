@@ -33,7 +33,6 @@ export async function buildOptimizationPatch(
     methodFacts: MethodFacts;
   },
 ): Promise<OptimizationResult> {
-
   const workspace =
     vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
   const { targetMethodName, smellType, methodFacts } = context;
@@ -60,7 +59,6 @@ export async function buildOptimizationPatch(
   const beforeMetrics = await measureCode(fullCode, methodName);
 
   // 2. Extract Existing Imports/Header
-  // Captures everything from the start of the file up to the class keyword
   const fileHeader = fullCode.split(/\bclass\b/)[0].trim();
 
   // 3. AI Generation
@@ -93,7 +91,7 @@ export async function buildOptimizationPatch(
     );
   }
 
-  // ✅✅✅ Duplicate computation optimization call
+  // ✅ Duplicate computation optimization call
   if (strategy === OptimizationStrategy.DUPLICATE_COMPUTATION) {
     rawAiResponse = await callOptimizationAI(
       fullCode,
@@ -102,20 +100,44 @@ export async function buildOptimizationPatch(
       "DUPLICATE_COMPUTATION"
     );
   }
-if (strategy === OptimizationStrategy.NESTED_LOOPS) {
-  rawAiResponse = await callOptimizationAI(
-    fullCode,
-    range,
-    fileHeader,
-    "NESTED_LOOPS"
-  );
-}
+
+  if (strategy === OptimizationStrategy.NESTED_LOOPS) {
+    rawAiResponse = await callOptimizationAI(
+      fullCode,
+      range,
+      fileHeader,
+      "NESTED_LOOPS"
+    );
+  }
+
+  // ✅ NEW: Sorting optimization calls
+  if (strategy === OptimizationStrategy.SORTING_IN_LOOP) {
+    rawAiResponse = await callOptimizationAI(
+      fullCode,
+      range,
+      fileHeader,
+      "SORTING_IN_LOOP"
+    );
+  }
+
+  if (strategy === OptimizationStrategy.SORTING) {
+    rawAiResponse = await callOptimizationAI(
+      fullCode,
+      range,
+      fileHeader,
+      "SORTING"
+    );
+  }
+
+  // ✅ Guard: if AI returned nothing, avoid crash
+  if (!rawAiResponse || rawAiResponse.trim().length < 10) {
+    throw new Error(`AI returned empty response for strategy: ${strategy}`);
+  }
 
   // 4. Extraction & Validation
   const patch = parseAiResponse(rawAiResponse);
 
-  // ✅✅✅ HARD VALIDATION for Duplicate Computation refactor
-  // Prevent invalid changes (AtomicInteger, Map caching, method signature changes)
+  // ✅ HARD VALIDATION for Duplicate Computation refactor
   if (strategy === OptimizationStrategy.DUPLICATE_COMPUTATION) {
     const invalidPatterns = [
       "AtomicInteger",
@@ -133,14 +155,25 @@ if (strategy === OptimizationStrategy.NESTED_LOOPS) {
       );
     }
 
-    // Ensure method signatures are unchanged (basic guard)
-    // If original has "private int expensive(" then preview must also have it.
     if (fullCode.includes("private int expensive(") && !patch.preview.includes("private int expensive(")) {
       throw new Error("AI changed method signature for expensive().");
     }
   }
 
-  // 🛡️ NO-OP CHECK: The "Logic Gate"
+  // ✅ Optional validation for SORTING_IN_LOOP:
+  // Ensure sorting is not still repeatedly done inside the loop (basic heuristic)
+  if (strategy === OptimizationStrategy.SORTING_IN_LOOP) {
+    const stillHasSortInsideLoop =
+      patch.preview.includes("for (") &&
+      (patch.preview.includes("Collections.sort") || patch.preview.includes("Arrays.sort")) &&
+      patch.preview.indexOf("sort") > patch.preview.indexOf("for (");
+
+    if (stillHasSortInsideLoop) {
+      throw new Error("AI did not move sorting out of the loop for SORTING_IN_LOOP.");
+    }
+  }
+
+  // 🛡️ NO-OP CHECK
   const logicOnlyOriginal = fullCode.replace(/\/\/.*|\/\*[\s\S]*?\*\/|\s/g, "");
   const logicOnlyPatch = patch.preview.replace(
     /\/\/.*|\/\*[\s\S]*?\*\/|\s/g,
@@ -163,7 +196,6 @@ if (strategy === OptimizationStrategy.NESTED_LOOPS) {
       )
     );
 
-    // Write optimized content to temp preview file
     fs.writeFileSync(previewUri.fsPath, patch.preview, "utf8");
 
     await vscode.commands.executeCommand(
@@ -245,12 +277,21 @@ function getTaskInstructions(smellType: string): string {
     STRING_BUILDER:
       "Replace String concatenation inside loops with StringBuilder. Avoid using '+' on Strings inside loops. Preserve logic and output.",
 
-    // ✅✅✅ NEW: Duplicate computation task (STRONG + STRICT)
     DUPLICATE_COMPUTATION:
       "Fix duplicate computation inside the SAME method when the SAME call is repeated (e.g., expensive(x) + expensive(x)). " +
       "Refactor ONLY by calling it ONCE and storing the result in a LOCAL variable. Example: `int v = expensive(x); return v + v;`. " +
       "STRICT RULES: Do NOT add Map/HashMap/caching/memoization. Do NOT add AtomicInteger. Do NOT add fields/state. Do NOT change ANY method signature. " +
       "No new helper methods. Only local variable reuse.",
+
+    SORTING_IN_LOOP:
+      "Sorting is performed INSIDE a loop. Refactor to avoid repeated sorting. " +
+      "If sorting is genuinely needed, sort ONCE outside the loop without changing output. " +
+      "If sorting was only used to get max/min, replace sort with a single O(n) scan. " +
+      "Keep method signature and preserve exact behavior.",
+
+    SORTING:
+      "Sorting detected. Ensure sorting is necessary. If sorting is only used for max/min lookup, replace with a linear scan. " +
+      "If order is required, keep sorting but avoid redundant sorts. Preserve exact output.",
 
     GENERAL:
       "Audit the code for general Green Coding principles: reduce CPU cycles and minimize memory footprints.",

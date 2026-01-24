@@ -1,16 +1,9 @@
-public class FibonacciCalculator {
-
-    public int fib(int n) {
-        if (n <= 1) {
-            return n;
+public class StringConcatExample {
+    public String buildString(int n) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < n; i++) {
+            sb.append(i);
         }
-        
-        int a = 0, b = 1, c = 0;
-        for (int i = 2; i <= n; i++) {
-            c = a + b;
-            a = b;
-            b = c;
-        }
-        return b;
+        return sb.toString();
     }
 }
