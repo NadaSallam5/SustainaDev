@@ -11,6 +11,7 @@ import { buildOptimizationPatch } from "../business/refactor/optimizeComplexity"
 import { chooseRefactor } from "../business/refactor/chooseRefactor";
 import { initPaths } from "../data/metrics/codeCarbon";
 import { runJavaAnalyzer } from "../business/analyzer/javaRunner";
+import si from "systeminformation";
 
 /**
  * Global state to prevent concurrent executions
@@ -42,8 +43,49 @@ sustainaDevOutput.appendLine("SustainaDev activated ✅");
     "sustainadev.openDashboard",
     () => executeOpenDashboard(context),
   );
+const getSpecs = vscode.commands.registerCommand(
+    "sustainadev.getSpecs",
+    async () => {
+      vscode.window.showInformationMessage("🔍 Collecting system specs...");
 
-  context.subscriptions.push( analyzeActiveFile, openDash);
+      try {
+        const cpu = await si.cpu();
+        const gpu = await si.graphics();
+        const mem = await si.mem();
+        const os = await si.osInfo();
+        const disks = await si.diskLayout();
+        const battery = await si.battery();
+        const gpuModel =
+          gpu.controllers && gpu.controllers.length > 0
+            ? gpu.controllers[0].model
+            : "No GPU detected";
+        const diskInfo = disks
+  .map((d, index) => {
+    const sizeGB = (d.size / 1024 / 1024 / 1024).toFixed(1);
+    const type = d.type || "Unknown";
+    const name = d.name || d.vendor || "Disk " + (index + 1);
+
+    return `• ${type} • ${name} • ${sizeGB} GB`;
+  })
+  .join("\n");
+
+     const batteryInfo = battery.hasBattery
+  ? `Health: ${
+      battery.designedCapacity && battery.maxCapacity
+        ? ((battery.maxCapacity / battery.designedCapacity) * 100).toFixed(0)
+        : "N/A"
+    }% • Charging: ${battery.isCharging} • Capacity: ${battery.percent}%`
+  : "No battery detected";
+
+       const msg = await collectHardwareSpecsMarkdown();
+vscode.window.showInformationMessage(msg, { modal: true });
+
+      } catch (err: any) {
+        vscode.window.showErrorMessage("❌ Failed to read system specs: " + err.message);
+      }
+    }
+  );
+  context.subscriptions.push( analyzeActiveFile, openDash, getSpecs);
 }
 
 export function deactivate() {}
@@ -272,7 +314,21 @@ async function executeOpenDashboard(context: vscode.ExtensionContext) {
         await handleReadAnalysis(panel, ws);
       } else if (message?.type === "readLog") {
         await handleReadLog(panel, ws);
+      } else if (message?.type === "readHardware") {
+        await handleReadHardware(panel);
       }
+      else if (message?.type === "getSpecs") {
+  try {
+    const content = await collectHardwareSpecsMarkdown();
+    panel.webview.postMessage({ type: "specsContent", content });
+  } catch (e: any) {
+    panel.webview.postMessage({
+      type: "specsError",
+      error: e?.message ?? String(e),
+    });
+  }
+}
+
     },
     undefined,
     context.subscriptions
@@ -374,4 +430,190 @@ async function handleReadLog(panel: vscode.WebviewPanel, ws: string) {
       error: e?.message ?? String(e),
     });
   }
+}
+async function collectHardwareSpecsMarkdown(): Promise<string> {
+  const cpu = await si.cpu();
+  const gpu = await si.graphics();
+  const mem = await si.mem();
+  const os = await si.osInfo();
+  const disks = await si.diskLayout();
+  const battery = await si.battery();
+
+  const gpuModel =
+    gpu.controllers && gpu.controllers.length > 0
+      ? gpu.controllers[0].model
+      : "No GPU detected";
+
+  const diskInfo = disks
+    .map((d, index) => {
+      const sizeGB = (d.size / 1024 / 1024 / 1024).toFixed(1);
+      const type = d.type || "Unknown";
+      const name = d.name || d.vendor || `Disk ${index + 1}`;
+      return `• ${type} • ${name} • ${sizeGB} GB`;
+    })
+    .join("\n");
+
+  const batteryInfo = battery.hasBattery
+    ? `Health: ${
+        battery.designedCapacity && battery.maxCapacity
+          ? ((battery.maxCapacity / battery.designedCapacity) * 100).toFixed(0)
+          : "N/A"
+      }% • Charging: ${battery.isCharging} • Capacity: ${battery.percent}%`
+    : "No battery detected";
+
+  return `💻 System Specifications
+
+🧠 CPU: ${cpu.manufacturer} ${cpu.brand} (${cpu.cores} cores)
+🎮 GPU: ${gpuModel}
+📦 RAM: ${(mem.total / 1024 / 1024 / 1024).toFixed(2)} GB
+🖥️ OS: ${os.distro} (${os.arch})
+
+💽 Disks:
+${diskInfo || "No disk info"}
+
+🔋 Battery:
+${batteryInfo}
+`;
+}
+
+
+async function handleReadHardware(panel: vscode.WebviewPanel) {
+  try {
+    console.log("🔍 Starting hardware collection...");
+    const specs = await collectHardwareSpecsForDashboard();
+    console.log("✅ Hardware collection successful");
+    panel.webview.postMessage({ type: "hardwareContent", specs });
+  } catch (e: any) {
+    console.error("❌ Hardware specs error:", e);
+    panel.webview.postMessage({
+      type: "hardwareError",
+      error: e?.message ?? String(e),
+    });
+  }
+}
+
+async function collectHardwareSpecsForDashboard(): Promise<{
+  cpu: string;
+  gpu: string;
+  ram: string;
+  os: string;
+  disks: string;
+  battery: string;
+}> {
+  let cpuInfo = "Loading...";
+  let gpuModel = "Loading...";
+  let ramGB = "Loading...";
+  let osString = "Loading...";
+  let diskInfo = "Loading...";
+  let batteryInfo = "Loading...";
+
+  // Collect each hardware component separately with timeout and error handling
+  try {
+    console.log("  → Getting CPU info...");
+    const cpuPromise = si.cpu();
+    const cpu = await Promise.race([
+      cpuPromise,
+      new Promise<any>((_, reject) => setTimeout(() => reject(new Error("CPU timeout")), 5000))
+    ]);
+    cpuInfo = `${cpu.manufacturer} ${cpu.brand} (${cpu.cores} cores)`;
+    console.log("  ✓ CPU info collected");
+  } catch (e: any) {
+    cpuInfo = "Error loading CPU info";
+    console.error("  ✗ CPU error:", e?.message);
+  }
+
+  try {
+    console.log("  → Getting GPU info...");
+    const gpuPromise = si.graphics();
+    const gpu = await Promise.race([
+      gpuPromise,
+      new Promise<any>((_, reject) => setTimeout(() => reject(new Error("GPU timeout")), 5000))
+    ]);
+    gpuModel = gpu.controllers && gpu.controllers.length > 0
+      ? gpu.controllers[0].model
+      : "No GPU detected";
+    console.log("  ✓ GPU info collected");
+  } catch (e: any) {
+    gpuModel = "Error loading GPU info";
+    console.error("  ✗ GPU error:", e?.message);
+  }
+
+  try {
+    console.log("  → Getting RAM info...");
+    const memPromise = si.mem();
+    const mem = await Promise.race([
+      memPromise,
+      new Promise<any>((_, reject) => setTimeout(() => reject(new Error("RAM timeout")), 5000))
+    ]);
+    ramGB = `${(mem.total / 1024 / 1024 / 1024).toFixed(2)} GB`;
+    console.log("  ✓ RAM info collected");
+  } catch (e: any) {
+    ramGB = "Error loading RAM info";
+    console.error("  ✗ RAM error:", e?.message);
+  }
+
+  try {
+    console.log("  → Getting OS info...");
+    const osPromise = si.osInfo();
+    const osInfo = await Promise.race([
+      osPromise,
+      new Promise<any>((_, reject) => setTimeout(() => reject(new Error("OS timeout")), 5000))
+    ]);
+    osString = `${osInfo.distro} (${osInfo.arch})`;
+    console.log("  ✓ OS info collected");
+  } catch (e: any) {
+    osString = "Error loading OS info";
+    console.error("  ✗ OS error:", e?.message);
+  }
+
+  try {
+    console.log("  → Getting disk info...");
+    const diskPromise = si.diskLayout();
+    const disks = await Promise.race([
+      diskPromise,
+      new Promise<any>((_, reject) => setTimeout(() => reject(new Error("Disk timeout")), 5000))
+    ]);
+    diskInfo = disks
+      .map((d: any, index: number) => {
+        const sizeGB = d.size ? (d.size / 1024 / 1024 / 1024).toFixed(1) : "0";
+        const type = d.type || "Unknown";
+        const name = d.name || d.vendor || `Disk ${index + 1}`;
+        return `• ${type} • ${name} • ${sizeGB} GB`;
+      })
+      .join("\n") || "No disks detected";
+    console.log("  ✓ Disk info collected");
+  } catch (e: any) {
+    diskInfo = "Error loading disk info";
+    console.error("  ✗ Disk error:", e?.message);
+  }
+
+  try {
+    console.log("  → Getting battery info...");
+    const batteryPromise = si.battery();
+    const battery = await Promise.race([
+      batteryPromise,
+      new Promise<any>((_, reject) => setTimeout(() => reject(new Error("Battery timeout")), 5000))
+    ]);
+    batteryInfo = battery.hasBattery
+      ? `Health: ${
+          battery.designedCapacity && battery.maxCapacity
+            ? ((battery.maxCapacity / battery.designedCapacity) * 100).toFixed(0)
+            : "N/A"
+        }% • Charging: ${battery.isCharging} • Capacity: ${battery.percent}%`
+      : "No battery detected";
+    console.log("  ✓ Battery info collected");
+  } catch (e: any) {
+    batteryInfo = "Error loading battery info";
+    console.error("  ✗ Battery error:", e?.message);
+  }
+
+  console.log("✅ All hardware info collection complete");
+  return {
+    cpu: cpuInfo,
+    gpu: gpuModel,
+    ram: ramGB,
+    os: osString,
+    disks: diskInfo,
+    battery: batteryInfo,
+  };
 }
