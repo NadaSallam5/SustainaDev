@@ -5,11 +5,11 @@ public class FibonacciCalculator {
             return n;
         }
         
-        int a = 0, b = 1, temp;
+        int a = 0, b = 1, c = 0;
         for (int i = 2; i <= n; i++) {
-            temp = a + b;
+            c = a + b;
             a = b;
-            b = temp;
+            b = c;
         }
         return b;
     }
