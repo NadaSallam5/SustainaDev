@@ -1,6 +1,5 @@
-import java.util.HashSet;
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * SustainaDev Test: List Reconciliation
@@ -8,15 +7,18 @@ import java.util.ArrayList;
  */
 public class InventoryReconciler {
     public List<String> findDiscrepancies(List<String> warehouseStock, List<String> systemRecords) {
-        // Use a HashSet to store system records for O(1) average time complexity
-        // lookups.
-        HashSet<String> systemRecordSet = new HashSet<>(systemRecords);
-
         List<String> discrepancies = new ArrayList<>();
 
-        // TRIGGER: O(N) - Each item in warehouse is checked against the HashSet.
+        // TRIGGER: O(N*M) - Every item in warehouse is checked against every system record.
         for (String stockItem : warehouseStock) {
-            if (!systemRecordSet.contains(stockItem)) {
+            boolean found = false;
+            for (String record : systemRecords) {
+                if (stockItem.equals(record)) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
                 discrepancies.add(stockItem);
             }
         }
