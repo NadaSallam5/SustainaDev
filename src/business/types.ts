@@ -1,4 +1,5 @@
 export interface MethodFacts {
+  recursiveCallCount: number;
   // existing (KEEP)
   methodName: string;
   callsSelf: boolean;
