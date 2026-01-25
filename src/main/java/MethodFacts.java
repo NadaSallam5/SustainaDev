@@ -13,5 +13,9 @@ public class MethodFacts {
 
     public boolean hasStringConcatInLoop;
 
-    
+ 
+
+    // ✅ NEW: sorting detection
+    public boolean hasSortingCall;   // Arrays.sort / Collections.sort / list.sort
+    public boolean sortInsideLoop;   // Sorting inside any loop
 }
