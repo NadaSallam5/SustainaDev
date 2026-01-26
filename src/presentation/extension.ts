@@ -8,7 +8,7 @@ import * as fsp from "fs/promises";
 
 import { buildOptimizationPatch } from "../business/refactor/optimizeComplexity";
 import { chooseRefactor } from "../business/refactor/chooseRefactor";
-import { initPaths } from "../data/metrics/codeCarbon";
+import { initPaths } from "../business/codeCarbon";
 import { runJavaAnalyzer } from "../business/analyzer/javaRunner";
 
 /**
