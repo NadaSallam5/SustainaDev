@@ -24,6 +24,16 @@ export function estimateBigO(f: MethodFacts): BigONotation {
   if (f.maxLoopDepth === 1 && f.hasStringConcatInLoop) {
     return "O(n^2)";
   }
+ // ✅ Sorting rules (IMPORTANT)
+  // sort performed inside a loop => n times sort(n log n) => O(n^2 log n)
+  if (f.sortInsideLoop) {
+    return "O(n^2 log n)";
+  }
+
+  // sort performed once (outside loops or just once overall) => O(n log n)
+  if (f.hasSortingCall) {
+    return "O(n log n)";
+  }
 
   // ---- loops ----
   if (f.maxLoopDepth >= 3) return "O(n^3)";
@@ -63,8 +73,15 @@ export function estimateOps(bigO: BigONotation, n: number): number {
       return 1_000;
     case "O(n)":
       return n * 1_000;
+    case "O(n log n)":
+      return Math.max(1, Math.round(n * Math.log2(Math.max(2, n)) * 1_000));
     case "O(n^2)":
       return n * n;
+       case "O(n^2 log n)":
+      return Math.max(
+        1,
+        Math.round(n * n * Math.log2(Math.max(2, n)))
+      );
     case "O(n^3)":
       return n * n * n;
     case "O(2^n)":

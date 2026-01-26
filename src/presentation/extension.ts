@@ -19,8 +19,14 @@ import si from "systeminformation";
 let isRunning = false;
 export let sustainaDevOutput: vscode.OutputChannel;
 
-const validSmells = ["RECURSION", "NESTED_LOOPS", "GENERAL"];
-
+const validSmells = [
+  "RECURSION",
+  "NESTED_LOOPS",
+  "GENERAL",
+  "SORTING_IN_LOOP",
+  "SORTING",
+  "STRING_CONCAT",
+];
 /**
  * SustainaDev Extension Activation
  */
@@ -143,8 +149,10 @@ if (!factsList.length) {
 
 
 // OPTIONAL: choose one method (first or highest complexity later)
-const facts = factsList[0];
-
+const facts =
+  factsList.find(m => m.sortInsideLoop === true) ||
+  factsList.find(m => m.hasSortingCall === true) ||
+  factsList[0];
 // 🔥 RULE ENGINE (WHAT to do)
 const decision = chooseRefactor(facts);
 

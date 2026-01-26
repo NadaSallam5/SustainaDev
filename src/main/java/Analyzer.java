@@ -84,16 +84,22 @@ private static boolean isInsideLoop(Node node) {
     return false;
 }
 
+ // ✅ NEW: Sorting detector
+    private static boolean isSortingCall(MethodCallExpr call) {
+        if (!call.getNameAsString().equals("sort")) return false;
 
+        // Arrays.sort(...)
+        if (call.getScope().isPresent() && call.getScope().get().toString().equals("Arrays")) {
+            return true;
+        }
 
-    // ✅ NEW: Duplicate Computation Detector (same call repeated)
-    private static boolean hasDuplicateComputation(MethodDeclaration m) {
-        var calls = m.findAll(MethodCallExpr.class).stream()
-            .filter(c -> !c.getNameAsString().equals(m.getNameAsString())) // ignore recursion
-            .map(c -> c.toString()) // full call text (method + args)
-            .toList();
+        // Collections.sort(...)
+        if (call.getScope().isPresent() && call.getScope().get().toString().equals("Collections")) {
+            return true;
+        }
 
-        return calls.stream().distinct().count() < calls.size();
+        // list.sort(...)
+        return call.getScope().isPresent();
     }
 
     // ✅ FIXED: Proper loop-depth computation using a visitor
@@ -156,8 +162,13 @@ private static boolean isInsideLoop(Node node) {
             facts.hasOverlappingSubproblems = hasOverlappingSubproblems(m);
             facts.hasStringConcatInLoop = hasStringConcatInLoop(m);
 
-            // ✅ store duplicate computation smell
-            facts.hasDuplicateComputation = hasDuplicateComputation(m);
+                 // ✅ NEW: sorting facts
+            var sortCalls = m.findAll(MethodCallExpr.class).stream()
+                .filter(Analyzer::isSortingCall)
+                .toList();
+
+            facts.hasSortingCall = !sortCalls.isEmpty();
+            facts.sortInsideLoop = sortCalls.stream().anyMatch(Analyzer::isInsideLoop);
 
             facts.callsSelf =
                 m.findAll(MethodCallExpr.class)

@@ -6,22 +6,29 @@ export enum OptimizationStrategy {
   STRING_BUILDER = "STRING_BUILDER",
   DUPLICATE_COMPUTATION = "DUPLICATE_COMPUTATION",
   NESTED_LOOPS = "NESTED_LOOPS",
+  SORTING_IN_LOOP = "SORTING_IN_LOOP",   // ✅ NEW
+  SORTING = "SORTING",                   // ✅ NEW (optional but useful)
   KEEP_RECURSION = "KEEP_RECURSION",
 }
 
-export function chooseOptimizationStrategy(facts: MethodFacts): OptimizationStrategy {
-
+export function chooseOptimizationStrategy(
+  facts: MethodFacts
+): OptimizationStrategy {
   // ✅ 1) STRING CONCAT — 
 
   if (facts.hasStringConcatInLoop === true) {
     return OptimizationStrategy.STRING_BUILDER;
   }
 
-  // ✅ 2) DUPLICATE COMPUTATION
-  if (facts.hasDuplicateComputation === true) {
-    return OptimizationStrategy.DUPLICATE_COMPUTATION;
+ // ✅ 3) SORTING inside loop (NEW)
+  if (facts.sortInsideLoop === true) {
+    return OptimizationStrategy.SORTING_IN_LOOP;
   }
 
+  // ✅ 4) SORTING detected (NEW)
+  if (facts.hasSortingCall === true) {
+    return OptimizationStrategy.SORTING;
+  }
   // ✅ 3) Nested loops → O(n^2)
   if (facts.maxLoopDepth >= 2) {
     return OptimizationStrategy.NESTED_LOOPS;
