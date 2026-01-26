@@ -3,7 +3,7 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { estimateEnergy } from "../../data/metrics/codeCarbon";
+import { estimateEnergy } from "../codeCarbon";
 import {
   chooseOptimizationStrategy,
   OptimizationStrategy,
@@ -189,29 +189,6 @@ if (strategy === OptimizationStrategy.NESTED_LOOPS) {
       { preview: true }
     );
   }
-
- // 5. Final Measurement & Logging
-// Decide what we are actually optimizing for:
-const metric: "time" | "space" =
-  strategy === OptimizationStrategy.ITERATIVE_REWRITE ? "space" : "time";
-
-let before: string;
-let after: string;
-
-if (metric === "space") {
-  before = estimateSpaceBigOFromCode(fullCode, methodName);
-  after = estimateSpaceBigOFromCode(patch.preview, methodName);
-} else {
-  before = estimateBigOFromCode(fullCode, methodName);
-  after = estimateBigOFromCode(patch.preview, methodName);
-}
-
-await logAlgorithmicOptimization(
-  workspace,
-  fileName,
-  { metric, before, after },
-  patch.reason,
-);
 
 
   return patch;
@@ -549,6 +526,52 @@ async function logAlgorithmicOptimization(
 /**
  * Utility to isolate the class context
  */
+export type OptimizationReport = {
+  metric: "time" | "space";
+  before: string;
+  after: string;
+  improvement: string;
+};
+
+export async function logOptimizationFromReport(
+  workspace: string,
+  fileName: string | undefined,
+  report: OptimizationReport,
+  reason: string,
+) {
+  try {
+    const beforeScore = bigOToScore(report.before);
+    const afterScore = bigOToScore(report.after);
+    const scoreDelta = Math.max(0, beforeScore - afterScore);
+    const energy = await estimateEnergy(scoreDelta * 5);
+
+    const logEntry = {
+      timestamp: new Date().toISOString(),
+      file: fileName ? path.basename(fileName) : "unknown",
+      refactor: "Algorithmic Optimization",
+      complexity: {
+        metric: report.metric,
+        before: report.before,
+        after: report.after,
+        improvement: `From ${report.before} → ${report.after}`,
+      },
+      energy,
+      reason,
+    };
+
+    const logDir = path.join(workspace, ".sustainadev");
+    if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+
+    fs.appendFileSync(
+      path.join(logDir, "log.jsonl"),
+      JSON.stringify(logEntry) + "\n",
+      "utf8",
+    );
+  } catch (e) {
+    console.error("Logging failed:", e);
+  }
+}
+
 export function extractClassBlock(fullCode: string, startLine: number) {
   const lines = fullCode.split(/\r?\n/);
   let classStart = -1;

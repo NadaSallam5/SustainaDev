@@ -7,9 +7,12 @@ import * as fsp from "fs/promises";
 
 // Project internal imports
 
-import { buildOptimizationPatch } from "../business/refactor/optimizeComplexity";
+import {
+  buildOptimizationPatch,
+  logOptimizationFromReport,
+} from "../business/refactor/optimizeComplexity";
 import { chooseRefactor } from "../business/refactor/chooseRefactor";
-import { initPaths } from "../data/metrics/codeCarbon";
+import { initPaths } from "../business/codeCarbon";
 import { runJavaAnalyzer } from "../business/analyzer/javaRunner";
 import si from "systeminformation";
 
@@ -226,6 +229,16 @@ vscode.window.showInformationMessage(
     vscode.window.showInformationMessage(
       `Complexity improved: ${report.before} → ${report.after}`
     );
+    const workspace =
+  vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
+
+await logOptimizationFromReport(
+  workspace,
+  filePath,        // full path is ok; logger uses basename anyway
+  report,          // <-- SAME report you printed in console
+  patch.reason     // <-- same reason you already have
+);
+
 }
  else {
     sustainaDevOutput.appendLine(
