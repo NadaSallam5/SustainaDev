@@ -174,18 +174,29 @@ if (strategy === OptimizationStrategy.NESTED_LOOPS) {
     );
   }
 
-  // 5. Final Measurement & Logging (Algorithmic Big-O)
-  const afterBigO = estimateBigOFromCode(patch.preview, methodName);
-  await logAlgorithmicOptimization(
-    workspace,
-    fileName,
-    {
-      metric: "time",
-      before: beforeBigO,
-      after: afterBigO,
-    },
-    patch.reason,
-  );
+ // 5. Final Measurement & Logging
+// Decide what we are actually optimizing for:
+const metric: "time" | "space" =
+  strategy === OptimizationStrategy.ITERATIVE_REWRITE ? "space" : "time";
+
+let before: string;
+let after: string;
+
+if (metric === "space") {
+  before = estimateSpaceBigOFromCode(fullCode, methodName);
+  after = estimateSpaceBigOFromCode(patch.preview, methodName);
+} else {
+  before = estimateBigOFromCode(fullCode, methodName);
+  after = estimateBigOFromCode(patch.preview, methodName);
+}
+
+await logAlgorithmicOptimization(
+  workspace,
+  fileName,
+  { metric, before, after },
+  patch.reason,
+);
+
 
   return patch;
 }
@@ -385,6 +396,27 @@ function extractMethodBody(fullCode: string, methodName: string): string {
 
   return out.join("\n");
 }
+function estimateSpaceBigOFromCode(fullCode: string, methodName: string): string {
+  const method = extractMethodBody(fullCode, methodName);
+  const cleaned = method
+    .replace(/\/\/.*$/gm, "")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .trim();
+
+  // Look for self-calls inside method body => recursion stack growth
+  const bodyOnly = cleaned.includes("{")
+    ? cleaned.slice(cleaned.indexOf("{") + 1)
+    : cleaned;
+
+  const selfCalls =
+    (bodyOnly.match(new RegExp(`\\b${methodName}\\s*\\(`, "g")) || []).length;
+
+  // If recursive, stack frames scale with n in typical linear recursion (factorial, sum, etc.)
+  if (selfCalls >= 1) return "O(n)";
+
+  // Otherwise assume constant extra space (local primitives)
+  return "O(1)";
+}
 
 function estimateBigOFromCode(fullCode: string, methodName: string): string {
   const method = extractMethodBody(fullCode, methodName);
@@ -458,7 +490,7 @@ function bigOToScore(bigO: string): number {
 async function logAlgorithmicOptimization(
   workspace: string,
   fileName: string | undefined,
-  bigO: { metric: "time"; before: string; after: string },
+  bigO: { metric: "time" | "space"; before: string; after: string },
   reason: string,
 ) {
   try {
@@ -493,6 +525,7 @@ async function logAlgorithmicOptimization(
     console.error("Logging failed:", e);
   }
 }
+
 
 /**
  * Utility to isolate the class context
