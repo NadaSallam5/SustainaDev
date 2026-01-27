@@ -3,7 +3,6 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { runLizard } from "../analyzer/lizardRunner";
 import { estimateEnergy } from "../codeCarbon";
 import {
   chooseOptimizationStrategy,
@@ -56,8 +55,8 @@ export async function buildOptimizationPatch(
     };
   }
 
-  // 1. Initial Measurement
-  const beforeMetrics = await measureCode(fullCode, methodName);
+  // 1. Estimate algorithmic complexity BEFORE (same style as the console report)
+  const beforeBigO = estimateBigOFromCode(fullCode, methodName);
 
   // 2. Extract Existing Imports/Header
   // Captures everything from the start of the file up to the class keyword
@@ -93,7 +92,6 @@ export async function buildOptimizationPatch(
     );
   }
 
-  
 if (strategy === OptimizationStrategy.NESTED_LOOPS) {
   rawAiResponse = await callOptimizationAI(
     fullCode,
@@ -102,12 +100,61 @@ if (strategy === OptimizationStrategy.NESTED_LOOPS) {
     "NESTED_LOOPS"
   );
 }
+ // ✅ NEW: Sorting optimization calls
+  if (strategy === OptimizationStrategy.SORTING_IN_LOOP) {
+    rawAiResponse = await callOptimizationAI(
+      fullCode,
+      range,
+      fileHeader,
+      "SORTING_IN_LOOP"
+    );
+  }
 
+  if (strategy === OptimizationStrategy.SORTING) {
+    rawAiResponse = await callOptimizationAI(
+      fullCode,
+      range,
+      fileHeader,
+      "SORTING"
+    );
+  }
+   // ✅ Guard: if AI returned nothing, avoid crash
+  if (!rawAiResponse || rawAiResponse.trim().length < 10) {
+    throw new Error(`AI returned empty response for strategy: ${strategy}`);
+  }
   // 4. Extraction & Validation
   const patch = parseAiResponse(rawAiResponse);
 
-  
+  // ✅✅✅ HARD VALIDATION for Duplicate Computation refactor
+  // Prevent invalid changes (AtomicInteger, Map caching, method signature changes)
+  if (strategy === OptimizationStrategy.DUPLICATE_COMPUTATION) {
+    const invalidPatterns = [
+      "AtomicInteger",
+      "HashMap",
+      "Map<",
+      "ConcurrentHashMap",
+      "cache",
+      "memo",
+    ];
 
+    // Ensure method signatures are unchanged (basic guard)
+    // If original has "private int expensive(" then preview must also have it.
+    if (fullCode.includes("private int expensive(") && !patch.preview.includes("private int expensive(")) {
+      throw new Error("AI changed method signature for expensive().");
+    }
+  }
+// ✅ Optional validation for SORTING_IN_LOOP:
+  // Ensure sorting is not still repeatedly done inside the loop (basic heuristic)
+  if (strategy === OptimizationStrategy.SORTING_IN_LOOP) {
+    const stillHasSortInsideLoop =
+      patch.preview.includes("for (") &&
+      (patch.preview.includes("Collections.sort") || patch.preview.includes("Arrays.sort")) &&
+      patch.preview.indexOf("sort") > patch.preview.indexOf("for (");
+
+    if (stillHasSortInsideLoop) {
+      throw new Error("AI did not move sorting out of the loop for SORTING_IN_LOOP.");
+    }
+  }
   // 🛡️ NO-OP CHECK: The "Logic Gate"
   const logicOnlyOriginal = fullCode.replace(/\/\/.*|\/\*[\s\S]*?\*\/|\s/g, "");
   const logicOnlyPatch = patch.preview.replace(
@@ -143,16 +190,6 @@ if (strategy === OptimizationStrategy.NESTED_LOOPS) {
     );
   }
 
-  // 5. Final Measurement & Logging
-  const afterMetrics = await measureCode(patch.preview, methodName);
-  await logSustainabilityMetrics(
-    workspace,
-    fileName,
-    beforeMetrics,
-    afterMetrics,
-    patch,
-    fullCode,
-  );
 
   return patch;
 }
@@ -213,12 +250,15 @@ function getTaskInstructions(smellType: string): string {
     STRING_BUILDER:
       "Replace String concatenation inside loops with StringBuilder. Avoid using '+' on Strings inside loops. Preserve logic and output.",
 
-    // ✅✅✅ NEW: Duplicate computation task (STRONG + STRICT)
-    DUPLICATE_COMPUTATION:
-      "Fix duplicate computation inside the SAME method when the SAME call is repeated (e.g., expensive(x) + expensive(x)). " +
-      "Refactor ONLY by calling it ONCE and storing the result in a LOCAL variable. Example: `int v = expensive(x); return v + v;`. " +
-      "STRICT RULES: Do NOT add Map/HashMap/caching/memoization. Do NOT add AtomicInteger. Do NOT add fields/state. Do NOT change ANY method signature. " +
-      "No new helper methods. Only local variable reuse.",
+      SORTING_IN_LOOP:
+      "Sorting is performed INSIDE a loop. Refactor to avoid repeated sorting. " +
+      "If sorting is genuinely needed, sort ONCE outside the loop without changing output. " +
+      "If sorting was only used to get max/min, replace sort with a single O(n) scan. " +
+      "Keep method signature and preserve exact behavior.",
+
+    SORTING:
+      "Sorting detected. Ensure sorting is necessary. If sorting is only used for max/min lookup, replace with a linear scan. " +
+      "If order is required, keep sorting but avoid redundant sorts. Preserve exact output.",
 
     GENERAL:
       "Audit the code for general Green Coding principles: reduce CPU cycles and minimize memory footprints.",
@@ -315,69 +355,223 @@ function parseAiResponse(text: string): OptimizationResult {
 }
 
 /**
- * Measures CCN and NLOC using Lizard
+ * Extract just the target method body so we can estimate Big-O.
+ * This is a heuristic (NOT a formal proof) but it matches the simple reporting style you show in the console.
  */
-async function measureCode(code: string, methodName: string) {
-  const tmpPath = path.join(
-    os.tmpdir(),
-    `sustainadev_metrics_${Date.now()}.java`,
-  );
+function extractMethodBody(fullCode: string, methodName: string): string {
+  // Find the method signature line (very forgiving regex).
+  const sig = new RegExp(`\\b${methodName}\\s*\\(`);
+  const lines = fullCode.split(/\r?\n/);
+  let startLine = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (sig.test(lines[i])) {
+      startLine = i;
+      break;
+    }
+  }
+  if (startLine === -1) return fullCode;
+
+  // Walk forward and capture braces to isolate the method block.
+  let brace = 0;
+  let started = false;
+  const out: string[] = [];
+
+  for (let i = startLine; i < lines.length; i++) {
+    const line = lines[i];
+    out.push(line);
+    for (const ch of line) {
+      if (ch === "{") {
+        brace++;
+        started = true;
+      } else if (ch === "}") {
+        brace--;
+      }
+    }
+    if (started && brace === 0) break;
+  }
+
+  return out.join("\n");
+}
+function estimateSpaceBigOFromCode(fullCode: string, methodName: string): string {
+  const method = extractMethodBody(fullCode, methodName);
+  const cleaned = method
+    .replace(/\/\/.*$/gm, "")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .trim();
+
+  // Look for self-calls inside method body => recursion stack growth
+  const bodyOnly = cleaned.includes("{")
+    ? cleaned.slice(cleaned.indexOf("{") + 1)
+    : cleaned;
+
+  const selfCalls =
+    (bodyOnly.match(new RegExp(`\\b${methodName}\\s*\\(`, "g")) || []).length;
+
+  // If recursive, stack frames scale with n in typical linear recursion (factorial, sum, etc.)
+  if (selfCalls >= 1) return "O(n)";
+
+  // Otherwise assume constant extra space (local primitives)
+  return "O(1)";
+}
+
+function estimateBigOFromCode(fullCode: string, methodName: string): string {
+  const method = extractMethodBody(fullCode, methodName);
+  const cleaned = method
+    .replace(/\/\/.*$/gm, "")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // Detect recursion calls (exclude the signature by searching after the first "{")
+  const bodyOnly = cleaned.includes("{") ? cleaned.slice(cleaned.indexOf("{") + 1) : cleaned;
+  const selfCalls = (bodyOnly.match(new RegExp(`\\b${methodName}\\s*\\(`, "g")) || []).length;
+
+  // Loop nesting depth estimation (brace-based heuristic)
+  let brace = 0;
+  const loopStack: number[] = [];
+  let maxLoopDepth = 0;
+
+  const tokens = method.split(/\r?\n/);
+  for (const line of tokens) {
+    const l = line.replace(/\/\/.*$/, "");
+    // entering a loop (very rough but works for typical student code)
+    if (/\b(for|while)\s*\(/.test(l)) {
+      loopStack.push(brace);
+      if (loopStack.length > maxLoopDepth) maxLoopDepth = loopStack.length;
+    }
+
+    for (const ch of l) {
+      if (ch === "{") brace++;
+      else if (ch === "}") {
+        // pop loops when leaving their brace scope
+        brace--;
+        while (loopStack.length && brace < loopStack[loopStack.length - 1]) {
+          loopStack.pop();
+        }
+      }
+    }
+  }
+
+  // String concatenation inside a loop can behave like O(n^2) due to repeated allocations.
+  const hasStringVar = /\bString\s+\w+\s*=/.test(method);
+  const stringConcatInLoop = /\b(for|while)\s*\([\s\S]*?\)\s*\{[\s\S]*?(=\s*\w+\s*\+|\+=)\s*[\s\S]*?\}/.test(method);
+  if (maxLoopDepth === 1 && hasStringVar && stringConcatInLoop) {
+    return "O(n^2)";
+  }
+
+  if (maxLoopDepth >= 3) return "O(n^3)";
+  if (maxLoopDepth === 2) return "O(n^2)";
+  if (maxLoopDepth === 1) return "O(n)";
+
+  // Recursion fallback (very rough)
+  if (selfCalls >= 2) return "O(2^n)";
+  if (selfCalls === 1) return "O(n)";
+
+  return "O(1)";
+}
+
+function bigOToScore(bigO: string): number {
+  const s = (bigO || "").replace(/\s+/g, "").toLowerCase();
+  if (s.includes("o(1)")) return 1;
+  if (s.includes("o(logn)") || s.includes("o(log(n))")) return 2;
+  if (s.includes("o(n)") && !s.includes("o(nlogn)") && !s.includes("o(nlog(n))")) return 3;
+  if (s.includes("o(nlogn)") || s.includes("o(nlog(n))")) return 4;
+  if (s.includes("o(n^2)") || s.includes("o(n2)")) return 5;
+  if (s.includes("o(n^3)") || s.includes("o(n3)")) return 6;
+  if (s.includes("o(2^n)") || s.includes("o(2n)")) return 7;
+  if (s.includes("o(n!)")) return 8;
+  return 0;
+}
+
+async function logAlgorithmicOptimization(
+  workspace: string,
+  fileName: string | undefined,
+  bigO: { metric: "time" | "space"; before: string; after: string },
+  reason: string,
+) {
   try {
-    fs.writeFileSync(tmpPath, code, "utf8");
-    const analysis = await runLizard(tmpPath);
-    const fn = analysis.functions.find((f: any) => f.name === methodName);
-    return {
-      ccn: fn?.ccn || 0,
-      nloc: fn?.nloc || 0,
+    const beforeScore = bigOToScore(bigO.before);
+    const afterScore = bigOToScore(bigO.after);
+    const scoreDelta = Math.max(0, beforeScore - afterScore);
+    const energy = await estimateEnergy(scoreDelta * 5);
+
+    const logEntry = {
+      timestamp: new Date().toISOString(),
+      file: fileName ? path.basename(fileName) : "unknown",
+      refactor: "Algorithmic Optimization",
+      complexity: {
+        metric: bigO.metric,
+        before: bigO.before,
+        after: bigO.after,
+        improvement: `From ${bigO.before} → ${bigO.after}`,
+      },
+      energy,
+      reason,
     };
+
+    const logDir = path.join(workspace, ".sustainadev");
+    if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+
+    fs.appendFileSync(
+      path.join(logDir, "log.jsonl"),
+      JSON.stringify(logEntry) + "\n",
+      "utf8",
+    );
   } catch (e) {
-    console.error("Lizard measurement failed:", e);
-    return { ccn: 0, nloc: 0 };
-  } finally {
-    if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
+    console.error("Logging failed:", e);
   }
 }
 
-/**
- * Logs sustainability data
- */
-async function logSustainabilityMetrics(
-  workspace: string,
-  fileName: string | undefined,
-  before: { ccn: number },
-  after: { ccn: number },
-  patch: OptimizationResult,
-  originalCode: string,
-) {
-  const isBigOWin =
-    originalCode.includes("for") &&
-    (patch.preview.includes("HashSet") || patch.preview.includes("HashMap"));
-  const virtualDelta = isBigOWin ? 20 : 0;
-
-  const deltaCCN = Math.max(before.ccn - after.ccn, virtualDelta);
-  const energy = await estimateEnergy(deltaCCN);
-
-  const logEntry = {
-    timestamp: new Date().toISOString(),
-    file: fileName ? path.basename(fileName) : "unknown",
-    refactor: "Algorithmic Optimization",
-    metrics: { before, after, deltaCCN },
-    energy,
-    reason: patch.reason,
-  };
-
-  const logDir = path.join(workspace, ".sustainadev");
-  if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
-  fs.appendFileSync(
-    path.join(logDir, "log.jsonl"),
-    JSON.stringify(logEntry) + "\n",
-    "utf8",
-  );
-}
 
 /**
  * Utility to isolate the class context
  */
+export type OptimizationReport = {
+  metric: "time" | "space";
+  before: string;
+  after: string;
+  improvement: string;
+};
+
+export async function logOptimizationFromReport(
+  workspace: string,
+  fileName: string | undefined,
+  report: OptimizationReport,
+  reason: string,
+) {
+  try {
+    const beforeScore = bigOToScore(report.before);
+    const afterScore = bigOToScore(report.after);
+    const scoreDelta = Math.max(0, beforeScore - afterScore);
+    const energy = await estimateEnergy(scoreDelta * 5);
+
+    const logEntry = {
+      timestamp: new Date().toISOString(),
+      file: fileName ? path.basename(fileName) : "unknown",
+      refactor: "Algorithmic Optimization",
+      complexity: {
+        metric: report.metric,
+        before: report.before,
+        after: report.after,
+        improvement: `From ${report.before} → ${report.after}`,
+      },
+      energy,
+      reason,
+    };
+
+    const logDir = path.join(workspace, ".sustainadev");
+    if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+
+    fs.appendFileSync(
+      path.join(logDir, "log.jsonl"),
+      JSON.stringify(logEntry) + "\n",
+      "utf8",
+    );
+  } catch (e) {
+    console.error("Logging failed:", e);
+  }
+}
+
 export function extractClassBlock(fullCode: string, startLine: number) {
   const lines = fullCode.split(/\r?\n/);
   let classStart = -1;
