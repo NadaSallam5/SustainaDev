@@ -2,10 +2,15 @@ import * as vscode from "vscode";
 import * as path from "path";
 import { buildOptimizationReport } from "../business/complexity/report";
 
+
 import * as fsp from "fs/promises";
 
 // Project internal imports
-import { buildOptimizationPatch } from "../business/refactor/optimizeComplexity";
+
+import {
+  buildOptimizationPatch,
+  logOptimizationFromReport,
+} from "../business/refactor/optimizeComplexity";
 import { chooseRefactor } from "../business/refactor/chooseRefactor";
 import { initPaths } from "../business/codeCarbon";
 import { runJavaAnalyzer } from "../business/analyzer/javaRunner";
@@ -25,14 +30,16 @@ const validSmells = [
   "SORTING",
   "STRING_CONCAT",
 ];
-
 /**
  * SustainaDev Extension Activation
  */
 export function activate(context: vscode.ExtensionContext) {
   console.log("🟢 SustainaDev Analyzer extension is active");
-  sustainaDevOutput = vscode.window.createOutputChannel("SustainaDev");
-  sustainaDevOutput.appendLine("SustainaDev activated ✅");
+sustainaDevOutput = vscode.window.createOutputChannel("SustainaDev");
+sustainaDevOutput.appendLine("SustainaDev activated ✅");
+
+  // 1. Register Analyzer Command
+ 
 
   // 2. Register Active File Analysis Command
   const analyzeActiveFile = vscode.commands.registerCommand(
@@ -45,22 +52,49 @@ export function activate(context: vscode.ExtensionContext) {
     "sustainadev.openDashboard",
     () => executeOpenDashboard(context),
   );
-
-  const getSpecs = vscode.commands.registerCommand(
+const getSpecs = vscode.commands.registerCommand(
     "sustainadev.getSpecs",
     async () => {
       vscode.window.showInformationMessage("🔍 Collecting system specs...");
 
       try {
-        const msg = await collectHardwareSpecsMarkdown();
-        vscode.window.showInformationMessage(msg, { modal: true });
+        const cpu = await si.cpu();
+        const gpu = await si.graphics();
+        const mem = await si.mem();
+        const os = await si.osInfo();
+        const disks = await si.diskLayout();
+        const battery = await si.battery();
+        const gpuModel =
+          gpu.controllers && gpu.controllers.length > 0
+            ? gpu.controllers[0].model
+            : "No GPU detected";
+        const diskInfo = disks
+  .map((d, index) => {
+    const sizeGB = (d.size / 1024 / 1024 / 1024).toFixed(1);
+    const type = d.type || "Unknown";
+    const name = d.name || d.vendor || "Disk " + (index + 1);
+
+    return `• ${type} • ${name} • ${sizeGB} GB`;
+  })
+  .join("\n");
+
+     const batteryInfo = battery.hasBattery
+  ? `Health: ${
+      battery.designedCapacity && battery.maxCapacity
+        ? ((battery.maxCapacity / battery.designedCapacity) * 100).toFixed(0)
+        : "N/A"
+    }% • Charging: ${battery.isCharging} • Capacity: ${battery.percent}%`
+  : "No battery detected";
+
+       const msg = await collectHardwareSpecsMarkdown();
+vscode.window.showInformationMessage(msg, { modal: true });
+
       } catch (err: any) {
         vscode.window.showErrorMessage("❌ Failed to read system specs: " + err.message);
       }
     }
   );
-
-  context.subscriptions.push(analyzeActiveFile, openDash, getSpecs);
+  context.subscriptions.push( analyzeActiveFile, openDash, getSpecs);
 }
 
 export function deactivate() {}
@@ -68,6 +102,11 @@ export function deactivate() {}
 /* =========================================================================
    COMMAND IMPLEMENTATIONS
    ========================================================================= */
+
+/**
+ * Logic for 'sustainadev.runAnalyzer'
+ */
+
 
 /**
  * Logic for 'sustainadev.analyzeActiveFile'
@@ -101,98 +140,119 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
     const refreshedDoc = await vscode.workspace.openTextDocument(originalUri);
     await refreshedDoc.save();
 
-    const fullCode = refreshedDoc.getText();
+const fullCode = refreshedDoc.getText();
 
-    const factsList = await runJavaAnalyzer(context);
+const factsList = await runJavaAnalyzer(context);
 
-    if (!factsList.length) {
-      vscode.window.showInformationMessage("No methods detected by analyzer.");
-      isRunning = false;
-      return;
-    }
+if (!factsList.length) {
+  vscode.window.showInformationMessage("No methods detected by analyzer.");
+  isRunning = false;
+  return;
+}
 
-    // OPTIONAL: choose one method
-    const facts =
-      factsList.find(m => m.sortInsideLoop === true) ||
-      factsList.find(m => m.hasSortingCall === true) ||
-      factsList[0];
 
-    // 🔥 RULE ENGINE
-    const decision = chooseRefactor(facts);
+// OPTIONAL: choose one method (first or highest complexity later)
+const facts =
+  factsList.find(m => m.sortInsideLoop === true) ||
+  factsList.find(m => m.hasSortingCall === true) ||
+  factsList[0];
+// 🔥 RULE ENGINE (WHAT to do)
+const decision = chooseRefactor(facts);
 
     // 3. Execution Logic
     if (validSmells.includes(decision.type)) {
-      // ✅ Get BEFORE Big-O from facts
-      const beforeBigO = estimateBigOFromFacts(facts);
-      sustainaDevOutput.appendLine(`📊 BEFORE Big-O: ${beforeBigO}`);
+     const patch = await buildOptimizationPatch(
+  fullCode,
+  {
+    from: editor.selection.start.line,
+    to: editor.selection.end.line,
+  },
+  filePath,
+  {
+    targetMethodName: facts.methodName,
+    smellType: decision.type,
+    methodFacts: facts, // ✅ REQUIRED
+  }
+);
 
-      const patch = await buildOptimizationPatch(
-        fullCode,
-        {
-          from: editor.selection.start.line,
-          to: editor.selection.end.line,
-        },
-        filePath,
-        {
-          targetMethodName: facts.methodName,
-          smellType: decision.type,
-          methodFacts: facts,
-        }
-      );
+void vscode.window.showQuickPick(
+  ["✅ Accept Optimization", "❌ Reject"],
+  {
+    placeHolder: "Apply the optimized code?",
+  }
+).then(async (choice) => {
+if (choice === "✅ Accept Optimization") {
+  await applyPatchToDocument(
+    originalUri,
+    patch.preview,
+    refreshedDoc.lineCount
+  );
 
-      void vscode.window.showQuickPick(
-        ["✅ Accept Optimization", "❌ Reject"],
-        {
-          placeHolder: "Apply the optimized code?",
-        }
-      ).then(async (choice) => {
-        if (choice === "✅ Accept Optimization") {
-          await applyPatchToDocument(
-            originalUri,
-            patch.preview,
-            refreshedDoc.lineCount
-          );
+  await refreshedDoc.save();
 
-          await refreshedDoc.save();
+  vscode.window.showInformationMessage("✅ Optimization applied successfully.");
 
-          vscode.window.showInformationMessage("✅ Optimization applied successfully.");
+  // ✅ Run analyzer AFTER applying patch
+  const afterFactsList = await runJavaAnalyzer(context);
+  const afterFacts = afterFactsList.find(m => m.methodName === facts.methodName);
 
-          // ✅ Run analyzer AFTER applying patch
-          const afterFactsList = await runJavaAnalyzer(context);
-          const afterFacts = afterFactsList.find(m => m.methodName === facts.methodName);
+ if (afterFacts) {
+   const report = buildOptimizationReport(facts, afterFacts);
 
-          if (afterFacts) {
-            // ✅ Get AFTER Big-O from new facts
-            const afterBigO = estimateBigOFromFacts(afterFacts);
-            sustainaDevOutput.appendLine(`📊 AFTER Big-O: ${afterBigO}`);
+const title =
+  report.metric === "space"
+    ? "=== Space Complexity Report ==="
+    : "=== Complexity Report ===";
 
-            // ✅ Build report with ACTUAL Big-O values
-            const report = {
-              metric: "time",
-              before: beforeBigO,
-              after: afterBigO,
-              improvement: `From ${beforeBigO} → ${afterBigO}`
-            };
+const label =
+  report.metric === "space" ? "Space" : "Before";
 
-            const title = "=== Complexity Report ===";
+sustainaDevOutput.appendLine(title);
 
-            sustainaDevOutput.appendLine(title);
-            sustainaDevOutput.appendLine(`Before: ${report.before}`);
-            sustainaDevOutput.appendLine(`After:  ${report.after}`);
-            sustainaDevOutput.appendLine(`Improvement: ${report.improvement}`);
+if (report.metric === "space") {
+  sustainaDevOutput.appendLine(`Space Before: ${report.before}`);
+  sustainaDevOutput.appendLine(`Space After:  ${report.after}`);
+} else {
+  sustainaDevOutput.appendLine(`Before: ${report.before}`);
+  sustainaDevOutput.appendLine(`After:  ${report.after}`);
+}
 
-            vscode.window.showInformationMessage(
-              `Complexity improved: ${report.before} → ${report.after}`
-            );
-          } else {
-            sustainaDevOutput.appendLine(
-              `⚠️ Could not find AFTER facts for method: ${facts.methodName}`
-            );
-          }
-        } else if (choice) {
-          vscode.window.showInformationMessage("❌ Optimization discarded.");
-        }
-      });
+sustainaDevOutput.appendLine(`Improvement: ${report.improvement}`);
+
+vscode.window.showInformationMessage(
+  report.metric === "space"
+    ? `Space improved: ${report.before} → ${report.after}`
+    : `Complexity improved: ${report.before} → ${report.after}`
+);
+
+
+    vscode.window.showInformationMessage(
+      `Complexity improved: ${report.before} → ${report.after}`
+    );
+    const workspace =
+  vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
+
+await logOptimizationFromReport(
+  workspace,
+  filePath,        // full path is ok; logger uses basename anyway
+  report,          // <-- SAME report you printed in console
+  patch.reason     // <-- same reason you already have
+);
+
+}
+ else {
+    sustainaDevOutput.appendLine(
+      `⚠️ Could not find AFTER facts for method: ${facts.methodName}`
+    );
+  }
+}
+ else if (choice) {
+    vscode.window.showInformationMessage(
+      "❌ Optimization discarded."
+    );
+  }
+});
+
 
     } else {
       vscode.window.showInformationMessage("No actionable refactor suggested.");
@@ -215,42 +275,8 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
 }
 
 /**
- * ✅ NEW: Estimate Big-O from MethodFacts
+ * Helper to handle the specific optimization workflow
  */
-function estimateBigOFromFacts(facts: any): string {
-  // SORTING_IN_LOOP: O(n² log n) before optimization
-  if (facts.sortInsideLoop) {
-    return "O(n^2 log n)";
-  }
-
-  // SORTING: O(n log n) if just sorting once
-  if (facts.hasSortingCall && !facts.sortInsideLoop) {
-    return "O(n log n)";
-  }
-
-  // RECURSION
-  if (facts.callsSelf) {
-    const recursiveCalls = facts.recursiveCallCount || 1;
-    if (recursiveCalls >= 2) {
-      return "O(2^n)";
-    }
-    return "O(n)";
-  }
-
-  // NESTED LOOPS
-  if (facts.maxLoopDepth >= 3) {
-    return "O(n^3)";
-  }
-  if (facts.maxLoopDepth === 2) {
-    return "O(n^2)";
-  }
-  if (facts.maxLoopDepth === 1) {
-    return "O(n)";
-  }
-
-  // Default
-  return "O(1)";
-}
 
 /**
  * Logic for 'sustainadev.openDashboard'
@@ -297,7 +323,7 @@ async function executeOpenDashboard(context: vscode.ExtensionContext) {
       </html>`;
   }
 
-  // Message Handling
+  // Message Handling (this part was already correct)
   panel.webview.onDidReceiveMessage(
     async (message: any) => {
       const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
@@ -311,26 +337,71 @@ async function executeOpenDashboard(context: vscode.ExtensionContext) {
         await handleReadLog(panel, ws);
       } else if (message?.type === "readHardware") {
         await handleReadHardware(panel);
-      } else if (message?.type === "getSpecs") {
-        try {
-          const content = await collectHardwareSpecsMarkdown();
-          panel.webview.postMessage({ type: "specsContent", content });
-        } catch (e: any) {
-          panel.webview.postMessage({
-            type: "specsError",
-            error: e?.message ?? String(e),
-          });
-        }
       }
+      else if (message?.type === "getSpecs") {
+  try {
+    const content = await collectHardwareSpecsMarkdown();
+    panel.webview.postMessage({ type: "specsContent", content });
+  } catch (e: any) {
+    panel.webview.postMessage({
+      type: "specsError",
+      error: e?.message ?? String(e),
+    });
+  }
+}
+
     },
     undefined,
     context.subscriptions
   );
 }
 
+
 /* =========================================================================
    HELPER FUNCTIONS
    ========================================================================= */
+
+async function closeExistingPreview(uriStringPartial: string) {
+  const oldDoc = vscode.workspace.textDocuments.find((d) =>
+    d.uri.toString().includes(uriStringPartial),
+  );
+  if (oldDoc) {
+    // Attempt to show it so we can close it, or check visible editors
+    const editor = vscode.window.visibleTextEditors.find(
+      (e) => e.document === oldDoc,
+    );
+    if (editor) {
+      await vscode.window.showTextDocument(oldDoc, {
+        preview: false,
+        preserveFocus: false,
+      });
+      await vscode.commands.executeCommand(
+        "workbench.action.revertAndCloseActiveEditor",
+      );
+    }
+  }
+}
+
+async function createAndShowPreview(
+  previewUri: vscode.Uri,
+  content: string,
+  originalUri: vscode.Uri,
+) {
+  const edit = new vscode.WorkspaceEdit();
+  edit.insert(previewUri, new vscode.Position(0, 0), content);
+  await vscode.workspace.applyEdit(edit);
+
+  // Wait briefly for FS update
+  await new Promise((resolve) => setTimeout(resolve, 200));
+
+  await vscode.commands.executeCommand(
+    "vscode.diff",
+    originalUri,
+    previewUri,
+    "🔄 SustainaDev: Algorithmic Optimization (Original ← → Optimized)",
+    { preview: true },
+  );
+}
 
 async function applyPatchToDocument(
   uri: vscode.Uri,
@@ -381,7 +452,6 @@ async function handleReadLog(panel: vscode.WebviewPanel, ws: string) {
     });
   }
 }
-
 async function collectHardwareSpecsMarkdown(): Promise<string> {
   const cpu = await si.cpu();
   const gpu = await si.graphics();
@@ -427,6 +497,7 @@ ${batteryInfo}
 `;
 }
 
+
 async function handleReadHardware(panel: vscode.WebviewPanel) {
   try {
     console.log("🔍 Starting hardware collection...");
@@ -457,6 +528,7 @@ async function collectHardwareSpecsForDashboard(): Promise<{
   let diskInfo = "Loading...";
   let batteryInfo = "Loading...";
 
+  // Collect each hardware component separately with timeout and error handling
   try {
     console.log("  → Getting CPU info...");
     const cpuPromise = si.cpu();

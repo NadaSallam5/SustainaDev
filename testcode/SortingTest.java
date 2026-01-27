@@ -8,12 +8,11 @@ public class SortingTest {
             return 0; // Handle edge case of empty or null list
         }
 
-        List<Integer> sortedList = new ArrayList<>(list); // Create a copy to avoid modifying the original list
-        Collections.sort(sortedList);
+        Collections.sort(list);  // Sort the list once outside the loop
 
         int sum = 0;
         for (int i = 0; i < list.size(); i++) {
-            sum += sortedList.get(i);
+            sum += list.get(i);
         }
 
         return sum;
