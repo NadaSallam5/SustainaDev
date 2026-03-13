@@ -1,11 +1,13 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import { buildOptimizationReport } from "../business/complexity/report";
-
 import * as fsp from "fs/promises";
-
+import { analyzeSustainability } from "../business/sustainability/sustainabilityEngine";
 // Project internal imports
-import { buildOptimizationPatch } from "../business/refactor/optimizeComplexity";
+import {
+  buildOptimizationPatch,
+  logOptimizationFromReport,
+} from "../business/refactor/optimizeComplexity";
 import { chooseRefactor } from "../business/refactor/chooseRefactor";
 import { initPaths } from "../business/codeCarbon";
 import { runJavaAnalyzer } from "../business/analyzer/javaRunner";
@@ -34,13 +36,11 @@ export function activate(context: vscode.ExtensionContext) {
   sustainaDevOutput = vscode.window.createOutputChannel("SustainaDev");
   sustainaDevOutput.appendLine("SustainaDev activated ✅");
 
-  // 2. Register Active File Analysis Command
   const analyzeActiveFile = vscode.commands.registerCommand(
     "sustainadev.analyzeActiveFile",
     () => executeAnalyzeActiveFile(context),
   );
 
-  // 3. Register Dashboard Command
   const openDash = vscode.commands.registerCommand(
     "sustainadev.openDashboard",
     () => executeOpenDashboard(context),
@@ -50,14 +50,15 @@ export function activate(context: vscode.ExtensionContext) {
     "sustainadev.getSpecs",
     async () => {
       vscode.window.showInformationMessage("🔍 Collecting system specs...");
-
       try {
         const msg = await collectHardwareSpecsMarkdown();
         vscode.window.showInformationMessage(msg, { modal: true });
       } catch (err: any) {
-        vscode.window.showErrorMessage("❌ Failed to read system specs: " + err.message);
+        vscode.window.showErrorMessage(
+          "❌ Failed to read system specs: " + err.message,
+        );
       }
-    }
+    },
   );
 
   context.subscriptions.push(analyzeActiveFile, openDash, getSpecs);
@@ -69,9 +70,6 @@ export function deactivate() {}
    COMMAND IMPLEMENTATIONS
    ========================================================================= */
 
-/**
- * Logic for 'sustainadev.analyzeActiveFile'
- */
 async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
   if (isRunning) {
     vscode.window.showWarningMessage(
@@ -81,12 +79,15 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
   }
 
   isRunning = true;
+
+  // Real start time captured at the very beginning of the pipeline
+  const startTime = Date.now();
+
   vscode.window.showInformationMessage("🚀 SustainaDev pipeline started...");
 
   try {
     initPaths(context);
 
-    // 1. Validation & Setup
     const editor = vscode.window.activeTextEditor;
     if (editor && editor.document.isDirty) {
       await editor.document.save();
@@ -102,7 +103,6 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
     await refreshedDoc.save();
 
     const fullCode = refreshedDoc.getText();
-
     const factsList = await runJavaAnalyzer(context);
 
     if (!factsList.length) {
@@ -111,21 +111,14 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
       return;
     }
 
-    // OPTIONAL: choose one method
     const facts =
-      factsList.find(m => m.sortInsideLoop === true) ||
-      factsList.find(m => m.hasSortingCall === true) ||
+      factsList.find((m) => m.sortInsideLoop === true) ||
+      factsList.find((m) => m.hasSortingCall === true) ||
       factsList[0];
 
-    // 🔥 RULE ENGINE
     const decision = chooseRefactor(facts);
 
-    // 3. Execution Logic
     if (validSmells.includes(decision.type)) {
-      // ✅ Get BEFORE Big-O from facts
-      const beforeBigO = estimateBigOFromFacts(facts);
-      sustainaDevOutput.appendLine(`📊 BEFORE Big-O: ${beforeBigO}`);
-
       const patch = await buildOptimizationPatch(
         fullCode,
         {
@@ -137,68 +130,108 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
           targetMethodName: facts.methodName,
           smellType: decision.type,
           methodFacts: facts,
-        }
+        },
       );
 
-      void vscode.window.showQuickPick(
-        ["✅ Accept Optimization", "❌ Reject"],
-        {
+      void vscode.window
+        .showQuickPick(["✅ Accept Optimization", "❌ Reject"], {
           placeHolder: "Apply the optimized code?",
-        }
-      ).then(async (choice) => {
-        if (choice === "✅ Accept Optimization") {
-          await applyPatchToDocument(
-            originalUri,
-            patch.preview,
-            refreshedDoc.lineCount
-          );
+        })
+        .then(async (choice) => {
+          if (choice === "✅ Accept Optimization") {
+            await applyPatchToDocument(
+              originalUri,
+              patch.preview,
+              refreshedDoc.lineCount,
+            );
 
-          await refreshedDoc.save();
-
-          vscode.window.showInformationMessage("✅ Optimization applied successfully.");
-
-          // ✅ Run analyzer AFTER applying patch
-          const afterFactsList = await runJavaAnalyzer(context);
-          const afterFacts = afterFactsList.find(m => m.methodName === facts.methodName);
-
-          if (afterFacts) {
-            // ✅ Get AFTER Big-O from new facts
-            const afterBigO = estimateBigOFromFacts(afterFacts);
-            sustainaDevOutput.appendLine(`📊 AFTER Big-O: ${afterBigO}`);
-
-            // ✅ Build report with ACTUAL Big-O values
-            const report = {
-              metric: "time",
-              before: beforeBigO,
-              after: afterBigO,
-              improvement: `From ${beforeBigO} → ${afterBigO}`
-            };
-
-            const title = "=== Complexity Report ===";
-
-            sustainaDevOutput.appendLine(title);
-            sustainaDevOutput.appendLine(`Before: ${report.before}`);
-            sustainaDevOutput.appendLine(`After:  ${report.after}`);
-            sustainaDevOutput.appendLine(`Improvement: ${report.improvement}`);
-
+            await refreshedDoc.save();
             vscode.window.showInformationMessage(
-              `Complexity improved: ${report.before} → ${report.after}`
+              "✅ Optimization applied successfully.",
             );
-          } else {
-            sustainaDevOutput.appendLine(
-              `⚠️ Could not find AFTER facts for method: ${facts.methodName}`
-            );
-          }
-        } else if (choice) {
-          vscode.window.showInformationMessage("❌ Optimization discarded.");
-        }
-      });
 
+            const afterFactsList = await runJavaAnalyzer(context);
+            const afterFacts = afterFactsList.find(
+              (m) => m.methodName === facts.methodName,
+            );
+
+            if (afterFacts) {
+              const report = buildOptimizationReport(facts, afterFacts);
+
+              sustainaDevOutput.appendLine(
+                report.metric === "space"
+                  ? "=== Space Complexity Report ==="
+                  : "=== Complexity Report ===",
+              );
+
+              if (report.metric === "space") {
+                sustainaDevOutput.appendLine(`Space Before: ${report.before}`);
+                sustainaDevOutput.appendLine(`Space After:  ${report.after}`);
+              } else {
+                sustainaDevOutput.appendLine(`Before: ${report.before}`);
+                sustainaDevOutput.appendLine(`After:  ${report.after}`);
+              }
+
+              sustainaDevOutput.appendLine(
+                `Improvement: ${report.improvement}`,
+              );
+
+              // Sustainability metrics
+              let sustainabilityResult: Awaited<ReturnType<typeof analyzeSustainability>> | undefined;
+
+              try {
+                sustainaDevOutput.appendLine("Running sustainability analysis...");
+
+                const result = await analyzeSustainability(startTime);
+                sustainabilityResult = result;
+
+                sustainaDevOutput.appendLine("=== Sustainability Metrics ===");
+                sustainaDevOutput.appendLine(
+                  `Energy Consumption: ${result.energyKwh.toFixed(6)} kWh`,
+                );
+                sustainaDevOutput.appendLine(
+                  `Carbon Emissions: ${result.carbonGrams.toFixed(4)} gCO2`,
+                );
+                sustainaDevOutput.appendLine(
+                  `Sustainability Score: ${result.sustainabilityScore.toFixed(2)} / 100`,
+                );
+              } catch (err) {
+                sustainaDevOutput.appendLine("Sustainability analysis failed:");
+                sustainaDevOutput.appendLine(String(err));
+              }
+
+              vscode.window.showInformationMessage(
+                report.metric === "space"
+                  ? `Space improved: ${report.before} → ${report.after}`
+                  : `Complexity improved: ${report.before} → ${report.after}`,
+              );
+
+              const workspace =
+                vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ||
+                process.cwd();
+
+              // Pass decision.type as 6th arg so the actual refactor type is logged
+              await logOptimizationFromReport(
+                workspace,
+                filePath,
+                report,
+                patch.reason,
+                sustainabilityResult,
+                decision.type,
+              );
+            } else {
+              sustainaDevOutput.appendLine(
+                `⚠️ Could not find AFTER facts for method: ${facts.methodName}`,
+              );
+            }
+          } else if (choice) {
+            vscode.window.showInformationMessage("❌ Optimization discarded.");
+          }
+        });
     } else {
       vscode.window.showInformationMessage("No actionable refactor suggested.");
     }
   } catch (err: any) {
-    // 🛡️ Graceful Handling for ALREADY_OPTIMIZED
     if (err.message === "ALREADY_OPTIMIZED") {
       isRunning = false;
       return;
@@ -214,47 +247,6 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
   }
 }
 
-/**
- * ✅ NEW: Estimate Big-O from MethodFacts
- */
-function estimateBigOFromFacts(facts: any): string {
-  // SORTING_IN_LOOP: O(n² log n) before optimization
-  if (facts.sortInsideLoop) {
-    return "O(n^2 log n)";
-  }
-
-  // SORTING: O(n log n) if just sorting once
-  if (facts.hasSortingCall && !facts.sortInsideLoop) {
-    return "O(n log n)";
-  }
-
-  // RECURSION
-  if (facts.callsSelf) {
-    const recursiveCalls = facts.recursiveCallCount || 1;
-    if (recursiveCalls >= 2) {
-      return "O(2^n)";
-    }
-    return "O(n)";
-  }
-
-  // NESTED LOOPS
-  if (facts.maxLoopDepth >= 3) {
-    return "O(n^3)";
-  }
-  if (facts.maxLoopDepth === 2) {
-    return "O(n^2)";
-  }
-  if (facts.maxLoopDepth === 1) {
-    return "O(n)";
-  }
-
-  // Default
-  return "O(1)";
-}
-
-/**
- * Logic for 'sustainadev.openDashboard'
- */
 async function executeOpenDashboard(context: vscode.ExtensionContext) {
   const panel = vscode.window.createWebviewPanel(
     "sustainadevDashboard",
@@ -265,15 +257,10 @@ async function executeOpenDashboard(context: vscode.ExtensionContext) {
       retainContextWhenHidden: true,
       localResourceRoots: [
         vscode.Uri.file(
-          path.join(
-            context.extensionPath,
-            "src",
-            "presentation",
-            "media"
-          )
+          path.join(context.extensionPath, "src", "presentation", "media"),
         ),
       ],
-    }
+    },
   );
 
   const dashboardPath = path.join(
@@ -281,7 +268,7 @@ async function executeOpenDashboard(context: vscode.ExtensionContext) {
     "src",
     "presentation",
     "media",
-    "dashboard.html"
+    "dashboard.html",
   );
 
   try {
@@ -297,7 +284,6 @@ async function executeOpenDashboard(context: vscode.ExtensionContext) {
       </html>`;
   }
 
-  // Message Handling
   panel.webview.onDidReceiveMessage(
     async (message: any) => {
       const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
@@ -324,7 +310,7 @@ async function executeOpenDashboard(context: vscode.ExtensionContext) {
       }
     },
     undefined,
-    context.subscriptions
+    context.subscriptions,
   );
 }
 
@@ -407,7 +393,10 @@ async function collectHardwareSpecsMarkdown(): Promise<string> {
   const batteryInfo = battery.hasBattery
     ? `Health: ${
         battery.designedCapacity && battery.maxCapacity
-          ? ((battery.maxCapacity / battery.designedCapacity) * 100).toFixed(0)
+          ? (
+              (battery.maxCapacity / battery.designedCapacity) *
+              100
+            ).toFixed(0)
           : "N/A"
       }% • Charging: ${battery.isCharging} • Capacity: ${battery.percent}%`
     : "No battery detected";
@@ -458,105 +447,105 @@ async function collectHardwareSpecsForDashboard(): Promise<{
   let batteryInfo = "Loading...";
 
   try {
-    console.log("  → Getting CPU info...");
-    const cpuPromise = si.cpu();
     const cpu = await Promise.race([
-      cpuPromise,
-      new Promise<any>((_, reject) => setTimeout(() => reject(new Error("CPU timeout")), 5000))
+      si.cpu(),
+      new Promise<any>((_, reject) =>
+        setTimeout(() => reject(new Error("CPU timeout")), 5000),
+      ),
     ]);
     cpuInfo = `${cpu.manufacturer} ${cpu.brand} (${cpu.cores} cores)`;
-    console.log("  ✓ CPU info collected");
   } catch (e: any) {
     cpuInfo = "Error loading CPU info";
     console.error("  ✗ CPU error:", e?.message);
   }
 
   try {
-    console.log("  → Getting GPU info...");
-    const gpuPromise = si.graphics();
     const gpu = await Promise.race([
-      gpuPromise,
-      new Promise<any>((_, reject) => setTimeout(() => reject(new Error("GPU timeout")), 5000))
+      si.graphics(),
+      new Promise<any>((_, reject) =>
+        setTimeout(() => reject(new Error("GPU timeout")), 5000),
+      ),
     ]);
-    gpuModel = gpu.controllers && gpu.controllers.length > 0
-      ? gpu.controllers[0].model
-      : "No GPU detected";
-    console.log("  ✓ GPU info collected");
+    gpuModel =
+      gpu.controllers && gpu.controllers.length > 0
+        ? gpu.controllers[0].model
+        : "No GPU detected";
   } catch (e: any) {
     gpuModel = "Error loading GPU info";
     console.error("  ✗ GPU error:", e?.message);
   }
 
   try {
-    console.log("  → Getting RAM info...");
-    const memPromise = si.mem();
     const mem = await Promise.race([
-      memPromise,
-      new Promise<any>((_, reject) => setTimeout(() => reject(new Error("RAM timeout")), 5000))
+      si.mem(),
+      new Promise<any>((_, reject) =>
+        setTimeout(() => reject(new Error("RAM timeout")), 5000),
+      ),
     ]);
     ramGB = `${(mem.total / 1024 / 1024 / 1024).toFixed(2)} GB`;
-    console.log("  ✓ RAM info collected");
   } catch (e: any) {
     ramGB = "Error loading RAM info";
     console.error("  ✗ RAM error:", e?.message);
   }
 
   try {
-    console.log("  → Getting OS info...");
-    const osPromise = si.osInfo();
     const osInfo = await Promise.race([
-      osPromise,
-      new Promise<any>((_, reject) => setTimeout(() => reject(new Error("OS timeout")), 5000))
+      si.osInfo(),
+      new Promise<any>((_, reject) =>
+        setTimeout(() => reject(new Error("OS timeout")), 5000),
+      ),
     ]);
     osString = `${osInfo.distro} (${osInfo.arch})`;
-    console.log("  ✓ OS info collected");
   } catch (e: any) {
     osString = "Error loading OS info";
     console.error("  ✗ OS error:", e?.message);
   }
 
   try {
-    console.log("  → Getting disk info...");
-    const diskPromise = si.diskLayout();
     const disks = await Promise.race([
-      diskPromise,
-      new Promise<any>((_, reject) => setTimeout(() => reject(new Error("Disk timeout")), 5000))
+      si.diskLayout(),
+      new Promise<any>((_, reject) =>
+        setTimeout(() => reject(new Error("Disk timeout")), 5000),
+      ),
     ]);
-    diskInfo = disks
-      .map((d: any, index: number) => {
-        const sizeGB = d.size ? (d.size / 1024 / 1024 / 1024).toFixed(1) : "0";
-        const type = d.type || "Unknown";
-        const name = d.name || d.vendor || `Disk ${index + 1}`;
-        return `• ${type} • ${name} • ${sizeGB} GB`;
-      })
-      .join("\n") || "No disks detected";
-    console.log("  ✓ Disk info collected");
+    diskInfo =
+      disks
+        .map((d: any, index: number) => {
+          const sizeGB = d.size
+            ? (d.size / 1024 / 1024 / 1024).toFixed(1)
+            : "0";
+          const type = d.type || "Unknown";
+          const name = d.name || d.vendor || `Disk ${index + 1}`;
+          return `• ${type} • ${name} • ${sizeGB} GB`;
+        })
+        .join("\n") || "No disks detected";
   } catch (e: any) {
     diskInfo = "Error loading disk info";
     console.error("  ✗ Disk error:", e?.message);
   }
 
   try {
-    console.log("  → Getting battery info...");
-    const batteryPromise = si.battery();
     const battery = await Promise.race([
-      batteryPromise,
-      new Promise<any>((_, reject) => setTimeout(() => reject(new Error("Battery timeout")), 5000))
+      si.battery(),
+      new Promise<any>((_, reject) =>
+        setTimeout(() => reject(new Error("Battery timeout")), 5000),
+      ),
     ]);
     batteryInfo = battery.hasBattery
       ? `Health: ${
           battery.designedCapacity && battery.maxCapacity
-            ? ((battery.maxCapacity / battery.designedCapacity) * 100).toFixed(0)
+            ? (
+                (battery.maxCapacity / battery.designedCapacity) *
+                100
+              ).toFixed(0)
             : "N/A"
         }% • Charging: ${battery.isCharging} • Capacity: ${battery.percent}%`
       : "No battery detected";
-    console.log("  ✓ Battery info collected");
   } catch (e: any) {
     batteryInfo = "Error loading battery info";
     console.error("  ✗ Battery error:", e?.message);
   }
 
-  console.log("✅ All hardware info collection complete");
   return {
     cpu: cpuInfo,
     gpu: gpuModel,

@@ -9,7 +9,7 @@ export type BigONotation =
   | "Unknown";
 
 export interface OptimizationReport {
-  metric: "time" | "space";
+  metric: "time" | "space";   // ✅ NEW
   before: BigONotation;
   after: BigONotation;
   improvement: string;
