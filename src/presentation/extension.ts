@@ -7,7 +7,10 @@ import * as fsp from "fs/promises";
 
 // Project internal imports
 
-import { buildOptimizationPatch } from "../business/refactor/optimizeComplexity";
+import {
+  buildOptimizationPatch,
+  logOptimizationFromReport,
+} from "../business/refactor/optimizeComplexity";
 import { chooseRefactor } from "../business/refactor/chooseRefactor";
 import { initPaths } from "../business/codeCarbon";
 import { runJavaAnalyzer } from "../business/analyzer/javaRunner";
@@ -27,7 +30,6 @@ const validSmells = [
   "SORTING",
   "STRING_CONCAT",
 ];
-
 /**
  * SustainaDev Extension Activation
  */
@@ -154,7 +156,6 @@ const facts =
   factsList.find(m => m.sortInsideLoop === true) ||
   factsList.find(m => m.hasSortingCall === true) ||
   factsList[0];
-
 // 🔥 RULE ENGINE (WHAT to do)
 const decision = chooseRefactor(facts);
 
@@ -228,6 +229,16 @@ vscode.window.showInformationMessage(
     vscode.window.showInformationMessage(
       `Complexity improved: ${report.before} → ${report.after}`
     );
+    const workspace =
+  vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
+
+await logOptimizationFromReport(
+  workspace,
+  filePath,        // full path is ok; logger uses basename anyway
+  report,          // <-- SAME report you printed in console
+  patch.reason     // <-- same reason you already have
+);
+
 }
  else {
     sustainaDevOutput.appendLine(

@@ -45,44 +45,46 @@ public class Analyzer {
         return recursiveCalls > 1;
     }
 
-    private static boolean hasStringConcatInLoop(MethodDeclaration m) {
+private static boolean hasStringConcatInLoop(MethodDeclaration m) {
 
-        // اجمع كل المتغيرات اللي نوعها String داخل الميثود
-        var stringVars = m.findAll(com.github.javaparser.ast.body.VariableDeclarator.class)
-            .stream()
-            .filter(v -> v.getType().asString().equals("String") || v.getType().asString().equals("java.lang.String"))
-            .map(v -> v.getNameAsString())
-            .collect(java.util.stream.Collectors.toSet());
+    // اجمع كل المتغيرات اللي نوعها String داخل الميثود
+    var stringVars = m.findAll(com.github.javaparser.ast.body.VariableDeclarator.class)
+        .stream()
+        .filter(v -> v.getType().asString().equals("String") || v.getType().asString().equals("java.lang.String"))
+        .map(v -> v.getNameAsString())
+        .collect(java.util.stream.Collectors.toSet());
 
-        return m.findAll(BinaryExpr.class).stream().anyMatch(b -> {
-            if (b.getOperator() != BinaryExpr.Operator.PLUS) return false;
+    return m.findAll(BinaryExpr.class).stream().anyMatch(b -> {
+        if (b.getOperator() != BinaryExpr.Operator.PLUS) return false;
 
-            if (!isInsideLoop(b)) return false;
 
-            if (b.getLeft().isStringLiteralExpr() || b.getRight().isStringLiteralExpr()) return true;
+        if (!isInsideLoop(b)) return false;
 
-            if (b.getLeft().isNameExpr() && stringVars.contains(b.getLeft().asNameExpr().getNameAsString())) return true;
-            if (b.getRight().isNameExpr() && stringVars.contains(b.getRight().asNameExpr().getNameAsString())) return true;
+        
+        if (b.getLeft().isStringLiteralExpr() || b.getRight().isStringLiteralExpr()) return true;
 
-            return false;
-        });
-    }
+        if (b.getLeft().isNameExpr() && stringVars.contains(b.getLeft().asNameExpr().getNameAsString())) return true;
+        if (b.getRight().isNameExpr() && stringVars.contains(b.getRight().asNameExpr().getNameAsString())) return true;
 
-    private static boolean isInsideLoop(Node node) {
-        Node parent = node;
-        while (parent.getParentNode().isPresent()) {
-            parent = parent.getParentNode().get();
-            if (parent instanceof ForStmt
-                || parent instanceof ForEachStmt
-                || parent instanceof WhileStmt
-                || parent instanceof DoStmt) {
-                return true;
-            }
-        }
         return false;
-    }
+    });
+}
 
-    // ✅ NEW: Sorting detector
+private static boolean isInsideLoop(Node node) {
+    Node parent = node;
+    while (parent.getParentNode().isPresent()) {
+        parent = parent.getParentNode().get();
+        if (parent instanceof ForStmt
+            || parent instanceof ForEachStmt
+            || parent instanceof WhileStmt
+            || parent instanceof DoStmt) {
+            return true;
+        }
+    }
+    return false;
+}
+
+ // ✅ NEW: Sorting detector
     private static boolean isSortingCall(MethodCallExpr call) {
         if (!call.getNameAsString().equals("sort")) return false;
 
@@ -99,9 +101,6 @@ public class Analyzer {
         // list.sort(...)
         return call.getScope().isPresent();
     }
-
-
-
 
     // ✅ FIXED: Proper loop-depth computation using a visitor
     private static int computeMaxLoopDepth(MethodDeclaration m) {
@@ -143,53 +142,50 @@ public class Analyzer {
         return v.max;
     }
 
-    public static void main(String[] args) throws Exception {
-        if (args.length == 0) {
-            System.err.println("Usage: java Analyzer <java-file>");
-            return;
-        }
-
-        Path file = Paths.get(args[0]);
-        ObjectMapper om = new ObjectMapper();
-
-        CompilationUnit cu = StaticJavaParser.parse(file);
-
-        for (MethodDeclaration m : cu.findAll(MethodDeclaration.class)) {
-            MethodFacts facts = new MethodFacts();
-            facts.methodName = m.getNameAsString();
-
-            facts.isLinearRecursion = isLinearRecursion(m);
-            facts.isPureAccumulation = isPureAccumulation(m);
-            facts.hasOverlappingSubproblems = hasOverlappingSubproblems(m);
-            facts.hasStringConcatInLoop = hasStringConcatInLoop(m);
-
-         
-
-            // ✅ NEW: sorting facts
-            var sortCalls = m.findAll(MethodCallExpr.class).stream()
-                .filter(Analyzer::isSortingCall)
-                .toList();
-
-            facts.hasSortingCall = !sortCalls.isEmpty();
-            facts.sortInsideLoop = sortCalls.stream().anyMatch(Analyzer::isInsideLoop);
-
-            facts.callsSelf =
-                m.findAll(MethodCallExpr.class)
-                 .stream()
-                 .anyMatch(c -> c.getNameAsString().equals(facts.methodName));
-
-            // ✅ NEW fixed loop depth
-            facts.maxLoopDepth = computeMaxLoopDepth(m);
-
-            facts.cyclomaticComplexity =
-                  1
-                + m.findAll(IfStmt.class).size()
-                + m.findAll(ForStmt.class).size()
-                + m.findAll(ForEachStmt.class).size()
-                + m.findAll(WhileStmt.class).size()
-                + m.findAll(DoStmt.class).size();
-
-            System.out.println(om.writeValueAsString(facts));
-        }
+   public static void main(String[] args) throws Exception {
+    if (args.length == 0) {
+        System.err.println("Usage: java Analyzer <java-file>");
+        return;
     }
+
+    Path file = Paths.get(args[0]);
+    ObjectMapper om = new ObjectMapper();
+
+    CompilationUnit cu = StaticJavaParser.parse(file);
+
+    for (MethodDeclaration m : cu.findAll(MethodDeclaration.class)) {
+        MethodFacts facts = new MethodFacts();
+        facts.methodName = m.getNameAsString();
+
+        facts.isLinearRecursion = isLinearRecursion(m);
+        facts.isPureAccumulation = isPureAccumulation(m);
+        facts.hasOverlappingSubproblems = hasOverlappingSubproblems(m);
+        facts.hasStringConcatInLoop = hasStringConcatInLoop(m);
+
+        var sortCalls = m.findAll(MethodCallExpr.class)
+            .stream()
+            .filter(Analyzer::isSortingCall)
+            .toList();
+
+        facts.hasSortingCall = !sortCalls.isEmpty();
+        facts.sortInsideLoop = sortCalls.stream().anyMatch(Analyzer::isInsideLoop);
+
+        facts.callsSelf =
+            m.findAll(MethodCallExpr.class)
+             .stream()
+             .anyMatch(c -> c.getNameAsString().equals(facts.methodName));
+
+        facts.maxLoopDepth = computeMaxLoopDepth(m);
+
+        facts.cyclomaticComplexity =
+              1
+            + m.findAll(IfStmt.class).size()
+            + m.findAll(ForStmt.class).size()
+            + m.findAll(ForEachStmt.class).size()
+            + m.findAll(WhileStmt.class).size()
+            + m.findAll(DoStmt.class).size();
+
+        System.out.println(om.writeValueAsString(facts));
+    }
+}
 }
