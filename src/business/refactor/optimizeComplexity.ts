@@ -524,15 +524,19 @@ export async function logOptimizationFromReport(
     const scoreDelta = Math.max(0, beforeScore - afterScore);
     const energy = await estimateEnergy(scoreDelta * 5);
 
-    // Map OptimizationStrategy enum values to human-readable labels
+    // Map OptimizationStrategy enum values to human-readable labels.
+    // STRING_CONCAT is included because chooseRefactor() returns "STRING_CONCAT"
+    // as decision.type, while chooseOptimizationStrategy() uses STRING_BUILDER internally.
     const refactorLabelMap: Record<string, string> = {
       ITERATIVE_REWRITE: "Iterative Rewrite (Recursion → Loop)",
       MEMOIZATION: "Memoization (Overlapping Subproblems)",
       STRING_BUILDER: "String Concatenation → StringBuilder",
+      STRING_CONCAT: "String Concatenation → StringBuilder",
       DUPLICATE_COMPUTATION: "Duplicate Computation Elimination",
       NESTED_LOOPS: "Nested Loops Optimization",
       SORTING_IN_LOOP: "Sorting Moved Out of Loop",
       SORTING: "Redundant Sorting Removal",
+      GENERAL: "General Green Coding Optimization",
     };
 
     const refactorLabel =
