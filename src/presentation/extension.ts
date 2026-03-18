@@ -1,8 +1,7 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import { buildOptimizationReport } from "../business/complexity/report";
-
-
+import { analyzeSustainability } from "../business/sustainability/sustainabilityEngine";
 import * as fsp from "fs/promises";
 
 // Project internal imports
@@ -218,6 +217,27 @@ if (report.metric === "space") {
 }
 
 sustainaDevOutput.appendLine(`Improvement: ${report.improvement}`);
+
+// ---------- Sustainability Analysis ----------
+try {
+
+  sustainaDevOutput.appendLine("Running sustainability analysis...");
+
+  const startTime = Date.now() - 1000; // approximate runtime
+
+  const sustainability = await analyzeSustainability(startTime);
+
+  sustainaDevOutput.appendLine("=== Sustainability Metrics ===");
+  sustainaDevOutput.appendLine(`Energy Consumption: ${sustainability.energyKwh.toFixed(6)} kWh`);
+  sustainaDevOutput.appendLine(`Carbon Emissions: ${sustainability.carbonGrams.toFixed(4)} gCO2`);
+  sustainaDevOutput.appendLine(`Sustainability Score: ${sustainability.sustainabilityScore.toFixed(2)} / 100`);
+
+} catch (err) {
+
+  sustainaDevOutput.appendLine("Sustainability analysis failed:");
+  sustainaDevOutput.appendLine(String(err));
+
+}
 
 vscode.window.showInformationMessage(
   report.metric === "space"
