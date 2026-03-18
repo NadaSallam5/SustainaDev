@@ -55,8 +55,7 @@ export async function buildOptimizationPatch(
     };
   }
 
-  // 1. Estimate algorithmic complexity BEFORE (same style as the console report)
-  const beforeBigO = estimateBigOFromCode(fullCode, methodName);
+ 
 
   // 2. Extract Existing Imports/Header
   // Captures everything from the start of the file up to the class keyword
@@ -392,83 +391,8 @@ function extractMethodBody(fullCode: string, methodName: string): string {
 
   return out.join("\n");
 }
-function estimateSpaceBigOFromCode(fullCode: string, methodName: string): string {
-  const method = extractMethodBody(fullCode, methodName);
-  const cleaned = method
-    .replace(/\/\/.*$/gm, "")
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .trim();
 
-  // Look for self-calls inside method body => recursion stack growth
-  const bodyOnly = cleaned.includes("{")
-    ? cleaned.slice(cleaned.indexOf("{") + 1)
-    : cleaned;
 
-  const selfCalls =
-    (bodyOnly.match(new RegExp(`\\b${methodName}\\s*\\(`, "g")) || []).length;
-
-  // If recursive, stack frames scale with n in typical linear recursion (factorial, sum, etc.)
-  if (selfCalls >= 1) return "O(n)";
-
-  // Otherwise assume constant extra space (local primitives)
-  return "O(1)";
-}
-
-function estimateBigOFromCode(fullCode: string, methodName: string): string {
-  const method = extractMethodBody(fullCode, methodName);
-  const cleaned = method
-    .replace(/\/\/.*$/gm, "")
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  // Detect recursion calls (exclude the signature by searching after the first "{")
-  const bodyOnly = cleaned.includes("{") ? cleaned.slice(cleaned.indexOf("{") + 1) : cleaned;
-  const selfCalls = (bodyOnly.match(new RegExp(`\\b${methodName}\\s*\\(`, "g")) || []).length;
-
-  // Loop nesting depth estimation (brace-based heuristic)
-  let brace = 0;
-  const loopStack: number[] = [];
-  let maxLoopDepth = 0;
-
-  const tokens = method.split(/\r?\n/);
-  for (const line of tokens) {
-    const l = line.replace(/\/\/.*$/, "");
-    // entering a loop (very rough but works for typical student code)
-    if (/\b(for|while)\s*\(/.test(l)) {
-      loopStack.push(brace);
-      if (loopStack.length > maxLoopDepth) maxLoopDepth = loopStack.length;
-    }
-
-    for (const ch of l) {
-      if (ch === "{") brace++;
-      else if (ch === "}") {
-        // pop loops when leaving their brace scope
-        brace--;
-        while (loopStack.length && brace < loopStack[loopStack.length - 1]) {
-          loopStack.pop();
-        }
-      }
-    }
-  }
-
-  // String concatenation inside a loop can behave like O(n^2) due to repeated allocations.
-  const hasStringVar = /\bString\s+\w+\s*=/.test(method);
-  const stringConcatInLoop = /\b(for|while)\s*\([\s\S]*?\)\s*\{[\s\S]*?(=\s*\w+\s*\+|\+=)\s*[\s\S]*?\}/.test(method);
-  if (maxLoopDepth === 1 && hasStringVar && stringConcatInLoop) {
-    return "O(n^2)";
-  }
-
-  if (maxLoopDepth >= 3) return "O(n^3)";
-  if (maxLoopDepth === 2) return "O(n^2)";
-  if (maxLoopDepth === 1) return "O(n)";
-
-  // Recursion fallback (very rough)
-  if (selfCalls >= 2) return "O(2^n)";
-  if (selfCalls === 1) return "O(n)";
-
-  return "O(1)";
-}
 
 function bigOToScore(bigO: string): number {
   const s = (bigO || "").replace(/\s+/g, "").toLowerCase();
@@ -483,44 +407,6 @@ function bigOToScore(bigO: string): number {
   return 0;
 }
 
-async function logAlgorithmicOptimization(
-  workspace: string,
-  fileName: string | undefined,
-  bigO: { metric: "time" | "space"; before: string; after: string },
-  reason: string,
-) {
-  try {
-    const beforeScore = bigOToScore(bigO.before);
-    const afterScore = bigOToScore(bigO.after);
-    const scoreDelta = Math.max(0, beforeScore - afterScore);
-    const energy = await estimateEnergy(scoreDelta * 5);
-
-    const logEntry = {
-      timestamp: new Date().toISOString(),
-      file: fileName ? path.basename(fileName) : "unknown",
-      refactor: "Algorithmic Optimization",
-      complexity: {
-        metric: bigO.metric,
-        before: bigO.before,
-        after: bigO.after,
-        improvement: `From ${bigO.before} → ${bigO.after}`,
-      },
-      energy,
-      reason,
-    };
-
-    const logDir = path.join(workspace, ".sustainadev");
-    if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
-
-    fs.appendFileSync(
-      path.join(logDir, "log.jsonl"),
-      JSON.stringify(logEntry) + "\n",
-      "utf8",
-    );
-  } catch (e) {
-    console.error("Logging failed:", e);
-  }
-}
 
 
 /**
