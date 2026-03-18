@@ -51,15 +51,14 @@ export async function buildOptimizationPatch(
 
     return {
       preview: fullCode,
-      reason: "No energy-efficient refactor detected for this method."
+      reason: "No energy-efficient refactor detected for this method.",
     };
   }
 
-  // 1. Estimate algorithmic complexity BEFORE (same style as the console report)
+  // 1. Estimate algorithmic complexity BEFORE
   const beforeBigO = estimateBigOFromCode(fullCode, methodName);
 
   // 2. Extract Existing Imports/Header
-  // Captures everything from the start of the file up to the class keyword
   const fileHeader = fullCode.split(/\bclass\b/)[0].trim();
 
   // 3. AI Generation
@@ -70,7 +69,7 @@ export async function buildOptimizationPatch(
       fullCode,
       range,
       fileHeader,
-      "RECURSION" // force iterative instruction
+      "RECURSION"
     );
   }
 
@@ -92,15 +91,15 @@ export async function buildOptimizationPatch(
     );
   }
 
-if (strategy === OptimizationStrategy.NESTED_LOOPS) {
-  rawAiResponse = await callOptimizationAI(
-    fullCode,
-    range,
-    fileHeader,
-    "NESTED_LOOPS"
-  );
-}
- // ✅ NEW: Sorting optimization calls
+  if (strategy === OptimizationStrategy.NESTED_LOOPS) {
+    rawAiResponse = await callOptimizationAI(
+      fullCode,
+      range,
+      fileHeader,
+      "NESTED_LOOPS"
+    );
+  }
+
   if (strategy === OptimizationStrategy.SORTING_IN_LOOP) {
     rawAiResponse = await callOptimizationAI(
       fullCode,
@@ -118,15 +117,16 @@ if (strategy === OptimizationStrategy.NESTED_LOOPS) {
       "SORTING"
     );
   }
-   // ✅ Guard: if AI returned nothing, avoid crash
+
+  // ✅ Guard: if AI returned nothing, avoid crash
   if (!rawAiResponse || rawAiResponse.trim().length < 10) {
     throw new Error(`AI returned empty response for strategy: ${strategy}`);
   }
+
   // 4. Extraction & Validation
   const patch = parseAiResponse(rawAiResponse);
 
-  // ✅✅✅ HARD VALIDATION for Duplicate Computation refactor
-  // Prevent invalid changes (AtomicInteger, Map caching, method signature changes)
+  // ✅ HARD VALIDATION for Duplicate Computation refactor
   if (strategy === OptimizationStrategy.DUPLICATE_COMPUTATION) {
     const invalidPatterns = [
       "AtomicInteger",
@@ -137,26 +137,34 @@ if (strategy === OptimizationStrategy.NESTED_LOOPS) {
       "memo",
     ];
 
-    // Ensure method signatures are unchanged (basic guard)
-    // If original has "private int expensive(" then preview must also have it.
-    if (fullCode.includes("private int expensive(") && !patch.preview.includes("private int expensive(")) {
+    if (
+      fullCode.includes("private int expensive(") &&
+      !patch.preview.includes("private int expensive(")
+    ) {
       throw new Error("AI changed method signature for expensive().");
     }
   }
-// ✅ Optional validation for SORTING_IN_LOOP:
-  // Ensure sorting is not still repeatedly done inside the loop (basic heuristic)
+
+  // ✅ Validation for SORTING_IN_LOOP
   if (strategy === OptimizationStrategy.SORTING_IN_LOOP) {
     const stillHasSortInsideLoop =
       patch.preview.includes("for (") &&
-      (patch.preview.includes("Collections.sort") || patch.preview.includes("Arrays.sort")) &&
+      (patch.preview.includes("Collections.sort") ||
+        patch.preview.includes("Arrays.sort")) &&
       patch.preview.indexOf("sort") > patch.preview.indexOf("for (");
 
     if (stillHasSortInsideLoop) {
-      throw new Error("AI did not move sorting out of the loop for SORTING_IN_LOOP.");
+      throw new Error(
+        "AI did not move sorting out of the loop for SORTING_IN_LOOP.",
+      );
     }
   }
+
   // 🛡️ NO-OP CHECK: The "Logic Gate"
-  const logicOnlyOriginal = fullCode.replace(/\/\/.*|\/\*[\s\S]*?\*\/|\s/g, "");
+  const logicOnlyOriginal = fullCode.replace(
+    /\/\/.*|\/\*[\s\S]*?\*\/|\s/g,
+    "",
+  );
   const logicOnlyPatch = patch.preview.replace(
     /\/\/.*|\/\*[\s\S]*?\*\/|\s/g,
     "",
@@ -172,13 +180,9 @@ if (strategy === OptimizationStrategy.NESTED_LOOPS) {
     const originalUri = vscode.Uri.file(fileName);
 
     const previewUri = vscode.Uri.file(
-      path.join(
-        os.tmpdir(),
-        `sustainadev-preview-${Date.now()}.java`
-      )
+      path.join(os.tmpdir(), `sustainadev-preview-${Date.now()}.java`),
     );
 
-    // Write optimized content to temp preview file
     fs.writeFileSync(previewUri.fsPath, patch.preview, "utf8");
 
     await vscode.commands.executeCommand(
@@ -186,10 +190,9 @@ if (strategy === OptimizationStrategy.NESTED_LOOPS) {
       originalUri,
       previewUri,
       "🧠 SustainaDev: Algorithmic Optimization (Original ↔ Optimized)",
-      { preview: true }
+      { preview: true },
     );
   }
-
 
   return patch;
 }
@@ -216,7 +219,10 @@ async function callOptimizationAI(
   const MODEL_NAME = "qwen2.5-coder:3b";
 
   console.log(`🤖 SustainaDev is calling model: ${MODEL_NAME}`);
-  console.log(`🤖 SustainaDev is calling model for: ${smellType} Optimization`);
+  console.log(
+    `🤖 SustainaDev is calling model for: ${smellType} Optimization`,
+  );
+
   const response = await client.chat.completions.create({
     model: MODEL_NAME,
     messages: [
@@ -250,7 +256,7 @@ function getTaskInstructions(smellType: string): string {
     STRING_BUILDER:
       "Replace String concatenation inside loops with StringBuilder. Avoid using '+' on Strings inside loops. Preserve logic and output.",
 
-      SORTING_IN_LOOP:
+    SORTING_IN_LOOP:
       "Sorting is performed INSIDE a loop. Refactor to avoid repeated sorting. " +
       "If sorting is genuinely needed, sort ONCE outside the loop without changing output. " +
       "If sorting was only used to get max/min, replace sort with a single O(n) scan. " +
@@ -337,7 +343,9 @@ function parseAiResponse(text: string): OptimizationResult {
 
   if (
     preview.startsWith("public") &&
-    !preview.match(/^public\s+(class|final|abstract|interface|@interface|enum)/)
+    !preview.match(
+      /^public\s+(class|final|abstract|interface|@interface|enum)/,
+    )
   ) {
     preview = preview.replace(/^public\s+/, "").trim();
   }
@@ -354,12 +362,7 @@ function parseAiResponse(text: string): OptimizationResult {
   return { preview, reason };
 }
 
-/**
- * Extract just the target method body so we can estimate Big-O.
- * This is a heuristic (NOT a formal proof) but it matches the simple reporting style you show in the console.
- */
 function extractMethodBody(fullCode: string, methodName: string): string {
-  // Find the method signature line (very forgiving regex).
   const sig = new RegExp(`\\b${methodName}\\s*\\(`);
   const lines = fullCode.split(/\r?\n/);
   let startLine = -1;
@@ -371,7 +374,6 @@ function extractMethodBody(fullCode: string, methodName: string): string {
   }
   if (startLine === -1) return fullCode;
 
-  // Walk forward and capture braces to isolate the method block.
   let brace = 0;
   let started = false;
   const out: string[] = [];
@@ -392,25 +394,26 @@ function extractMethodBody(fullCode: string, methodName: string): string {
 
   return out.join("\n");
 }
-function estimateSpaceBigOFromCode(fullCode: string, methodName: string): string {
+
+function estimateSpaceBigOFromCode(
+  fullCode: string,
+  methodName: string,
+): string {
   const method = extractMethodBody(fullCode, methodName);
   const cleaned = method
     .replace(/\/\/.*$/gm, "")
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .trim();
 
-  // Look for self-calls inside method body => recursion stack growth
   const bodyOnly = cleaned.includes("{")
     ? cleaned.slice(cleaned.indexOf("{") + 1)
     : cleaned;
 
-  const selfCalls =
-    (bodyOnly.match(new RegExp(`\\b${methodName}\\s*\\(`, "g")) || []).length;
+  const selfCalls = (
+    bodyOnly.match(new RegExp(`\\b${methodName}\\s*\\(`, "g")) || []
+  ).length;
 
-  // If recursive, stack frames scale with n in typical linear recursion (factorial, sum, etc.)
   if (selfCalls >= 1) return "O(n)";
-
-  // Otherwise assume constant extra space (local primitives)
   return "O(1)";
 }
 
@@ -422,11 +425,13 @@ function estimateBigOFromCode(fullCode: string, methodName: string): string {
     .replace(/\s+/g, " ")
     .trim();
 
-  // Detect recursion calls (exclude the signature by searching after the first "{")
-  const bodyOnly = cleaned.includes("{") ? cleaned.slice(cleaned.indexOf("{") + 1) : cleaned;
-  const selfCalls = (bodyOnly.match(new RegExp(`\\b${methodName}\\s*\\(`, "g")) || []).length;
+  const bodyOnly = cleaned.includes("{")
+    ? cleaned.slice(cleaned.indexOf("{") + 1)
+    : cleaned;
+  const selfCalls = (
+    bodyOnly.match(new RegExp(`\\b${methodName}\\s*\\(`, "g")) || []
+  ).length;
 
-  // Loop nesting depth estimation (brace-based heuristic)
   let brace = 0;
   const loopStack: number[] = [];
   let maxLoopDepth = 0;
@@ -434,7 +439,6 @@ function estimateBigOFromCode(fullCode: string, methodName: string): string {
   const tokens = method.split(/\r?\n/);
   for (const line of tokens) {
     const l = line.replace(/\/\/.*$/, "");
-    // entering a loop (very rough but works for typical student code)
     if (/\b(for|while)\s*\(/.test(l)) {
       loopStack.push(brace);
       if (loopStack.length > maxLoopDepth) maxLoopDepth = loopStack.length;
@@ -443,18 +447,22 @@ function estimateBigOFromCode(fullCode: string, methodName: string): string {
     for (const ch of l) {
       if (ch === "{") brace++;
       else if (ch === "}") {
-        // pop loops when leaving their brace scope
         brace--;
-        while (loopStack.length && brace < loopStack[loopStack.length - 1]) {
+        while (
+          loopStack.length &&
+          brace < loopStack[loopStack.length - 1]
+        ) {
           loopStack.pop();
         }
       }
     }
   }
 
-  // String concatenation inside a loop can behave like O(n^2) due to repeated allocations.
   const hasStringVar = /\bString\s+\w+\s*=/.test(method);
-  const stringConcatInLoop = /\b(for|while)\s*\([\s\S]*?\)\s*\{[\s\S]*?(=\s*\w+\s*\+|\+=)\s*[\s\S]*?\}/.test(method);
+  const stringConcatInLoop =
+    /\b(for|while)\s*\([\s\S]*?\)\s*\{[\s\S]*?(=\s*\w+\s*\+|\+=)\s*[\s\S]*?\}/.test(
+      method,
+    );
   if (maxLoopDepth === 1 && hasStringVar && stringConcatInLoop) {
     return "O(n^2)";
   }
@@ -463,7 +471,6 @@ function estimateBigOFromCode(fullCode: string, methodName: string): string {
   if (maxLoopDepth === 2) return "O(n^2)";
   if (maxLoopDepth === 1) return "O(n)";
 
-  // Recursion fallback (very rough)
   if (selfCalls >= 2) return "O(2^n)";
   if (selfCalls === 1) return "O(n)";
 
@@ -474,7 +481,12 @@ function bigOToScore(bigO: string): number {
   const s = (bigO || "").replace(/\s+/g, "").toLowerCase();
   if (s.includes("o(1)")) return 1;
   if (s.includes("o(logn)") || s.includes("o(log(n))")) return 2;
-  if (s.includes("o(n)") && !s.includes("o(nlogn)") && !s.includes("o(nlog(n))")) return 3;
+  if (
+    s.includes("o(n)") &&
+    !s.includes("o(nlogn)") &&
+    !s.includes("o(nlog(n))")
+  )
+    return 3;
   if (s.includes("o(nlogn)") || s.includes("o(nlog(n))")) return 4;
   if (s.includes("o(n^2)") || s.includes("o(n2)")) return 5;
   if (s.includes("o(n^3)") || s.includes("o(n3)")) return 6;
@@ -483,49 +495,6 @@ function bigOToScore(bigO: string): number {
   return 0;
 }
 
-async function logAlgorithmicOptimization(
-  workspace: string,
-  fileName: string | undefined,
-  bigO: { metric: "time" | "space"; before: string; after: string },
-  reason: string,
-) {
-  try {
-    const beforeScore = bigOToScore(bigO.before);
-    const afterScore = bigOToScore(bigO.after);
-    const scoreDelta = Math.max(0, beforeScore - afterScore);
-    const energy = await estimateEnergy(scoreDelta * 5);
-
-    const logEntry = {
-      timestamp: new Date().toISOString(),
-      file: fileName ? path.basename(fileName) : "unknown",
-      refactor: "Algorithmic Optimization",
-      complexity: {
-        metric: bigO.metric,
-        before: bigO.before,
-        after: bigO.after,
-        improvement: `From ${bigO.before} → ${bigO.after}`,
-      },
-      energy,
-      reason,
-    };
-
-    const logDir = path.join(workspace, ".sustainadev");
-    if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
-
-    fs.appendFileSync(
-      path.join(logDir, "log.jsonl"),
-      JSON.stringify(logEntry) + "\n",
-      "utf8",
-    );
-  } catch (e) {
-    console.error("Logging failed:", e);
-  }
-}
-
-
-/**
- * Utility to isolate the class context
- */
 export type OptimizationReport = {
   metric: "time" | "space";
   before: string;
@@ -533,11 +502,21 @@ export type OptimizationReport = {
   improvement: string;
 };
 
+/**
+ * Logs an optimization result to .sustainadev/log.jsonl
+ * refactorType is passed in so each entry logs the actual smell type (e.g. "RECURSION", "NESTED_LOOPS")
+ */
 export async function logOptimizationFromReport(
   workspace: string,
   fileName: string | undefined,
   report: OptimizationReport,
   reason: string,
+  sustainability?: {
+    energyKwh: number;
+    carbonGrams: number;
+    sustainabilityScore: number;
+  },
+  refactorType?: string,
 ) {
   try {
     const beforeScore = bigOToScore(report.before);
@@ -545,10 +524,30 @@ export async function logOptimizationFromReport(
     const scoreDelta = Math.max(0, beforeScore - afterScore);
     const energy = await estimateEnergy(scoreDelta * 5);
 
+    // Map OptimizationStrategy enum values to human-readable labels.
+    // STRING_CONCAT is included because chooseRefactor() returns "STRING_CONCAT"
+    // as decision.type, while chooseOptimizationStrategy() uses STRING_BUILDER internally.
+    const refactorLabelMap: Record<string, string> = {
+      ITERATIVE_REWRITE: "Iterative Rewrite (Recursion → Loop)",
+      MEMOIZATION: "Memoization (Overlapping Subproblems)",
+      STRING_BUILDER: "String Concatenation → StringBuilder",
+      STRING_CONCAT: "String Concatenation → StringBuilder",
+      DUPLICATE_COMPUTATION: "Duplicate Computation Elimination",
+      NESTED_LOOPS: "Nested Loops Optimization",
+      SORTING_IN_LOOP: "Sorting Moved Out of Loop",
+      SORTING: "Redundant Sorting Removal",
+      GENERAL: "General Green Coding Optimization",
+    };
+
+    const refactorLabel =
+      refactorType && refactorLabelMap[refactorType]
+        ? refactorLabelMap[refactorType]
+        : refactorType ?? "Algorithmic Optimization";
+
     const logEntry = {
       timestamp: new Date().toISOString(),
       file: fileName ? path.basename(fileName) : "unknown",
-      refactor: "Algorithmic Optimization",
+      refactor: refactorLabel,
       complexity: {
         metric: report.metric,
         before: report.before,
@@ -556,6 +555,7 @@ export async function logOptimizationFromReport(
         improvement: `From ${report.before} → ${report.after}`,
       },
       energy,
+      sustainability: sustainability ?? null,
       reason,
     };
 
@@ -571,6 +571,7 @@ export async function logOptimizationFromReport(
     console.error("Logging failed:", e);
   }
 }
+
 
 export function extractClassBlock(fullCode: string, startLine: number) {
   const lines = fullCode.split(/\r?\n/);
