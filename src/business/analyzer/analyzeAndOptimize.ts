@@ -1,10 +1,10 @@
 import { chooseRefactor } from "../refactor/chooseRefactor";
 import { buildOptimizationPatch } from "../refactor/optimizeComplexity";
-
+import { estimateComplexityWithQwen } from "../complexity/qwenComplexity";
+import { buildOptimizationReport } from "../complexity/report";
+import { AIComplexityResult } from "../complexity/types";
 import { runJavaAnalyzer } from "./javaRunner";
 import * as vscode from "vscode";
-
-import { buildOptimizationReport } from "../complexity/report";
 
 export async function analyzeAndOptimize(
   context: vscode.ExtensionContext,
@@ -17,37 +17,47 @@ export async function analyzeAndOptimize(
     throw new Error("No active editor");
   }
 
-  // ✅ Output channel
   const output = vscode.window.createOutputChannel("SustainaDev");
   output.show(true);
-  output.appendLine("SustainaDev OutputChannel created ✅");
-  output.appendLine(`Triggered at: ${new Date().toISOString()}`);
+ 
 
-  // Analyze currently opened file
   const targetFile = editor.document.uri.fsPath;
-  output.appendLine(`Active file: ${targetFile}`);
 
-  // ✅ ALWAYS use the real current editor text (not incoming `code`)
+
   const documentText = editor.document.getText();
 
   // ---------- 1) Run analyzer BEFORE ----------
-  output.appendLine("Running Java analyzer (BEFORE)...");
+ 
   const factsList = await runJavaAnalyzer(context);
 
   if (!factsList || factsList.length === 0) {
     output.appendLine("ERROR: No MethodFacts received from Java analyzer (BEFORE).");
     throw new Error("No MethodFacts received from Java analyzer");
   }
-  output.appendLine(`Analyzer BEFORE returned ${factsList.length} methods.`);
+ 
 
   // ---------- 2) Detect method at cursor ----------
   const cursorOffset = editor.document.offsetAt(editor.selection.active) ?? 0;
   const beforeCursor = documentText.slice(0, cursorOffset);
 
-  const methodMatch = beforeCursor.match(/(\w+)\s*\([^)]*\)\s*\{/g);
-  const targetMethodName = methodMatch
-    ? methodMatch[methodMatch.length - 1].match(/(\w+)\s*\(/)?.[1]
-    : null;
+  const methodMatches = beforeCursor.match(/(\w+)\s*\([^)]*\)\s*\{/g);
+
+  let targetMethodName: string | null = null;
+
+  if (methodMatches) {
+    for (let i = methodMatches.length - 1; i >= 0; i--) {
+      const name = methodMatches[i].match(/(\w+)\s*\(/)?.[1];
+
+      if (!name) continue;
+
+      const invalid = ["if", "for", "while", "switch", "catch"];
+
+      if (!invalid.includes(name)) {
+        targetMethodName = name;
+        break;
+      }
+    }
+  }
 
   if (!targetMethodName) {
     output.appendLine("ERROR: Could not detect method at cursor position.");
@@ -55,7 +65,7 @@ export async function analyzeAndOptimize(
     return;
   }
 
-  output.appendLine(`Detected target method: ${targetMethodName}`);
+
 
   // ---------- 3) Pick BEFORE facts ----------
   const beforeFacts = factsList.find((f) => f.methodName === targetMethodName);
@@ -66,23 +76,16 @@ export async function analyzeAndOptimize(
     return;
   }
 
-  output.appendLine(
-    `BEFORE facts: loopDepth=${beforeFacts.maxLoopDepth}, cyclomatic=${beforeFacts.cyclomaticComplexity}, callsSelf=${beforeFacts.callsSelf}`
-  );
+ 
 
-  // ✅✅✅ DEBUG (IMPORTANT): print full facts object + string concat flag
-  output.appendLine("=== DEBUG BEFORE FACTS JSON ===");
-  output.appendLine(JSON.stringify(beforeFacts, null, 2));
-  output.appendLine(
-    `DEBUG hasStringConcatInLoop=${(beforeFacts as any).hasStringConcatInLoop} | maxLoopDepth=${beforeFacts.maxLoopDepth} | callsSelf=${beforeFacts.callsSelf}`
-  );
+
 
   // ---------- 4) Decide optimization ----------
   const decision = chooseRefactor(beforeFacts);
-  output.appendLine(`Refactor decision: ${decision.type}`);
 
-  // ---------- 5) Generate patch + show preview (NO APPLY YET) ----------
-  output.appendLine("Generating optimization preview...");
+
+  // ---------- 5) Generate patch + show preview ----------
+
   let patch: { preview: string; reason: string };
 
   try {
@@ -92,29 +95,26 @@ export async function analyzeAndOptimize(
       methodFacts: beforeFacts,
     });
 
-    // ✅ DEBUG patch meta
-    output.appendLine("=== DEBUG PATCH META ===");
-    output.appendLine(`Patch reason: ${patch?.reason ?? "no-reason"}`);
-    output.appendLine(`Patch preview length: ${patch?.preview?.length ?? 0}`);
+    
   } catch (e: any) {
     if (String(e?.message || e).includes("ALREADY_OPTIMIZED")) {
       output.appendLine("✅ Code logic is already optimized.");
       vscode.window.showInformationMessage("✅ Code logic is already optimized.");
       return;
     }
+
     output.appendLine(`ERROR while generating patch: ${e?.message || e}`);
     vscode.window.showErrorMessage(`Optimization failed: ${e?.message || e}`);
     return;
   }
 
-  // If no real change
   if (!patch?.preview || patch.preview.trim() === documentText.trim()) {
     output.appendLine("ℹ️ No optimization changes were generated.");
     vscode.window.showInformationMessage("ℹ️ No optimization changes were generated.");
     return;
   }
 
-  // ---------- 6) Ask Accept/Reject ----------
+  // ---------- 6) Ask Accept/Reject FIRST ----------
   const choice = await vscode.window.showQuickPick(
     ["✅ Accept Optimization", "❌ Reject"],
     { placeHolder: "Apply the optimized code?" }
@@ -126,21 +126,47 @@ export async function analyzeAndOptimize(
     return;
   }
 
-  // ---------- 7) APPLY optimized code to the real file ----------
-  output.appendLine("Applying optimization patch (user accepted)...");
-  const fullRange = new vscode.Range(
-    editor.document.positionAt(0),
-    editor.document.positionAt(editor.document.getText().length)
-  );
+  // ---------- 6.5) Qwen BEFORE only after accept ----------
+  let beforeAI: AIComplexityResult;
 
-  const edit = new vscode.WorkspaceEdit();
-  edit.replace(editor.document.uri, fullRange, patch.preview);
-  await vscode.workspace.applyEdit(edit);
-  await editor.document.save();
-  output.appendLine("Optimization patch applied and document saved ✅");
+  try {
+   
+    beforeAI = await estimateComplexityWithQwen(documentText, beforeFacts);
+
+  ;
+  } catch (e: any) {
+    output.appendLine(`QWEN BEFORE ERROR: ${e?.message || e}`);
+    vscode.window.showErrorMessage(`Qwen BEFORE failed: ${e?.message || e}`);
+    return;
+  }
+
+ // ---------- 7) APPLY optimized code ----------
+const fullRange = new vscode.Range(
+  editor.document.positionAt(0),
+  editor.document.positionAt(editor.document.getText().length)
+);
+
+const edit = new vscode.WorkspaceEdit();
+edit.replace(editor.document.uri, fullRange, patch.preview);
+await vscode.workspace.applyEdit(edit);
+await editor.document.save();
+
+// Open the real optimized file immediately
+const realDoc = await vscode.workspace.openTextDocument(editor.document.uri);
+await vscode.window.showTextDocument(realDoc, {
+  preview: false,
+  preserveFocus: false,
+});
+
+// Close diff/preview immediately
+await vscode.commands.executeCommand("workbench.action.closeOtherEditors");
+
+// now continue the rest of the pipeline
+const updatedDocumentText = realDoc.getText();
+ 
 
   // ---------- 8) Run analyzer AFTER ----------
-  output.appendLine("Running Java analyzer (AFTER)...");
+
   const afterFactsList = await runJavaAnalyzer(context);
 
   if (!afterFactsList || afterFactsList.length === 0) {
@@ -148,7 +174,7 @@ export async function analyzeAndOptimize(
     vscode.window.showErrorMessage("No MethodFacts received after optimization.");
     return;
   }
-  output.appendLine(`Analyzer AFTER returned ${afterFactsList.length} methods.`);
+ 
 
   // ---------- 9) Pick AFTER facts ----------
   const afterFacts = afterFactsList.find((f) => f.methodName === targetMethodName);
@@ -159,22 +185,34 @@ export async function analyzeAndOptimize(
     return;
   }
 
-  output.appendLine(
-    `AFTER facts: loopDepth=${afterFacts.maxLoopDepth}, cyclomatic=${afterFacts.cyclomaticComplexity}, callsSelf=${afterFacts.callsSelf}`
-  );
+ 
+  // ---------- 9.5) Qwen AFTER ----------
+  let afterAI: AIComplexityResult;
 
-  // ---------- 10) Build report ----------
-  const report = buildOptimizationReport(beforeFacts, afterFacts);
+  try {
 
-  // ---------- 11) Show report ----------
-  output.appendLine("=== Complexity Report (Before vs After) ===");
-  output.appendLine(`Before: ${report.before}`);
-  output.appendLine(`After:  ${report.after}`);
-  output.appendLine(`Improvement: ${report.improvement}`);
+    afterAI = await estimateComplexityWithQwen(updatedDocumentText, afterFacts);
 
-  vscode.window.showInformationMessage(
-    `Complexity improved: ${report.before} → ${report.after}`
-  );
 
-  output.appendLine("Done ✅");
+  } catch (e: any) {
+    output.appendLine(`QWEN AFTER ERROR: ${e?.message || e}`);
+    vscode.window.showErrorMessage(`Qwen AFTER failed: ${e?.message || e}`);
+    return;
+  }
+
+  // ---------- 10) Build report from Qwen ----------
+const report = buildOptimizationReport(beforeAI, afterAI, beforeFacts, afterFacts);
+
+  // ---------- 11) Show final report ----------
+output.appendLine("=== Qwen Complexity Report ===");
+output.appendLine(`Before: ${report.before}`);
+output.appendLine(`After: ${report.after}`);
+output.appendLine(`Improvement: ${report.improvement}`);
+
+vscode.window.showInformationMessage(
+  report.metric === "space"
+    ? `Space improved: ${report.before} → ${report.after}`
+    : `Complexity improved: ${report.before} → ${report.after}`
+);
+
 }

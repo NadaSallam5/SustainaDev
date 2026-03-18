@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import * as path from "path";
-import { buildOptimizationReport } from "../business/complexity/report";
 
+import { analyzeAndOptimize } from "../business/analyzer/analyzeAndOptimize";
 
 import * as fsp from "fs/promises";
 
@@ -114,7 +114,7 @@ export function deactivate() {}
 async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
   if (isRunning) {
     vscode.window.showWarningMessage(
-      "⏳ SustainaDev is still processing. Please wait until the current refactor completes.",
+      "⏳ SustainaDev is still processing. Please wait until the current refactor completes."
     );
     return;
   }
@@ -125,13 +125,12 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
   try {
     initPaths(context);
 
-    // 1. Validation & Setup
     const editor = vscode.window.activeTextEditor;
     if (editor && editor.document.isDirty) {
       await editor.document.save();
     }
+
     if (!editor) {
-      isRunning = false;
       return;
     }
 
@@ -140,136 +139,24 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
     const refreshedDoc = await vscode.workspace.openTextDocument(originalUri);
     await refreshedDoc.save();
 
-const fullCode = refreshedDoc.getText();
+    const fullCode = refreshedDoc.getText();
 
-const factsList = await runJavaAnalyzer(context);
-
-if (!factsList.length) {
-  vscode.window.showInformationMessage("No methods detected by analyzer.");
-  isRunning = false;
-  return;
-}
-
-
-// OPTIONAL: choose one method (first or highest complexity later)
-const facts =
-  factsList.find(m => m.sortInsideLoop === true) ||
-  factsList.find(m => m.hasSortingCall === true) ||
-  factsList[0];
-// 🔥 RULE ENGINE (WHAT to do)
-const decision = chooseRefactor(facts);
-
-    // 3. Execution Logic
-    if (validSmells.includes(decision.type)) {
-     const patch = await buildOptimizationPatch(
-  fullCode,
-  {
-    from: editor.selection.start.line,
-    to: editor.selection.end.line,
-  },
-  filePath,
-  {
-    targetMethodName: facts.methodName,
-    smellType: decision.type,
-    methodFacts: facts, // ✅ REQUIRED
-  }
-);
-
-void vscode.window.showQuickPick(
-  ["✅ Accept Optimization", "❌ Reject"],
-  {
-    placeHolder: "Apply the optimized code?",
-  }
-).then(async (choice) => {
-if (choice === "✅ Accept Optimization") {
-  await applyPatchToDocument(
-    originalUri,
-    patch.preview,
-    refreshedDoc.lineCount
-  );
-
-  await refreshedDoc.save();
-
-  vscode.window.showInformationMessage("✅ Optimization applied successfully.");
-
-  // ✅ Run analyzer AFTER applying patch
-  const afterFactsList = await runJavaAnalyzer(context);
-  const afterFacts = afterFactsList.find(m => m.methodName === facts.methodName);
-
- if (afterFacts) {
-   const report = buildOptimizationReport(facts, afterFacts);
-
-const title =
-  report.metric === "space"
-    ? "=== Space Complexity Report ==="
-    : "=== Complexity Report ===";
-
-const label =
-  report.metric === "space" ? "Space" : "Before";
-
-sustainaDevOutput.appendLine(title);
-
-if (report.metric === "space") {
-  sustainaDevOutput.appendLine(`Space Before: ${report.before}`);
-  sustainaDevOutput.appendLine(`Space After:  ${report.after}`);
-} else {
-  sustainaDevOutput.appendLine(`Before: ${report.before}`);
-  sustainaDevOutput.appendLine(`After:  ${report.after}`);
-}
-
-sustainaDevOutput.appendLine(`Improvement: ${report.improvement}`);
-
-vscode.window.showInformationMessage(
-  report.metric === "space"
-    ? `Space improved: ${report.before} → ${report.after}`
-    : `Complexity improved: ${report.before} → ${report.after}`
-);
-
-
-    vscode.window.showInformationMessage(
-      `Complexity improved: ${report.before} → ${report.after}`
-    );
-    const workspace =
-  vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
-
-await logOptimizationFromReport(
-  workspace,
-  filePath,        // full path is ok; logger uses basename anyway
-  report,          // <-- SAME report you printed in console
-  patch.reason     // <-- same reason you already have
-);
-
-}
- else {
-    sustainaDevOutput.appendLine(
-      `⚠️ Could not find AFTER facts for method: ${facts.methodName}`
-    );
-  }
-}
- else if (choice) {
-    vscode.window.showInformationMessage(
-      "❌ Optimization discarded."
-    );
-  }
-});
-
-
-    } else {
-      vscode.window.showInformationMessage("No actionable refactor suggested.");
-    }
+    await analyzeAndOptimize(context, fullCode, filePath, {
+      from: editor.selection.start.line,
+      to: editor.selection.end.line,
+    });
   } catch (err: any) {
-    // 🛡️ Graceful Handling for ALREADY_OPTIMIZED
     if (err.message === "ALREADY_OPTIMIZED") {
-      isRunning = false;
       return;
     }
+
     vscode.window.showErrorMessage(
-      `❌ SustainaDev failed: ${err.message || err}`,
+      `❌ SustainaDev failed: ${err.message || err}`
     );
   } finally {
     isRunning = false;
     vscode.window.showInformationMessage(
-      "🟢 SustainaDev pipeline ready for next run.",
+      "🟢 SustainaDev pipeline ready for next run."
     );
   }
 }
