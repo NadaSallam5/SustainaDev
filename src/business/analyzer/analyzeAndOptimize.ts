@@ -1,10 +1,14 @@
 import { chooseRefactor } from "../refactor/chooseRefactor";
-import { buildOptimizationPatch } from "../refactor/optimizeComplexity";
+import {
+  buildOptimizationPatch,
+  logOptimizationFromReport,
+} from "../refactor/optimizeComplexity";
 import { estimateComplexityWithQwen } from "../complexity/qwenComplexity";
 import { buildOptimizationReport } from "../complexity/report";
 import { AIComplexityResult } from "../complexity/types";
 import { runJavaAnalyzer } from "./javaRunner";
 import * as vscode from "vscode";
+
 
 export async function analyzeAndOptimize(
   context: vscode.ExtensionContext,
@@ -200,10 +204,11 @@ const updatedDocumentText = realDoc.getText();
     return;
   }
 
-  // ---------- 10) Build report from Qwen ----------
+ // ---------- 10) Build report from Qwen ----------
 const report = buildOptimizationReport(beforeAI, afterAI, beforeFacts, afterFacts);
 
-  // ---------- 11) Show final report ----------
+
+// ---------- 11) Show final report ----------
 output.appendLine("=== Qwen Complexity Report ===");
 output.appendLine(`Before: ${report.before}`);
 output.appendLine(`After: ${report.after}`);
@@ -215,4 +220,14 @@ vscode.window.showInformationMessage(
     : `Complexity improved: ${report.before} → ${report.after}`
 );
 
+// ---------- 12) Save optimization log ----------
+const workspace =
+  vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
+
+await logOptimizationFromReport(
+  workspace,
+  filePath,
+  report,
+  patch.reason
+);
 }
