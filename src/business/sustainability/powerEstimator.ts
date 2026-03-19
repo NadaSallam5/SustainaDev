@@ -39,14 +39,22 @@ export async function getHardwareSpecs(): Promise<HardwareSpecs> {
   }
 }
 
-export function estimateHardwarePower(specs: HardwareSpecs): number {
+// ─── REPLACE your existing estimateHardwarePower with this ───
+export function estimateHardwarePower(
+  specs: HardwareSpecs,
+  cpuUtilization: number
+): number {
+  // CPU: interpolate between idle floor (10% of TDP) and full TDP
+  // Source: SPECpower benchmark idle-to-peak ratios
+  const cpuIdle = specs.cpuTdp * 0.1;
+  const cpuPower = cpuIdle + (specs.cpuTdp - cpuIdle) * cpuUtilization;
 
-  const baseSystemPower = 30
+  // GPU: code refactoring tasks have negligible GPU load
+  const gpuPower = (specs.gpuTdp ?? 0) * 0.05;
 
-  const totalPower =
-    specs.cpuTdp +
-    (specs.gpuTdp ?? 0) +
-    baseSystemPower
+  // Base system: memory, storage, NIC, fans — does not scale with CPU load
+  // Source: Lawrence Berkeley National Lab "Always-On" report (2015), ~15W for laptops
+  const basePower = 15;
 
-  return totalPower
+  return cpuPower + gpuPower + basePower;
 }

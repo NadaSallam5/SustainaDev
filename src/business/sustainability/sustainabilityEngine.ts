@@ -1,31 +1,25 @@
-import { getHardwareSpecs, estimateHardwarePower } from "./powerEstimator"
-import { measureExecution } from "../codeCarbon"
-import { calculateEnergy } from "./energyCalculator"
-import { calculateCarbon } from "./carbonCalculator"
-import { calculateSustainabilityScore } from "./sustainabilityScore"
+// ─── REPLACE your entire sustainabilityEngine.ts with this ───
+import { getHardwareSpecs, estimateHardwarePower } from "./powerEstimator";
+import { measureExecution } from "../codeCarbon";
+import { calculateEnergy } from "./energyCalculator";
+import { calculateCarbon } from "./carbonCalculator";
+import { calculateSustainabilityScore } from "./sustainabilityScore";
 
 export async function analyzeSustainability(startTime: number) {
+  const hardware = await getHardwareSpecs();
 
-  const hardware = await getHardwareSpecs()
+  const metrics = await measureExecution(startTime);
 
-  const power = estimateHardwarePower(hardware)
+  // cpuUtilization now flows into power estimation, not energy calculation
+  const power = estimateHardwarePower(hardware, metrics.cpuUtilization);
 
-  const metrics = await measureExecution(startTime)
+  const energy = calculateEnergy(power, metrics.runtimeSeconds);
 
-  const energy = calculateEnergy(
-    power,
-    metrics.cpuUtilization,
-    metrics.runtimeSeconds
-  )
-
-  const carbon = calculateCarbon(energy)
-
-  const score = calculateSustainabilityScore(carbon)
+  const carbon = calculateCarbon(energy);
 
   return {
     energyKwh: energy,
     carbonGrams: carbon,
-    sustainabilityScore: score
-  }
-
+    sustainabilityScore: 0, // computed externally once before+after are both known
+  };
 }
