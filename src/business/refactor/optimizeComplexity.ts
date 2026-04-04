@@ -3,7 +3,6 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { estimateEnergy } from "../codeCarbon";
 import {
   chooseOptimizationStrategy,
   OptimizationStrategy,
@@ -32,9 +31,6 @@ export async function buildOptimizationPatch(
     methodFacts: MethodFacts;
   },
 ): Promise<OptimizationResult> {
-
-  const workspace =
-    vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
   const { targetMethodName, smellType, methodFacts } = context;
   const methodName = targetMethodName;
 
@@ -46,7 +42,7 @@ export async function buildOptimizationPatch(
   console.log(`🧠 Chosen optimization strategy: ${strategy}`);
   if (strategy === OptimizationStrategy.KEEP_RECURSION) {
     vscode.window.showInformationMessage(
-      "ℹ️ No greener refactor available for this method."
+      "ℹ️ No greener refactor available for this method.",
     );
 
     return {
@@ -69,7 +65,7 @@ export async function buildOptimizationPatch(
       fullCode,
       range,
       fileHeader,
-      "RECURSION"
+      "RECURSION",
     );
   }
 
@@ -78,7 +74,7 @@ export async function buildOptimizationPatch(
       fullCode,
       range,
       fileHeader,
-      smellType
+      smellType,
     );
   }
 
@@ -87,7 +83,7 @@ export async function buildOptimizationPatch(
       fullCode,
       range,
       fileHeader,
-      "STRING_BUILDER"
+      "STRING_BUILDER",
     );
   }
 
@@ -96,7 +92,7 @@ export async function buildOptimizationPatch(
       fullCode,
       range,
       fileHeader,
-      "NESTED_LOOPS"
+      "NESTED_LOOPS",
     );
   }
 
@@ -105,7 +101,7 @@ export async function buildOptimizationPatch(
       fullCode,
       range,
       fileHeader,
-      "SORTING_IN_LOOP"
+      "SORTING_IN_LOOP",
     );
   }
 
@@ -114,7 +110,7 @@ export async function buildOptimizationPatch(
       fullCode,
       range,
       fileHeader,
-      "SORTING"
+      "SORTING",
     );
   }
 
@@ -128,15 +124,6 @@ export async function buildOptimizationPatch(
 
   // ✅ HARD VALIDATION for Duplicate Computation refactor
   if (strategy === OptimizationStrategy.DUPLICATE_COMPUTATION) {
-    const invalidPatterns = [
-      "AtomicInteger",
-      "HashMap",
-      "Map<",
-      "ConcurrentHashMap",
-      "cache",
-      "memo",
-    ];
-
     if (
       fullCode.includes("private int expensive(") &&
       !patch.preview.includes("private int expensive(")
@@ -504,7 +491,6 @@ export type OptimizationReport = {
 
 /**
  * Logs an optimization result to .sustainadev/log.jsonl
- * refactorType is passed in so each entry logs the actual smell type (e.g. "RECURSION", "NESTED_LOOPS")
  */
 export async function logOptimizationFromReport(
   workspace: string,
@@ -515,18 +501,12 @@ export async function logOptimizationFromReport(
     energyKwh: number;
     carbonGrams: number;
     sustainabilityScore: number;
+    beforeEnergyKwh: number;
+    beforeCarbonGrams: number;
   },
   refactorType?: string,
 ) {
   try {
-    const beforeScore = bigOToScore(report.before);
-    const afterScore = bigOToScore(report.after);
-    const scoreDelta = Math.max(0, beforeScore - afterScore);
-    const energy = await estimateEnergy(scoreDelta * 5);
-
-    // Map OptimizationStrategy enum values to human-readable labels.
-    // STRING_CONCAT is included because chooseRefactor() returns "STRING_CONCAT"
-    // as decision.type, while chooseOptimizationStrategy() uses STRING_BUILDER internally.
     const refactorLabelMap: Record<string, string> = {
       ITERATIVE_REWRITE: "Iterative Rewrite (Recursion → Loop)",
       MEMOIZATION: "Memoization (Overlapping Subproblems)",
@@ -545,20 +525,34 @@ export async function logOptimizationFromReport(
         : refactorType ?? "Algorithmic Optimization";
 
     const logEntry = {
-      timestamp: new Date().toISOString(),
-      file: fileName ? path.basename(fileName) : "unknown",
-      refactor: refactorLabel,
-      complexity: {
+    timestamp: new Date().toISOString(),
+    file: fileName ? path.basename(fileName) : "unknown",
+    refactor: refactorLabel,
+    complexity: {
         metric: report.metric,
         before: report.before,
         after: report.after,
         improvement: `From ${report.before} → ${report.after}`,
-      },
-      energy,
-      sustainability: sustainability ?? null,
-      reason,
-    };
-
+    },
+    sustainability: sustainability
+        ? {
+            before: {
+                energyKwh: sustainability.beforeEnergyKwh,
+                carbonGrams: sustainability.beforeCarbonGrams,
+            },
+            after: {
+                energyKwh: sustainability.energyKwh,
+                carbonGrams: sustainability.carbonGrams,
+            },
+            saved: {
+                energyKwh: sustainability.beforeEnergyKwh - sustainability.energyKwh,
+                carbonGrams: sustainability.beforeCarbonGrams - sustainability.carbonGrams,
+            },
+            sustainabilityScore: sustainability.sustainabilityScore,
+        }
+        : null,
+    reason,
+};
     const logDir = path.join(workspace, ".sustainadev");
     if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
 

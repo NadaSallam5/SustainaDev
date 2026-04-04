@@ -3,15 +3,15 @@ import * as path from "path";
 import { buildOptimizationReport } from "../business/complexity/report";
 import * as fsp from "fs/promises";
 import { analyzeSustainability } from "../business/sustainability/sustainabilityEngine";
-// Project internal imports
 import {
   buildOptimizationPatch,
   logOptimizationFromReport,
 } from "../business/refactor/optimizeComplexity";
 import { chooseRefactor } from "../business/refactor/chooseRefactor";
-import { initPaths } from "../business/codeCarbon";
+import { initPaths, startCpuSampling } from "../business/codeCarbon";
 import { runJavaAnalyzer } from "../business/analyzer/javaRunner";
 import si from "systeminformation";
+import { calculateSustainabilityScore } from "../business/sustainability/sustainabilityScore";
 
 /**
  * Global state to prevent concurrent executions
@@ -79,15 +79,11 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
   }
 
   isRunning = true;
-
-  // Real start time captured at the very beginning of the pipeline
-  const startTime = Date.now();
+  initPaths(context);
 
   vscode.window.showInformationMessage("🚀 SustainaDev pipeline started...");
 
   try {
-    initPaths(context);
-
     const editor = vscode.window.activeTextEditor;
     if (editor && editor.document.isDirty) {
       await editor.document.save();
@@ -176,24 +172,80 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
                 `Improvement: ${report.improvement}`,
               );
 
-              // Sustainability metrics
-              let sustainabilityResult: Awaited<ReturnType<typeof analyzeSustainability>> | undefined;
+              // ─── Sustainability block ───
+              let sustainabilityResult:
+                | {
+                    energyKwh: number;
+                    carbonGrams: number;
+                    sustainabilityScore: number;
+                    beforeEnergyKwh: number;
+                    beforeCarbonGrams: number;
+                  }
+                | undefined;
 
               try {
-                sustainaDevOutput.appendLine("Running sustainability analysis...");
-
-                const result = await analyzeSustainability(startTime);
-                sustainabilityResult = result;
-
-                sustainaDevOutput.appendLine("=== Sustainability Metrics ===");
                 sustainaDevOutput.appendLine(
-                  `Energy Consumption: ${result.energyKwh.toFixed(6)} kWh`,
+                  "Running sustainability analysis...",
+                );
+
+                // ── BEFORE: fresh sample window on the original code state ──
+                startCpuSampling();
+                const beforeStartTime = Date.now();
+                await new Promise((resolve) => setTimeout(resolve, 600));
+                const beforeResult = await analyzeSustainability(beforeStartTime);
+
+                // ── AFTER: fresh sample window on the optimized code state ──
+                startCpuSampling();
+                const afterStartTime = Date.now();
+                await new Promise((resolve) => setTimeout(resolve, 600));
+                const afterResult = await analyzeSustainability(afterStartTime);
+
+                const score = calculateSustainabilityScore(
+                  afterResult.carbonGrams,
+                  beforeResult.carbonGrams,
+                );
+
+                sustainabilityResult = {
+                  energyKwh: afterResult.energyKwh,
+                  carbonGrams: afterResult.carbonGrams,
+                  sustainabilityScore: score,
+                  beforeEnergyKwh: beforeResult.energyKwh,
+                  beforeCarbonGrams: beforeResult.carbonGrams,
+                };
+
+                sustainaDevOutput.appendLine(
+                  "=== Sustainability Metrics — Before ===",
                 );
                 sustainaDevOutput.appendLine(
-                  `Carbon Emissions: ${result.carbonGrams.toFixed(4)} gCO2`,
+                  `Energy:  ${beforeResult.energyKwh.toFixed(6)} kWh`,
                 );
                 sustainaDevOutput.appendLine(
-                  `Sustainability Score: ${result.sustainabilityScore.toFixed(2)} / 100`,
+                  `Carbon:  ${beforeResult.carbonGrams.toFixed(4)} gCO₂`,
+                );
+
+                sustainaDevOutput.appendLine(
+                  "=== Sustainability Metrics — After ===",
+                );
+                sustainaDevOutput.appendLine(
+                  `Energy:  ${afterResult.energyKwh.toFixed(6)} kWh`,
+                );
+                sustainaDevOutput.appendLine(
+                  `Carbon:  ${afterResult.carbonGrams.toFixed(4)} gCO₂`,
+                );
+
+                sustainaDevOutput.appendLine("=== Result ===");
+                sustainaDevOutput.appendLine(
+                  `Energy saved:  ${(
+                    beforeResult.energyKwh - afterResult.energyKwh
+                  ).toFixed(6)} kWh`,
+                );
+                sustainaDevOutput.appendLine(
+                  `Carbon saved:  ${(
+                    beforeResult.carbonGrams - afterResult.carbonGrams
+                  ).toFixed(4)} gCO₂`,
+                );
+                sustainaDevOutput.appendLine(
+                  `Sustainability Score: ${score.toFixed(1)} / 100`,
                 );
               } catch (err) {
                 sustainaDevOutput.appendLine("Sustainability analysis failed:");
@@ -210,7 +262,6 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
                 vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ||
                 process.cwd();
 
-              // Pass decision.type as 6th arg so the actual refactor type is logged
               await logOptimizationFromReport(
                 workspace,
                 filePath,

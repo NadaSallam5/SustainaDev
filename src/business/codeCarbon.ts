@@ -30,40 +30,44 @@ export function initPaths(context: vscode.ExtensionContext) {
   );
 }
 
-/**
- * Measure runtime + CPU utilization
- * Used later for energy calculation
- */
-export async function measureExecution(startTime: number) {
+// ─── ADD these two new declarations at the top of the file, after the imports ───
+let cpuSamples: number[] = [];
+let samplingInterval: NodeJS.Timeout | undefined;
 
-  try {
-
-    const cpuLoad = await si.currentLoad();
-
-    const runtimeSeconds =
-      (Date.now() - startTime) / 1000;
-
-    const cpuUtilization =
-      cpuLoad.currentLoad / 100;
-
-    return {
-      runtimeSeconds,
-      cpuUtilization
-    };
-
-  } catch (error) {
-
-    console.error(
-      "[SustainaDev] Failed to measure runtime metrics:",
-      error
-    );
-
-    return {
-      runtimeSeconds:
-        (Date.now() - startTime) / 1000,
-      cpuUtilization: 0.5
-    };
+// ─── ADD this new exported function ───
+export function startCpuSampling() {
+  cpuSamples = [];
+  if (samplingInterval) {
+    clearInterval(samplingInterval);
   }
+  samplingInterval = setInterval(async () => {
+    try {
+      const load = await si.currentLoad();
+      cpuSamples.push(load.currentLoad / 100);
+    } catch {
+      // silently skip failed samples
+    }
+  }, 500);
+}
+
+// ─── REPLACE your existing measureExecution with this ───
+export async function measureExecution(startTime: number) {
+  if (samplingInterval) {
+    clearInterval(samplingInterval);
+    samplingInterval = undefined;
+  }
+
+  const runtimeSeconds = (Date.now() - startTime) / 1000;
+
+  const cpuUtilization =
+    cpuSamples.length > 0
+      ? cpuSamples.reduce((a, b) => a + b, 0) / cpuSamples.length
+      : 0.5;
+
+  return {
+    runtimeSeconds,
+    cpuUtilization,
+  };
 }
 
 /**

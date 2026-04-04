@@ -865,11 +865,24 @@
       };
     }
 
-    function getSustain(row){
-      // ✅ reads from the new `sustainability` field added in optimizeComplexity.ts
-      return row?.sustainability || null;
-    }
-
+   function getSustain(row){
+  const s = row?.sustainability;
+  if (!s) return null;
+  // New nested format: {before, after, saved, sustainabilityScore}
+  if (s.after !== undefined) {
+    return {
+      energyKwh: s.after.energyKwh,
+      carbonGrams: s.after.carbonGrams,
+      sustainabilityScore: s.sustainabilityScore,
+      beforeEnergyKwh: s.before?.energyKwh,
+      beforeCarbonGrams: s.before?.carbonGrams,
+      savedEnergyKwh: s.saved?.energyKwh,
+      savedCarbonGrams: s.saved?.carbonGrams,
+    };
+  }
+  // Old flat format fallback
+  return s;
+}
     // ══════════════════════════════════════════════
     // Render All
     // ══════════════════════════════════════════════
@@ -1152,15 +1165,19 @@
             <div class="cmp-side cmp-after"><div class="cmp-label">After</div><div class="cmp-value">${esc(bigO.after)}</div></div>
           </div>`:''}
 
-          ${sustain ? `
-          <div class="sustain-highlight">
-            <h4>🌱 Sustainability Metrics</h4>
-            <div class="sh-grid">
-              <div class="sh-item"><div class="sh-l">⚡ Energy Consumed</div><div class="sh-v">${nf(sustain.energyKwh,6)}</div><div class="sh-s">kWh</div></div>
-              <div class="sh-item"><div class="sh-l">💨 Carbon Emitted</div><div class="sh-v">${nf(sustain.carbonGrams,4)}</div><div class="sh-s">gCO₂</div></div>
-              <div class="sh-item"><div class="sh-l">🏆 Score</div><div class="sh-v">${Number(sustain.sustainabilityScore).toFixed(2)}</div><div class="sh-s">/ 100</div></div>
-            </div>
-          </div>` : `<div style="margin-top:10px;padding:10px 14px;background:var(--chip);border-radius:8px;font-size:12px;color:var(--muted)">⚠ No sustainability data for this entry</div>`}
+  ${sustain ? `
+<div class="sustain-highlight">
+  <h4>🌱 Sustainability Metrics</h4>
+  <div class="sh-grid">
+    <div class="sh-item"><div class="sh-l">⚡ Before Energy</div><div class="sh-v" style="color:var(--danger)">${nf(sustain.beforeEnergyKwh,6)}</div><div class="sh-s">kWh</div></div>
+    <div class="sh-item"><div class="sh-l">⚡ After Energy</div><div class="sh-v">${nf(sustain.energyKwh,6)}</div><div class="sh-s">kWh</div></div>
+    <div class="sh-item"><div class="sh-l">💚 Energy Saved</div><div class="sh-v" style="color:var(--accent)">${nf(sustain.savedEnergyKwh,6)}</div><div class="sh-s">kWh</div></div>
+    <div class="sh-item"><div class="sh-l">💨 Before Carbon</div><div class="sh-v" style="color:var(--danger)">${nf(sustain.beforeCarbonGrams,4)}</div><div class="sh-s">gCO₂</div></div>
+    <div class="sh-item"><div class="sh-l">💨 After Carbon</div><div class="sh-v">${nf(sustain.carbonGrams,4)}</div><div class="sh-s">gCO₂</div></div>
+    <div class="sh-item"><div class="sh-l">💚 Carbon Saved</div><div class="sh-v" style="color:var(--accent)">${nf(sustain.savedCarbonGrams,4)}</div><div class="sh-s">gCO₂</div></div>
+    <div class="sh-item"><div class="sh-l">🏆 Score</div><div class="sh-v">${Number(sustain.sustainabilityScore).toFixed(2)}</div><div class="sh-s">/ 100</div></div>
+  </div>
+</div>` : `<div style="margin-top:10px;padding:10px 14px;background:var(--chip);border-radius:8px;font-size:12px;color:var(--muted)">⚠ No sustainability data for this entry</div>`}
 
           <div style="margin-top:14px">
             <div class="muted" style="font-size:10px;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:6px">Reason</div>

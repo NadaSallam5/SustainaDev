@@ -1,16 +1,11 @@
+// ─── REPLACE your entire energyCalculator.ts with this ───
 export function calculateEnergy(
   powerWatts: number,
-  cpuUtilization: number,
   runtimeSeconds: number
 ): number {
+  const energyJoules = powerWatts * runtimeSeconds;
 
-  const energyJoules =
-    powerWatts *
-    cpuUtilization *
-    runtimeSeconds
+  const energyKwh = energyJoules / 3_600_000;
 
-  const energyKwh =
-    energyJoules / 3600000
-
-  return energyKwh
+  return energyKwh;
 }
