@@ -9,6 +9,7 @@ export enum OptimizationStrategy {
   SORTING_IN_LOOP = "SORTING_IN_LOOP",   // ✅ NEW
   SORTING = "SORTING",                   // ✅ NEW (optional but useful)
   KEEP_RECURSION = "KEEP_RECURSION",
+   GENERAL = "GENERAL",  
 }
 
 export function chooseOptimizationStrategy(

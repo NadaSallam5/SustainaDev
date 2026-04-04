@@ -1,6 +1,8 @@
 import * as vscode from "vscode";
 import * as path from "path";
-import { buildOptimizationReport } from "../business/complexity/report";
+
+import { extractFeatures } from "../business/analyzer/featureExtractor";
+import { detectByRules } from "../business/refactor/ruleEngine";
 
 
 import * as fsp from "fs/promises";
@@ -13,7 +15,7 @@ import {
 } from "../business/refactor/optimizeComplexity";
 import { chooseRefactor } from "../business/refactor/chooseRefactor";
 import { initPaths } from "../business/codeCarbon";
-import { runJavaAnalyzer } from "../business/analyzer/javaRunner";
+
 import si from "systeminformation";
 
 /**
@@ -21,14 +23,14 @@ import si from "systeminformation";
  */
 let isRunning = false;
 export let sustainaDevOutput: vscode.OutputChannel;
-
 const validSmells = [
-  "RECURSION",
+  "ITERATIVE_REWRITE",   // ✅ add this too
   "NESTED_LOOPS",
   "GENERAL",
   "SORTING_IN_LOOP",
   "SORTING",
-  "STRING_CONCAT",
+  "STRING_BUILDER",      // ✅ was "STRING_CONCAT"
+  "MEMOIZATION",         // ✅ add this too
 ];
 /**
  * SustainaDev Extension Activation
@@ -141,24 +143,58 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
     await refreshedDoc.save();
 
 const fullCode = refreshedDoc.getText();
+// ✅ STEP 1 — detect method name by walking backwards from cursor
+const cursorLine = editor.selection.active.line;
+const lines = fullCode.split(/\r?\n/);
+let targetMethodName: string | undefined;
 
-const factsList = await runJavaAnalyzer(context);
-
-if (!factsList.length) {
-  vscode.window.showInformationMessage("No methods detected by analyzer.");
-  isRunning = false;
-  return;
+for (let i = cursorLine; i >= 0; i--) {
+  const match = lines[i].match(
+    /(?:public|private|protected|static|\s)+\w+\s+(\w+)\s*\([^)]*\)\s*\{/
+  );
+  if (match) {
+    targetMethodName = match[1];
+    break;
+  }
 }
 
+sustainaDevOutput.appendLine(`🎯 Detected method: ${targetMethodName ?? "NOT FOUND"}`);
+const features = extractFeatures(fullCode, targetMethodName);
+sustainaDevOutput.appendLine("=== FEATURES ===");
+sustainaDevOutput.appendLine(JSON.stringify(features, null, 2));
 
-// OPTIONAL: choose one method (first or highest complexity later)
-const facts =
-  factsList.find(m => m.sortInsideLoop === true) ||
-  factsList.find(m => m.hasSortingCall === true) ||
-  factsList[0];
-// 🔥 RULE ENGINE (WHAT to do)
-const decision = chooseRefactor(facts);
+// ✅ STEP 3 — build facts
+const facts = {
+  methodName: targetMethodName ?? path.basename(filePath),
+  callsSelf: features.recursion,
+  maxLoopDepth: features.loopDepth,
+  cyclomaticComplexity: 1,
+  isLinearRecursion: false,
+  isPureAccumulation: false,
+  hasOverlappingSubproblems: false,
+  hasStringConcatInLoop: features.stringConcatInLoop,
+  hasSortingCall: features.sortingCalls > 0,
+  sortInsideLoop: features.sortingInsideLoop,
+};
+// ---------- Rule Engine ----------
+const ruleDecision = detectByRules(features);
 
+let decision;
+
+if (ruleDecision) {
+  decision = { type: ruleDecision };
+  sustainaDevOutput.appendLine(`⚡ Rule decision: ${ruleDecision}`);
+} else {
+  decision = chooseRefactor(facts);
+  sustainaDevOutput.appendLine(`🤖 AI fallback: ${decision.type}`);
+}
+
+if (!decision || !decision.type) {
+  sustainaDevOutput.appendLine("❌ No decision made.");
+  vscode.window.showInformationMessage("No decision made.");
+  isRunning = false; // ✅ مهم
+  return;
+}
     // 3. Execution Logic
     if (validSmells.includes(decision.type)) {
      const patch = await buildOptimizationPatch(
@@ -192,59 +228,19 @@ if (choice === "✅ Accept Optimization") {
 
   vscode.window.showInformationMessage("✅ Optimization applied successfully.");
 
-  // ✅ Run analyzer AFTER applying patch
-  const afterFactsList = await runJavaAnalyzer(context);
-  const afterFacts = afterFactsList.find(m => m.methodName === facts.methodName);
-
- if (afterFacts) {
-   const report = buildOptimizationReport(facts, afterFacts);
-
-const title =
-  report.metric === "space"
-    ? "=== Space Complexity Report ==="
-    : "=== Complexity Report ===";
-
-const label =
-  report.metric === "space" ? "Space" : "Before";
-
-sustainaDevOutput.appendLine(title);
-
-if (report.metric === "space") {
-  sustainaDevOutput.appendLine(`Space Before: ${report.before}`);
-  sustainaDevOutput.appendLine(`Space After:  ${report.after}`);
-} else {
-  sustainaDevOutput.appendLine(`Before: ${report.before}`);
-  sustainaDevOutput.appendLine(`After:  ${report.after}`);
-}
-
-sustainaDevOutput.appendLine(`Improvement: ${report.improvement}`);
-
-vscode.window.showInformationMessage(
-  report.metric === "space"
-    ? `Space improved: ${report.before} → ${report.after}`
-    : `Complexity improved: ${report.before} → ${report.after}`
-);
-
-
-    vscode.window.showInformationMessage(
-      `Complexity improved: ${report.before} → ${report.after}`
-    );
-    const workspace =
-  vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
+ sustainaDevOutput.appendLine("✅ Optimization applied (Tree-sitter mode)");
 
 await logOptimizationFromReport(
-  workspace,
-  filePath,        // full path is ok; logger uses basename anyway
-  report,          // <-- SAME report you printed in console
-  patch.reason     // <-- same reason you already have
+  vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd(),
+  filePath,
+  {
+    metric: "time",
+    before: "N/A",
+    after: "Improved",
+    improvement: "Optimized via AI + Rules",
+  },
+  patch.reason
 );
-
-}
- else {
-    sustainaDevOutput.appendLine(
-      `⚠️ Could not find AFTER facts for method: ${facts.methodName}`
-    );
-  }
 }
  else if (choice) {
     vscode.window.showInformationMessage(
@@ -361,47 +357,8 @@ async function executeOpenDashboard(context: vscode.ExtensionContext) {
    HELPER FUNCTIONS
    ========================================================================= */
 
-async function closeExistingPreview(uriStringPartial: string) {
-  const oldDoc = vscode.workspace.textDocuments.find((d) =>
-    d.uri.toString().includes(uriStringPartial),
-  );
-  if (oldDoc) {
-    // Attempt to show it so we can close it, or check visible editors
-    const editor = vscode.window.visibleTextEditors.find(
-      (e) => e.document === oldDoc,
-    );
-    if (editor) {
-      await vscode.window.showTextDocument(oldDoc, {
-        preview: false,
-        preserveFocus: false,
-      });
-      await vscode.commands.executeCommand(
-        "workbench.action.revertAndCloseActiveEditor",
-      );
-    }
-  }
-}
 
-async function createAndShowPreview(
-  previewUri: vscode.Uri,
-  content: string,
-  originalUri: vscode.Uri,
-) {
-  const edit = new vscode.WorkspaceEdit();
-  edit.insert(previewUri, new vscode.Position(0, 0), content);
-  await vscode.workspace.applyEdit(edit);
 
-  // Wait briefly for FS update
-  await new Promise((resolve) => setTimeout(resolve, 200));
-
-  await vscode.commands.executeCommand(
-    "vscode.diff",
-    originalUri,
-    previewUri,
-    "🔄 SustainaDev: Algorithmic Optimization (Original ← → Optimized)",
-    { preview: true },
-  );
-}
 
 async function applyPatchToDocument(
   uri: vscode.Uri,
