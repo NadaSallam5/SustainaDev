@@ -215,6 +215,7 @@ void vscode.window.showQuickPick(
   ["✅ Accept Optimization", "❌ Reject"],
   {
     placeHolder: "Apply the optimized code?",
+     ignoreFocusOut: true, 
   }
 ).then(async (choice) => {
 if (choice === "✅ Accept Optimization") {
