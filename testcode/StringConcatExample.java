@@ -1,9 +1,9 @@
 public class StringConcatExample {
     public String buildString(int n) {
-        String s = "";
+        StringBuilder sb = new StringBuilder();
         for (int i = 0; i < n; i++) {
-            s = s + i;
+            sb.append(i);
         }
-        return s;
+        return sb.toString();
     }
 }

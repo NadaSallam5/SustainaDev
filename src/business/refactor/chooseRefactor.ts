@@ -1,27 +1,31 @@
 import { MethodFacts } from "../types";
 
 export function chooseRefactor(facts: MethodFacts) {
-  if (facts.callsSelf) {
-    return { type: "RECURSION", reason: "Recursive method detected" };
+
+  // 1) String concat
+  if (facts.hasStringConcatInLoop === true) {
+    return { type: "STRING_CONCAT", reason: "String concatenation inside loop detected (O(n^2))." };
   }
 
+  // 2) Sorting inside loop (more specific first)
+  if (facts.sortInsideLoop === true) {
+    return { type: "SORTING_IN_LOOP", reason: "Sorting inside a loop causes O(n log n * n)." };
+  }
+
+  // 3) General sorting
+  if (facts.hasSortingCall === true) {
+    return { type: "SORTING", reason: "Sorting detected (may require optimization)." };
+  }
+
+  // 4) Nested loops
   if (facts.maxLoopDepth >= 2) {
-    return { type: "NESTED_LOOPS", reason: "Nested loops detected" };
-  }
-  // 🔥 3. Sorting smell (NEW)
-  if (facts.hasSortingCall) {
-    if (facts.sortInsideLoop) {
-      return {
-        type: "SORTING_IN_LOOP",
-        reason: "Sorting inside a loop causes O(n log n * n).",
-      };
-    }
-
-    return {
-      type: "SORTING",
-      reason: "Sorting detected (may require optimization).",
-    };
+    return { type: "NESTED_LOOPS", reason: "Nested loops detected." };
   }
 
-  return { type: "GENERAL", reason: "General optimization" };
+  // 5) Recursion
+  if (facts.callsSelf === true) {
+    return { type: "RECURSION", reason: "Recursive method detected." };
+  }
+
+  return { type: "GENERAL", reason: "General optimization." };
 }
