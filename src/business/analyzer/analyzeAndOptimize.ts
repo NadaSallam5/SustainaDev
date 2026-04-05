@@ -9,6 +9,9 @@ import { parseCode } from "../parser/astParser";
 import { detectLanguage } from "../parser/languageDetector";
 import { extractFeatures } from "./featureExtractor";
 
+
+
+
 export async function analyzeAndOptimize(
   context: vscode.ExtensionContext,
   code: string,

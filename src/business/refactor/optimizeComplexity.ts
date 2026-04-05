@@ -10,6 +10,9 @@ import {
 
 import { MethodFacts } from "../types";
 
+/**
+ * Interface for the final optimization result
+ */
 interface OptimizationResult {
   preview: string;
   reason: string;
@@ -283,7 +286,9 @@ function parseAiResponse(text: string, targetLanguage: string = "Java"): Optimiz
   if (
     targetLanguage === "Java" &&
     preview.startsWith("public") &&
-    !preview.match(/^public\s+(class|final|abstract|interface|@interface|enum)/)
+    !preview.match(
+      /^public\s+(class|final|abstract|interface|@interface|enum)/,
+    )
   ) {
     preview = preview.replace(/^public\s+/, "").trim();
   }
@@ -379,7 +384,12 @@ function bigOToScore(bigO: string): number {
   const s = (bigO || "").replace(/\s+/g, "").toLowerCase();
   if (s.includes("o(1)")) return 1;
   if (s.includes("o(logn)") || s.includes("o(log(n))")) return 2;
-  if (s.includes("o(n)") && !s.includes("o(nlogn)") && !s.includes("o(nlog(n))")) return 3;
+  if (
+    s.includes("o(n)") &&
+    !s.includes("o(nlogn)") &&
+    !s.includes("o(nlog(n))")
+  )
+    return 3;
   if (s.includes("o(nlogn)") || s.includes("o(nlog(n))")) return 4;
   if (s.includes("o(n^2)") || s.includes("o(n2)")) return 5;
   if (s.includes("o(n^3)") || s.includes("o(n3)")) return 6;
@@ -388,27 +398,76 @@ function bigOToScore(bigO: string): number {
   return 0;
 }
 
-async function logAlgorithmicOptimization(
+export type OptimizationReport = {
+  metric: "time" | "space";
+  before: string;
+  after: string;
+  improvement: string;
+};
+
+/**
+ * Logs an optimization result to .sustainadev/log.jsonl
+ */
+export async function logOptimizationFromReport(
   workspace: string,
   fileName: string | undefined,
   bigO: { metric: "time" | "space"; before: string; after: string },
   reason: string,
+  sustainability?: {
+    energyKwh: number;
+    carbonGrams: number;
+    beforeEnergyKwh: number;
+    beforeCarbonGrams: number;
+  },
+  refactorType?: string,
 ) {
   try {
-    const beforeScore = bigOToScore(bigO.before);
-    const afterScore = bigOToScore(bigO.after);
-    const scoreDelta = Math.max(0, beforeScore - afterScore);
-    const energy = await estimateEnergy(scoreDelta * 5);
-
-    const logEntry = {
-      timestamp: new Date().toISOString(),
-      file: fileName ? path.basename(fileName) : "unknown",
-      refactor: "Algorithmic Optimization",
-      complexity: { metric: bigO.metric, before: bigO.before, after: bigO.after, improvement: `From ${bigO.before} → ${bigO.after}` },
-      energy,
-      reason,
+    const refactorLabelMap: Record<string, string> = {
+      ITERATIVE_REWRITE: "Iterative Rewrite (Recursion → Loop)",
+      MEMOIZATION: "Memoization (Overlapping Subproblems)",
+      STRING_BUILDER: "String Concatenation → StringBuilder",
+      STRING_CONCAT: "String Concatenation → StringBuilder",
+      DUPLICATE_COMPUTATION: "Duplicate Computation Elimination",
+      NESTED_LOOPS: "Nested Loops Optimization",
+      SORTING_IN_LOOP: "Sorting Moved Out of Loop",
+      SORTING: "Redundant Sorting Removal",
+      GENERAL: "General Green Coding Optimization",
     };
 
+    const refactorLabel =
+      refactorType && refactorLabelMap[refactorType]
+        ? refactorLabelMap[refactorType]
+        : refactorType ?? "Algorithmic Optimization";
+
+    const logEntry = {
+    timestamp: new Date().toISOString(),
+    file: fileName ? path.basename(fileName) : "unknown",
+    refactor: refactorLabel,
+    complexity: {
+        metric: report.metric,
+        before: report.before,
+        after: report.after,
+        improvement: `From ${report.before} → ${report.after}`,
+    },
+    sustainability: sustainability
+        ? {
+            before: {
+                energyKwh: sustainability.beforeEnergyKwh,
+                carbonGrams: sustainability.beforeCarbonGrams,
+            },
+            after: {
+                energyKwh: sustainability.energyKwh,
+                carbonGrams: sustainability.carbonGrams,
+            },
+            saved: {
+                energyKwh: sustainability.beforeEnergyKwh - sustainability.energyKwh,
+                carbonGrams: sustainability.beforeCarbonGrams - sustainability.carbonGrams,
+            },
+          
+        }
+        : null,
+    reason,
+};
     const logDir = path.join(workspace, ".sustainadev");
     if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
     fs.appendFileSync(path.join(logDir, "log.jsonl"), JSON.stringify(logEntry) + "\n", "utf8");
