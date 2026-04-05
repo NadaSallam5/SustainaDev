@@ -1,17 +1,27 @@
-
 #include <vector>
-#include <unordered_set>
 using namespace std;
 
 vector<int> findCommon(vector<int> a, vector<int> b) {
-    unordered_set<int> setA(a.begin(), a.end());
-    unordered_set<int> common;
+    vector<int> result;
 
-    for (int num : b) {
-        if (setA.find(num) != setA.end()) {
-            common.insert(num);
+    for (int i = 0; i < a.size(); i++) {
+        for (int j = 0; j < b.size(); j++) {
+            if (a[i] == b[j]) {
+
+                bool exists = false;
+                for (int k = 0; k < result.size(); k++) {
+                    if (result[k] == a[i]) {
+                        exists = true;
+                        break;
+                    }
+                }
+
+                if (!exists) {
+                    result.push_back(a[i]);
+                }
+            }
         }
     }
 
-    return vector<int>(common.begin(), common.end());
+    return result;
 }

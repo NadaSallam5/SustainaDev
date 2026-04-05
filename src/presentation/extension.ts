@@ -17,6 +17,7 @@ import { chooseRefactor } from "../business/refactor/chooseRefactor";
 import { initPaths, startCpuSampling } from "../business/codeCarbon";
 
 import si from "systeminformation";
+import { parseCode } from "../business/parser/astParser";
 
 /**
  * Global state to prevent concurrent executions
@@ -126,7 +127,8 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
     sustainaDevOutput.appendLine(
       `🎯 Detected method: ${targetMethodName ?? "NOT FOUND"}`,
     );
-    const features = extractFeatures(fullCode, targetMethodName);
+    const tree = parseCode(fullCode, filePath);
+    const features = extractFeatures(tree.rootNode, targetMethodName);
     sustainaDevOutput.appendLine("=== FEATURES ===");
     sustainaDevOutput.appendLine(JSON.stringify(features, null, 2));
 
@@ -197,7 +199,25 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
             );
 
             // Build report from facts directly (Tree-sitter mode, no Java analyzer)
-            const report = buildOptimizationReport(facts, facts);
+            const beforeFacts = facts;
+
+            const optimizedTree = parseCode(patch.preview, filePath);
+            const afterFeatures = extractFeatures(optimizedTree.rootNode, targetMethodName);
+
+            const afterFacts = {
+              methodName: targetMethodName ?? path.basename(filePath),
+              callsSelf: afterFeatures.recursion,
+              maxLoopDepth: afterFeatures.loopDepth,
+              cyclomaticComplexity: 1,
+              isLinearRecursion: false,
+              isPureAccumulation: false,
+              hasOverlappingSubproblems: false,
+              hasStringConcatInLoop: afterFeatures.stringConcatInLoop,
+              hasSortingCall: afterFeatures.sortingCalls > 0,
+              sortInsideLoop: afterFeatures.sortingInsideLoop,
+            };
+
+            const report = buildOptimizationReport(beforeFacts, afterFacts);
 
             sustainaDevOutput.appendLine(
               report.metric === "space"

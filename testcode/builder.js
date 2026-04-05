@@ -1,13 +1,19 @@
 function processData(data) {
-    let result = new Map();
+    let result = [];
+    const seen = new Set();
 
     for (let i = 0; i < data.length; i++) {
-        if (!result.has(data[i])) {
-            result.set(data[i], 1);
-        } else {
-            result.set(data[i], result.get(data[i]) + 1);
+        if (!seen.has(data[i])) {
+            let count = 0;
+            for (let j = 0; j < data.length; j++) {
+                if (data[j] === data[i]) {
+                    count++;
+                }
+            }
+            result.push({ value: data[i], count: count });
+            seen.add(data[i]);
         }
     }
 
-    return Array.from(result.entries()).map(([value, count]) => ({ value, count }));
+    return result;
 }
