@@ -500,7 +500,6 @@ export async function logOptimizationFromReport(
   sustainability?: {
     energyKwh: number;
     carbonGrams: number;
-    sustainabilityScore: number;
     beforeEnergyKwh: number;
     beforeCarbonGrams: number;
   },
@@ -548,7 +547,7 @@ export async function logOptimizationFromReport(
                 energyKwh: sustainability.beforeEnergyKwh - sustainability.energyKwh,
                 carbonGrams: sustainability.beforeCarbonGrams - sustainability.carbonGrams,
             },
-            sustainabilityScore: sustainability.sustainabilityScore,
+          
         }
         : null,
     reason,

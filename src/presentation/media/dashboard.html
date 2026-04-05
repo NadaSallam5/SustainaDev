@@ -2,425 +2,216 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'none';
-                 img-src data:;
-                 style-src 'unsafe-inline';
-                 script-src 'unsafe-inline'"
-    />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SustainaDev Dashboard</title>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Syne:wght@400;600;700;800&display=swap');
-
       :root {
-        --bg: #0d0f12;
-        --panel: #13161b;
-        --panel2: #181c22;
-        --muted: #7a8694;
-        --text: #e2eaf3;
-        --accent: #00e5a0;
-        --accent2: #00b8d4;
-        --warn: #ffcf5a;
-        --danger: #ff5a5a;
-        --success: #00e5a0;
-        --purple: #a78bfa;
-        --border: rgba(255,255,255,0.07);
-        --chip: rgba(255,255,255,0.05);
-        --shadow: 0 0 0 1px var(--border);
-        --font: 'Syne', system-ui, sans-serif;
-        --mono: 'JetBrains Mono', monospace;
+        --bg:#0d0f12;--panel:#13161b;--panel2:#181c22;--muted:#7a8694;--text:#e2eaf3;
+        --accent:#00e5a0;--accent2:#00b8d4;--warn:#ffcf5a;--danger:#ff5a5a;
+        --border:rgba(255,255,255,0.07);--chip:rgba(255,255,255,0.05);
+        --font:'Syne',system-ui,sans-serif;--mono:'JetBrains Mono',monospace;
       }
+      *{box-sizing:border-box;margin:0;padding:0;}
+      body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.5;padding:24px;min-height:100vh;}
 
-      * { box-sizing: border-box; margin: 0; padding: 0; }
+      .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px;}
+      .header-left{display:flex;align-items:center;gap:14px;}
+      .logo{width:42px;height:42px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+      .header h1{font-size:22px;font-weight:800;letter-spacing:-0.3px;}
+      .header h1 span{color:var(--accent);}
+      .header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 
-      body {
-        background: var(--bg);
-        color: var(--text);
-        font-family: var(--font);
-        font-size: 14px;
-        line-height: 1.5;
-        padding: 24px;
-        min-height: 100vh;
-      }
+      button{border:none;border-radius:10px;padding:9px 16px;font-family:var(--font);font-weight:700;font-size:13px;cursor:pointer;transition:all 0.15s ease;}
+      .btn-secondary{background:var(--accent2);color:#050d12;}
+      .btn-ghost{background:var(--chip);color:var(--text);border:1px solid var(--border);}
+      button:hover{filter:brightness(1.12);transform:translateY(-1px);}
+      button:active{transform:translateY(0);}
+      button:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
 
-      /* ── Header ── */
-      .header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 28px;
-        flex-wrap: wrap;
-        gap: 12px;
-      }
-      .header-left { display: flex; align-items: center; gap: 14px; }
-      .logo {
-        width: 42px; height: 42px;
-        background: linear-gradient(135deg, var(--accent), var(--accent2));
-        border-radius: 12px;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 20px;
-        flex-shrink: 0;
-      }
-      .header h1 {
-        font-size: 22px;
-        font-weight: 800;
-        letter-spacing: -0.3px;
-        color: var(--text);
-      }
-      .header h1 span { color: var(--accent); }
-      .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+      .search-wrap{position:relative;}
+      .search-wrap input{background:var(--chip);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:9px 14px 9px 36px;font-family:var(--font);font-size:13px;min-width:260px;outline:none;transition:border-color 0.2s;}
+      .search-wrap input:focus{border-color:var(--accent);}
+      .search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;pointer-events:none;}
 
-      /* ── Buttons ── */
-      button {
-        border: none; border-radius: 10px; padding: 9px 16px;
-        font-family: var(--font); font-weight: 700; font-size: 13px;
-        cursor: pointer; transition: all 0.15s ease;
-      }
-      .btn-primary { background: var(--accent); color: #050a07; }
-      .btn-secondary { background: var(--accent2); color: #050d12; }
-      .btn-ghost { background: var(--chip); color: var(--text); border: 1px solid var(--border); }
-      .btn-success { background: var(--success); color: #050a07; }
-      button:hover { filter: brightness(1.12); transform: translateY(-1px); }
-      button:active { transform: translateY(0); }
-      button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+      .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:24px;}
+      .kpi-card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px 20px;transition:transform 0.2s,box-shadow 0.2s;position:relative;overflow:hidden;}
+      .kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));opacity:0.7;}
+      .kpi-card:hover{transform:translateY(-3px);box-shadow:0 8px 28px rgba(0,229,160,0.08);}
+      .kpi-icon{font-size:20px;margin-bottom:10px;}
+      .kpi-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;}
+      .kpi-value{font-size:28px;font-weight:800;margin:6px 0 0;font-family:var(--mono);background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
 
-      /* ── Search ── */
-      .search-wrap { position: relative; }
-      .search-wrap input {
-        background: var(--chip);
-        border: 1px solid var(--border);
-        color: var(--text);
-        border-radius: 10px;
-        padding: 9px 14px 9px 36px;
-        font-family: var(--font);
-        font-size: 13px;
-        min-width: 260px;
-        outline: none;
-        transition: border-color 0.2s;
-      }
-      .search-wrap input:focus { border-color: var(--accent); }
-      .search-icon {
-        position: absolute; left: 12px; top: 50%;
-        transform: translateY(-50%);
-        color: var(--muted); font-size: 14px; pointer-events: none;
-      }
+      .tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--border);margin-bottom:20px;}
+      .tab{padding:10px 16px;border-radius:10px 10px 0 0;background:transparent;color:var(--muted);font-size:13px;font-weight:700;border:none;cursor:pointer;transition:all 0.2s;white-space:nowrap;}
+      .tab:hover{color:var(--text);background:var(--chip);transform:none;filter:none;}
+      .tab.active{background:var(--accent);color:#050a07;}
+      .tab-content{display:none;}
+      .tab-content.active{display:block;}
 
-      /* ── KPI Grid ── */
-      .kpi-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 12px;
-        margin-bottom: 24px;
-      }
-      .kpi-card {
-        background: var(--panel);
-        border: 1px solid var(--border);
-        border-radius: 14px;
-        padding: 18px 20px;
-        transition: transform 0.2s, box-shadow 0.2s;
-        position: relative;
-        overflow: hidden;
-      }
-      .kpi-card::before {
-        content: '';
-        position: absolute; top: 0; left: 0; right: 0; height: 2px;
-        background: linear-gradient(90deg, var(--accent), var(--accent2));
-        opacity: 0.7;
-      }
-      .kpi-card:hover { transform: translateY(-3px); box-shadow: 0 8px 28px rgba(0,229,160,0.08); }
-      .kpi-icon { font-size: 20px; margin-bottom: 10px; }
-      .kpi-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); font-weight: 700; }
-      .kpi-value {
-        font-size: 28px; font-weight: 800; margin: 6px 0 0;
-        font-family: var(--mono);
-        background: linear-gradient(135deg, var(--accent), var(--accent2));
-        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      }
+      .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px;}
+      .card h3{font-size:15px;font-weight:700;margin-bottom:14px;}
+      .card-title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
+      .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+      .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
 
-      /* ── Tabs ── */
-      .tabs {
-        display: flex; gap: 4px; flex-wrap: wrap;
-        border-bottom: 1px solid var(--border);
-        margin-bottom: 20px;
-      }
-      .tab {
-        padding: 10px 16px;
-        border-radius: 10px 10px 0 0;
-        background: transparent;
-        color: var(--muted);
-        font-size: 13px; font-weight: 700;
-        border: none; cursor: pointer;
-        transition: all 0.2s;
-        white-space: nowrap;
-      }
-      .tab:hover { color: var(--text); background: var(--chip); transform: none; filter: none; }
-      .tab.active { background: var(--accent); color: #050a07; }
-      .tab-content { display: none; }
-      .tab-content.active { display: block; }
+      .table-wrap{overflow-x:auto;}
+      table{width:100%;border-collapse:collapse;}
+      th{text-align:left;padding:10px 14px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);background:var(--chip);border-bottom:1px solid var(--border);}
+      td{padding:11px 14px;border-bottom:1px solid rgba(255,255,255,0.04);vertical-align:middle;font-size:13px;}
+      tbody tr{transition:background 0.15s;}
+      tbody tr:hover{background:var(--chip);}
+      tr.selected{background:rgba(0,229,160,0.07);border-left:3px solid var(--accent);}
 
-      /* ── Cards ── */
-      .card {
-        background: var(--panel);
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        padding: 20px;
-        margin-bottom: 16px;
-      }
-      .card h3 {
-        font-size: 15px; font-weight: 700; margin-bottom: 14px;
-        color: var(--text);
-      }
-      .card-title-row {
-        display: flex; align-items: center; justify-content: space-between;
-        margin-bottom: 14px; flex-wrap: wrap; gap: 8px;
-      }
+      .pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;background:var(--chip);border:1px solid var(--border);font-family:var(--mono);}
+      .badge{display:inline-block;padding:3px 9px;border-radius:6px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;}
+      .badge-success{background:rgba(0,229,160,0.15);color:var(--accent);border:1px solid rgba(0,229,160,0.3);}
+      .badge-info{background:rgba(0,184,212,0.15);color:var(--accent2);border:1px solid rgba(0,184,212,0.3);}
+      .badge-warn{background:rgba(255,207,90,0.15);color:var(--warn);border:1px solid rgba(255,207,90,0.3);}
+      .badge-danger{background:rgba(255,90,90,0.15);color:var(--danger);border:1px solid rgba(255,90,90,0.3);}
 
-      .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-      .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+      .comparison{display:grid;grid-template-columns:1fr auto 1fr;gap:16px;align-items:center;background:var(--chip);border-radius:14px;padding:20px;margin:14px 0;}
+      .cmp-side{text-align:center;padding:20px;border-radius:12px;background:var(--panel);}
+      .cmp-before{border:2px solid rgba(255,90,90,0.4);background:rgba(255,90,90,0.05);}
+      .cmp-after{border:2px solid rgba(0,229,160,0.4);background:rgba(0,229,160,0.05);}
+      .cmp-arrow{font-size:28px;color:var(--accent);}
+      .cmp-value{font-size:36px;font-weight:900;font-family:var(--mono);margin:10px 0;}
+      .cmp-before .cmp-value{color:var(--danger);}
+      .cmp-after .cmp-value{color:var(--accent);}
+      .cmp-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;}
 
-      /* ── Table ── */
-      .table-wrap { overflow-x: auto; }
-      table { width: 100%; border-collapse: collapse; }
-      th {
-        text-align: left; padding: 10px 14px;
-        font-size: 11px; font-weight: 800; text-transform: uppercase;
-        letter-spacing: 0.8px; color: var(--muted);
-        background: var(--chip);
-        border-bottom: 1px solid var(--border);
-      }
-      td {
-        padding: 11px 14px;
-        border-bottom: 1px solid rgba(255,255,255,0.04);
-        vertical-align: middle;
-        font-size: 13px;
-      }
-      tbody tr { transition: background 0.15s; }
-      tbody tr:hover { background: var(--chip); }
-      tr.selected { background: rgba(0,229,160,0.07); border-left: 3px solid var(--accent); }
+      .chart-wrap{position:relative;height:280px;margin:10px 0;}
+      canvas{width:100%;height:100%;background:var(--chip);border-radius:12px;border:1px solid var(--border);}
 
-      /* ── Pills / Badges ── */
-      .pill {
-        display: inline-flex; align-items: center; gap: 5px;
-        padding: 3px 10px; border-radius: 999px;
-        font-size: 11px; font-weight: 700;
-        background: var(--chip); border: 1px solid var(--border);
-        font-family: var(--mono);
-      }
-      .badge {
-        display: inline-block; padding: 3px 9px; border-radius: 6px;
-        font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
-      }
-      .badge-success { background: rgba(0,229,160,0.15); color: var(--accent); border: 1px solid rgba(0,229,160,0.3); }
-      .badge-info { background: rgba(0,184,212,0.15); color: var(--accent2); border: 1px solid rgba(0,184,212,0.3); }
-      .badge-warn { background: rgba(255,207,90,0.15); color: var(--warn); border: 1px solid rgba(255,207,90,0.3); }
-      .badge-danger { background: rgba(255,90,90,0.15); color: var(--danger); border: 1px solid rgba(255,90,90,0.3); }
+      .prog-bar{width:100%;height:6px;background:var(--chip);border-radius:3px;overflow:hidden;margin:6px 0;}
+      .prog-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:3px;transition:width 0.6s ease;}
 
-      /* ── Comparison ── */
-      .comparison {
-        display: grid; grid-template-columns: 1fr auto 1fr;
-        gap: 16px; align-items: center;
-        background: var(--chip); border-radius: 14px; padding: 20px;
-        margin: 14px 0;
-      }
-      .cmp-side {
-        text-align: center; padding: 20px;
-        border-radius: 12px; background: var(--panel);
-      }
-      .cmp-before { border: 2px solid rgba(255,90,90,0.4); background: rgba(255,90,90,0.05); }
-      .cmp-after  { border: 2px solid rgba(0,229,160,0.4); background: rgba(0,229,160,0.05); }
-      .cmp-arrow  { font-size: 28px; color: var(--accent); }
-      .cmp-value  { font-size: 36px; font-weight: 900; font-family: var(--mono); margin: 10px 0; }
-      .cmp-before .cmp-value { color: var(--danger); }
-      .cmp-after  .cmp-value { color: var(--accent); }
-      .cmp-label  { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); font-weight: 700; }
+      .freq-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);}
+      .freq-row:last-child{border-bottom:none;}
+      .freq-name{min-width:180px;font-weight:700;font-size:13px;}
+      .freq-bar-bg{flex:1;height:28px;background:var(--chip);border-radius:6px;overflow:hidden;}
+      .freq-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));display:flex;align-items:center;padding:0 10px;font-size:12px;font-weight:800;color:#050a07;border-radius:6px;transition:width 0.8s ease;}
+      .freq-count{min-width:40px;text-align:right;font-weight:800;color:var(--accent);font-family:var(--mono);}
 
-      /* ── Canvas Charts ── */
-      .chart-wrap { position: relative; height: 280px; margin: 10px 0; }
-      canvas {
-        width: 100%; height: 100%;
-        background: var(--chip); border-radius: 12px; border: 1px solid var(--border);
-      }
-      #tip {
-        position: absolute; pointer-events: none; z-index: 999;
-        padding: 12px 16px; border-radius: 12px;
-        background: rgba(13,15,18,0.92); border: 1px solid var(--border);
-        box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-        font-size: 13px; display: none; max-width: 280px;
-      }
-      #tip b { color: var(--accent); }
+      /* Donut Chart */
+      .donut-wrap{display:flex;align-items:center;gap:32px;flex-wrap:wrap;padding:10px 0;}
+      .donut-canvas-wrap{position:relative;flex-shrink:0;width:200px;height:200px;}
+      .donut-canvas-wrap canvas{background:transparent!important;border:none!important;border-radius:0!important;width:200px!important;height:200px!important;}
+      .donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;}
+      .donut-center-num{font-size:28px;font-weight:900;font-family:var(--mono);color:var(--accent);}
+      .donut-center-lbl{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-weight:800;margin-top:2px;}
+      .donut-legend{flex:1;display:flex;flex-direction:column;gap:12px;min-width:180px;}
+      .legend-item{display:flex;align-items:center;gap:10px;}
+      .legend-swatch{width:12px;height:12px;border-radius:3px;flex-shrink:0;}
+      .legend-name{flex:1;font-size:13px;font-weight:700;}
+      .legend-pct{font-family:var(--mono);font-size:12px;font-weight:800;color:var(--muted);}
+      .legend-count{font-family:var(--mono);font-size:13px;color:var(--accent);font-weight:800;min-width:30px;text-align:right;}
 
-      /* ── Sustainability Card ── */
-      .sustain-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(160px,1fr));
-        gap: 12px; margin-top: 14px;
-      }
-      .sustain-metric {
-        background: var(--panel2);
-        border: 1px solid var(--border);
-        border-radius: 12px; padding: 16px;
-        transition: transform 0.2s;
-      }
-      .sustain-metric:hover { transform: translateY(-2px); }
-      .sustain-metric .s-icon { font-size: 22px; margin-bottom: 8px; }
-      .sustain-metric .s-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); font-weight: 700; }
-      .sustain-metric .s-value { font-size: 20px; font-weight: 800; font-family: var(--mono); color: var(--accent); margin-top: 4px; }
-      .sustain-metric .s-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+      /* Individual Log Card */
+      .ilog-card{background:var(--panel2);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:14px;transition:border-color 0.2s;}
+      .ilog-card:hover{border-color:rgba(0,229,160,0.3);}
+      .ilog-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
+      .ilog-title{font-size:15px;font-weight:800;}
+      .stat-row{display:flex;gap:20px;flex-wrap:wrap;margin:12px 0;}
+      .stat-item .s-l{font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);font-weight:700;}
+      .stat-item .s-v{font-size:16px;font-weight:800;margin-top:3px;font-family:var(--mono);}
 
-      /* ── Score Ring ── */
-      .score-ring-wrap {
-        display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
-        background: var(--panel2); border-radius: 14px; padding: 20px;
-        border: 1px solid var(--border); margin-top: 14px;
-      }
-      .score-ring { position: relative; width: 100px; height: 100px; flex-shrink: 0; }
-      .score-ring svg { transform: rotate(-90deg); }
-      .score-ring-val {
-        position: absolute; inset: 0;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 22px; font-weight: 900; font-family: var(--mono);
-        color: var(--accent);
-      }
-      .score-desc { flex: 1; }
-      .score-desc h4 { font-size: 16px; font-weight: 800; margin-bottom: 6px; }
-      .score-desc p { color: var(--muted); font-size: 13px; line-height: 1.6; }
+      .sustain-highlight{background:linear-gradient(135deg,rgba(0,229,160,0.06),rgba(0,184,212,0.06));border:1px solid rgba(0,229,160,0.2);border-radius:12px;padding:16px;margin-top:14px;}
+      .sustain-highlight h4{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--accent);font-weight:800;margin-bottom:12px;}
+      .sh-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;}
+      .sh-item .sh-l{font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);font-weight:700;}
+      .sh-item .sh-v{font-size:17px;font-weight:800;font-family:var(--mono);color:var(--accent);margin-top:3px;}
+      .sh-item .sh-s{font-size:11px;color:var(--muted);}
 
-      /* ── Progress Bar ── */
-      .prog-bar { width: 100%; height: 6px; background: var(--chip); border-radius: 3px; overflow: hidden; margin: 6px 0; }
-      .prog-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 3px; transition: width 0.6s ease; }
+      /* ══ CREATIVE SUSTAINABILITY TAB ══ */
+      .sustain-hero{
+        position:relative;overflow:hidden;
+        background:linear-gradient(135deg,#0a1f16 0%,#08141e 50%,#0d1a0e 100%);
+        border:1px solid rgba(0,229,160,0.18);border-radius:22px;padding:36px;margin-bottom:16px;
+      }
+      .sustain-hero::before{content:'';position:absolute;top:-80px;right:-80px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,rgba(0,229,160,0.13) 0%,transparent 65%);pointer-events:none;}
+      .sustain-hero::after{content:'';position:absolute;bottom:-100px;left:-60px;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(0,184,212,0.09) 0%,transparent 65%);pointer-events:none;}
+      .sustain-hero-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:32px;position:relative;z-index:1;flex-wrap:wrap;gap:12px;}
+      .sustain-hero-title{font-size:24px;font-weight:800;letter-spacing:-0.5px;line-height:1.2;}
+      .sustain-hero-title em{color:var(--accent);font-style:normal;}
+      .sustain-hero-sub{font-size:13px;color:var(--muted);margin-top:6px;}
+      .sustain-live-pill{display:flex;align-items:center;gap:7px;background:rgba(0,229,160,0.1);border:1px solid rgba(0,229,160,0.28);border-radius:999px;padding:6px 14px;font-size:11px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:1px;}
+      .sustain-live-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:blink 1.8s ease infinite;}
 
-      /* ── Freq Bars ── */
-      .freq-row {
-        display: flex; align-items: center; gap: 12px;
-        padding: 10px 0; border-bottom: 1px solid var(--border);
+      .sustain-stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;position:relative;z-index:1;}
+      .sustain-stat-card{
+        background:rgba(255,255,255,0.035);border:1px solid rgba(255,255,255,0.09);
+        border-radius:18px;padding:24px;transition:transform 0.2s,border-color 0.2s;
+        position:relative;overflow:hidden;
       }
-      .freq-row:last-child { border-bottom: none; }
-      .freq-name { min-width: 180px; font-weight: 700; font-size: 13px; }
-      .freq-bar-bg { flex: 1; height: 28px; background: var(--chip); border-radius: 6px; overflow: hidden; }
-      .freq-bar-fill {
-        height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2));
-        display: flex; align-items: center; padding: 0 10px;
-        font-size: 12px; font-weight: 800; color: #050a07; border-radius: 6px;
-        transition: width 0.8s ease;
-      }
-      .freq-count { min-width: 40px; text-align: right; font-weight: 800; color: var(--accent); font-family: var(--mono); }
+      .sustain-stat-card:hover{transform:translateY(-4px);border-color:rgba(0,229,160,0.3);}
+      .sustain-stat-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,229,160,0.5),transparent);}
+      .ssc-icon{font-size:32px;margin-bottom:12px;display:block;}
+      .ssc-label{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(122,134,148,0.9);font-weight:800;}
+      .ssc-value{font-size:34px;font-weight:900;font-family:var(--mono);margin:8px 0 4px;background:linear-gradient(135deg,#00e5a0,#00b8d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+      .ssc-unit{font-size:12px;color:var(--muted);font-weight:700;letter-spacing:0.5px;}
 
-      /* ── Individual Log Card ── */
-      .ilog-card {
-        background: var(--panel2); border: 1px solid var(--border);
-        border-radius: 14px; padding: 20px; margin-bottom: 14px;
-        transition: border-color 0.2s;
-      }
-      .ilog-card:hover { border-color: rgba(0,229,160,0.3); }
-      .ilog-header {
-        display: flex; align-items: center; justify-content: space-between;
-        margin-bottom: 14px; flex-wrap: wrap; gap: 8px;
-      }
-      .ilog-title { font-size: 15px; font-weight: 800; }
-      .stat-row { display: flex; gap: 20px; flex-wrap: wrap; margin: 12px 0; }
-      .stat-item .s-l { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); font-weight: 700; }
-      .stat-item .s-v { font-size: 16px; font-weight: 800; margin-top: 3px; font-family: var(--mono); }
+      /* Sustain chart section */
+      .sustain-chart-card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px;}
+      .sustain-chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;}
+      .sustain-chart-header h3{font-size:15px;font-weight:700;}
 
-      /* ── Sustainability Highlight in ilog ── */
-      .sustain-highlight {
-        background: linear-gradient(135deg, rgba(0,229,160,0.06), rgba(0,184,212,0.06));
-        border: 1px solid rgba(0,229,160,0.2);
-        border-radius: 12px; padding: 16px; margin-top: 14px;
+      /* Per-run cards */
+      .sustain-run-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;}
+      .sustain-run-card{
+        background:var(--panel2);border:1px solid var(--border);
+        border-radius:14px;padding:18px;
+        transition:border-color 0.2s,transform 0.2s;
+        position:relative;overflow:hidden;
       }
-      .sustain-highlight h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); font-weight: 800; margin-bottom: 12px; }
-      .sh-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); gap: 10px; }
-      .sh-item .sh-l { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); font-weight: 700; }
-      .sh-item .sh-v { font-size: 17px; font-weight: 800; font-family: var(--mono); color: var(--accent); margin-top: 3px; }
-      .sh-item .sh-s { font-size: 11px; color: var(--muted); }
+      .sustain-run-card:hover{border-color:rgba(0,229,160,0.3);transform:translateY(-2px);}
+      .sustain-run-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,var(--accent),var(--accent2));border-radius:3px 0 0 3px;}
+      .src-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+      .src-num{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+      .src-file{font-size:12px;font-weight:700;font-family:var(--mono);color:var(--accent2);max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .src-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+      .src-item .src-l{font-size:9px;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);font-weight:700;}
+      .src-item .src-v{font-size:15px;font-weight:800;font-family:var(--mono);color:var(--accent);margin-top:3px;}
+      .src-item .src-v.red{color:var(--danger);}
+      .src-item .src-u{font-size:10px;color:var(--muted);}
+      .src-time{font-size:11px;color:var(--muted);margin-top:12px;padding-top:10px;border-top:1px solid var(--border);}
 
-      /* ── Env Impact ── */
-      .env-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 12px; margin-top: 14px; }
-      .env-item {
-        background: var(--panel2); border: 1px solid var(--border);
-        border-radius: 12px; padding: 16px; text-align: center;
-      }
-      .env-icon { font-size: 28px; margin-bottom: 8px; }
-      .env-val { font-size: 20px; font-weight: 900; font-family: var(--mono); color: var(--accent); }
-      .env-label { font-size: 11px; color: var(--muted); margin-top: 4px; }
+      /* Insight Cards */
+      .insight-card{background:linear-gradient(135deg,var(--panel),var(--panel2));border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:14px;position:relative;overflow:hidden;}
+      .insight-card::after{content:'';position:absolute;top:-20px;right:-20px;width:80px;height:80px;border-radius:50%;background:radial-gradient(var(--accent),transparent 70%);opacity:0.08;}
+      .insight-card h4{font-size:14px;font-weight:800;margin-bottom:6px;}
+      .insight-card p{font-size:13px;color:var(--muted);line-height:1.6;}
+      .insight-val{font-size:32px;font-weight:900;font-family:var(--mono);color:var(--accent);margin:10px 0 4px;}
 
-      /* ── Analysis ── */
-      .method-card {
-        background: var(--chip); border: 1px solid var(--border);
-        border-left: 3px solid var(--border);
-        border-radius: 10px; padding: 14px; margin: 8px 0;
-        transition: border-left-color 0.2s, transform 0.2s;
-      }
-      .method-card:hover { border-left-color: var(--accent); transform: translateX(3px); }
-      .method-card.bad { border-left-color: var(--danger); }
-      .method-name { font-size: 14px; font-weight: 800; color: var(--accent2); margin-bottom: 8px; font-family: var(--mono); }
-      .method-stats { display: flex; gap: 16px; flex-wrap: wrap; }
-      .ms-item .ms-l { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); }
-      .ms-item .ms-v { font-size: 17px; font-weight: 800; margin-top: 2px; }
+      .top-file-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);}
+      .top-file-row:last-child{border-bottom:none;}
+      .tf-rank{width:28px;height:28px;border-radius:8px;background:var(--chip);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:var(--accent);flex-shrink:0;}
+      .tf-name{flex:1;font-weight:700;font-size:13px;font-family:var(--mono);}
+      .tf-count{font-family:var(--mono);font-weight:800;color:var(--accent);}
 
-      /* ── Status ── */
-      #status-bar { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
-      .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
-      .dot.active { background: var(--accent); animation: blink 1.8s ease infinite; }
-      @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+      .hw-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;}
+      .hw-item{background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:16px;}
+      .hw-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;margin-bottom:8px;}
+      .hw-val{font-weight:800;font-size:14px;font-family:var(--mono);}
 
-      /* ── Reason text ── */
-      .reason-box {
-        background: var(--chip); border: 1px solid var(--border);
-        border-radius: 10px; padding: 12px 14px;
-        font-size: 13px; color: var(--muted); line-height: 1.6;
-        font-family: var(--mono);
-      }
-
-      /* ── Insight Cards ── */
-      .insight-card {
-        background: linear-gradient(135deg, var(--panel), var(--panel2));
-        border: 1px solid var(--border); border-radius: 14px; padding: 20px;
-        margin-bottom: 14px; position: relative; overflow: hidden;
-      }
-      .insight-card::after {
-        content: ''; position: absolute; top: -20px; right: -20px;
-        width: 80px; height: 80px; border-radius: 50%;
-        background: radial-gradient(var(--accent), transparent 70%);
-        opacity: 0.08;
-      }
-      .insight-card h4 { font-size: 14px; font-weight: 800; margin-bottom: 6px; }
-      .insight-card p { font-size: 13px; color: var(--muted); line-height: 1.6; }
-      .insight-val { font-size: 32px; font-weight: 900; font-family: var(--mono); color: var(--accent); margin: 10px 0 4px; }
-
-      /* ── Top Files List ── */
-      .top-file-row {
-        display: flex; align-items: center; gap: 12px;
-        padding: 10px 0; border-bottom: 1px solid var(--border);
-      }
-      .top-file-row:last-child { border-bottom: none; }
-      .tf-rank { width: 28px; height: 28px; border-radius: 8px; background: var(--chip); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px; color: var(--accent); flex-shrink: 0; }
-      .tf-name { flex: 1; font-weight: 700; font-size: 13px; font-family: var(--mono); }
-      .tf-count { font-family: var(--mono); font-weight: 800; color: var(--accent); }
-
-      /* ── Hardware ── */
-      .hw-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap: 12px; }
-      .hw-item {
-        background: var(--panel2); border: 1px solid var(--border);
-        border-radius: 12px; padding: 16px;
-      }
-      .hw-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); font-weight: 700; margin-bottom: 8px; }
-      .hw-val { font-weight: 800; font-size: 14px; font-family: var(--mono); }
-
-      /* ── Muted helper ── */
-      .muted { color: var(--muted); }
+      #status-bar{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);}
+      .dot{width:7px;height:7px;border-radius:50%;background:var(--muted);}
+      .dot.active{background:var(--accent);animation:blink 1.8s ease infinite;}
+      @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+      .muted{color:var(--muted);}
+      .reason-box{background:var(--chip);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--muted);line-height:1.6;font-family:var(--mono);}
 
       @media(max-width:800px){
-        .grid-2, .grid-3 { grid-template-columns: 1fr; }
-        .comparison { grid-template-columns: 1fr; }
-        .kpi-grid { grid-template-columns: repeat(2,1fr); }
+        .grid-2,.grid-3{grid-template-columns:1fr;}
+        .comparison{grid-template-columns:1fr;}
+        .kpi-grid{grid-template-columns:repeat(2,1fr);}
+        .donut-wrap{flex-direction:column;}
       }
     </style>
   </head>
   <body>
 
-    <!-- Header -->
     <div class="header">
       <div class="header-left">
         <div class="logo">🌱</div>
@@ -430,7 +221,6 @@
         </div>
       </div>
       <div class="header-right">
-        <button class="btn-success" id="load-analysis">📊 Analysis Report</button>
         <button class="btn-secondary" id="load-log">📜 Load Logs</button>
         <div class="search-wrap">
           <span class="search-icon">🔍</span>
@@ -441,59 +231,29 @@
       </div>
     </div>
 
-    <!-- KPI Cards -->
     <div class="kpi-grid">
-      <div class="kpi-card">
-        <div class="kpi-icon">🔄</div>
-        <div class="kpi-label">Total Refactors</div>
-        <div class="kpi-value" id="kpi-refactors">0</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-icon">⚡</div>
-        <div class="kpi-label">Total Energy Saved</div>
-        <div class="kpi-value" id="kpi-energy">0 kWh</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-icon">🌍</div>
-        <div class="kpi-label">CO₂ Saved</div>
-        <div class="kpi-value" id="kpi-co2">0 kg</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-icon">🌿</div>
-        <div class="kpi-label">Avg Sustain Score</div>
-        <div class="kpi-value" id="kpi-score">—</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-icon">📁</div>
-        <div class="kpi-label">Files Optimized</div>
-        <div class="kpi-value" id="kpi-files">0</div>
-      </div>
+      <div class="kpi-card"><div class="kpi-icon">🔄</div><div class="kpi-label">Total Refactors</div><div class="kpi-value" id="kpi-refactors">0</div></div>
+      <div class="kpi-card"><div class="kpi-icon">⚡</div><div class="kpi-label">Total Energy Saved</div><div class="kpi-value" id="kpi-energy">0 kWh</div></div>
+      <div class="kpi-card"><div class="kpi-icon">🌍</div><div class="kpi-label">CO₂ Saved</div><div class="kpi-value" id="kpi-co2">0 g</div></div>
+      <div class="kpi-card"><div class="kpi-icon">📁</div><div class="kpi-label">Files Optimized</div><div class="kpi-value" id="kpi-files">0</div></div>
     </div>
 
-    <!-- Tabs -->
     <div class="tabs">
       <button class="tab active" data-tab="overview">📊 Overview</button>
-      <button class="tab" data-tab="analysis">📋 Analysis</button>
       <button class="tab" data-tab="refactors">🔧 Refactor History</button>
       <button class="tab" data-tab="frequency">📈 Frequency</button>
-      <button class="tab" data-tab="energy">⚡ Energy & CO₂</button>
       <button class="tab" data-tab="sustainability">🌱 Sustainability</button>
       <button class="tab" data-tab="insights">💡 Insights</button>
       <button class="tab" data-tab="individual">🔍 Individual Logs</button>
       <button class="tab" data-tab="hardware">🖥️ Hardware</button>
     </div>
 
-    <!-- ══ TAB: Overview ══ -->
+    <!-- Overview -->
     <div id="tab-overview" class="tab-content active">
       <div class="grid-2">
         <div class="card">
-          <div class="card-title-row">
-            <h3>📊 Refactoring Impact Over Time</h3>
-          </div>
-          <div class="chart-wrap">
-            <canvas id="chart-main"></canvas>
-            <div id="tip"></div>
-          </div>
+          <div class="card-title-row"><h3>📊 Refactoring Impact Over Time</h3></div>
+          <div class="chart-wrap" style="height:320px;"><canvas id="chart-main"></canvas></div>
         </div>
         <div class="card">
           <h3>🎯 Quick Statistics</h3>
@@ -502,16 +262,7 @@
       </div>
     </div>
 
-    <!-- ══ TAB: Analysis ══ -->
-    <div id="tab-analysis" class="tab-content">
-      <div class="card">
-        <h3>📋 Code Smell Analysis Report</h3>
-        <div class="muted" style="margin-bottom:14px;font-size:13px">Detected by the Java static analyzer</div>
-        <div id="analysis-content"><div class="muted">Click "Analysis Report" to load detected smells</div></div>
-      </div>
-    </div>
-
-    <!-- ══ TAB: Refactor History ══ -->
+    <!-- Refactor History — no Score column -->
     <div id="tab-refactors" class="tab-content">
       <div class="card">
         <div class="card-title-row">
@@ -520,40 +271,26 @@
         </div>
         <div id="comparison-view" style="display:none;margin-bottom:16px">
           <div class="comparison">
-            <div class="cmp-side cmp-before">
-              <div class="cmp-label">Before</div>
-              <div class="cmp-value" id="cmp-before">—</div>
-              <div class="muted" style="font-size:12px">Big-O Complexity</div>
-            </div>
+            <div class="cmp-side cmp-before"><div class="cmp-label">Before</div><div class="cmp-value" id="cmp-before">—</div><div class="muted" style="font-size:12px">Big-O Complexity</div></div>
             <div class="cmp-arrow">→</div>
-            <div class="cmp-side cmp-after">
-              <div class="cmp-label">After</div>
-              <div class="cmp-value" id="cmp-after">—</div>
-              <div class="muted" style="font-size:12px">Big-O Complexity</div>
-            </div>
+            <div class="cmp-side cmp-after"><div class="cmp-label">After</div><div class="cmp-value" id="cmp-after">—</div><div class="muted" style="font-size:12px">Big-O Complexity</div></div>
           </div>
-          <div style="text-align:center;margin-top:8px">
-            <span class="badge badge-success" id="cmp-badge">—</span>
-          </div>
+          <div style="text-align:center;margin-top:8px"><span class="badge badge-success" id="cmp-badge">—</span></div>
         </div>
         <div class="table-wrap">
           <table>
             <thead>
-              <tr>
-                <th>Time</th><th>File</th><th>Refactor</th>
-                <th>Before</th><th>After</th>
-                <th>Energy</th><th>CO₂</th><th>Score</th><th></th>
-              </tr>
+              <tr><th>Time</th><th>File</th><th>Refactor</th><th>Before</th><th>After</th><th>Energy Saved</th><th>CO₂ Saved</th><th></th></tr>
             </thead>
             <tbody id="log-tbody">
-              <tr><td class="muted" colspan="9">Click "Load Logs" to view history</td></tr>
+              <tr><td class="muted" colspan="8">Click "Load Logs" to view history</td></tr>
             </tbody>
           </table>
         </div>
       </div>
     </div>
 
-    <!-- ══ TAB: Frequency ══ -->
+    <!-- Frequency — professional donut -->
     <div id="tab-frequency" class="tab-content">
       <div class="card">
         <h3>📈 Refactoring Type Frequency</h3>
@@ -562,7 +299,16 @@
       <div class="grid-2">
         <div class="card">
           <h3>📊 Distribution</h3>
-          <div class="chart-wrap" style="height:240px"><canvas id="chart-freq"></canvas></div>
+          <div class="donut-wrap">
+            <div class="donut-canvas-wrap">
+              <canvas id="chart-freq" width="200" height="200"></canvas>
+              <div class="donut-center">
+                <div class="donut-center-num" id="donut-total">0</div>
+                <div class="donut-center-lbl">total</div>
+              </div>
+            </div>
+            <div class="donut-legend" id="donut-legend"><div class="muted" style="font-size:13px">No data</div></div>
+          </div>
         </div>
         <div class="card">
           <h3>🥇 Top Patterns</h3>
@@ -571,177 +317,74 @@
       </div>
     </div>
 
-    <!-- ══ TAB: Energy & CO2 ══ -->
-    <div id="tab-energy" class="tab-content">
-      <div class="card">
-        <h3>⚡ Energy & CO₂ Overview</h3>
-        <div class="comparison">
-          <div class="cmp-side cmp-before">
-            <div class="cmp-label">Estimated Before</div>
-            <div class="cmp-value" id="energy-before">~0.0</div>
-            <div class="muted" style="font-size:12px">kWh</div>
+    <!-- Sustainability — creative, no score ring, no score anywhere -->
+    <div id="tab-sustainability" class="tab-content">
+      <div class="sustain-hero">
+        <div class="sustain-hero-top">
+          <div>
+            <div class="sustain-hero-title">🌍 Carbon <em>Impact</em> Report</div>
+            <div class="sustain-hero-sub">Real savings measured from every refactoring operation</div>
           </div>
-          <div class="cmp-arrow">→</div>
-          <div class="cmp-side cmp-after">
-            <div class="cmp-label">Saved After Refactor</div>
-            <div class="cmp-value" id="energy-after">~0.0</div>
-            <div class="muted" style="font-size:12px">kWh</div>
-          </div>
+          <div class="sustain-live-pill"><div class="sustain-live-dot"></div>Live from Logs</div>
         </div>
-        <div class="env-grid" id="env-impact-grid">
-          <div class="muted">Load logs to see impact</div>
+        <div class="sustain-stats-grid">
+          <div class="sustain-stat-card">
+            <span class="ssc-icon">⚡</span>
+            <div class="ssc-label">Total Energy Saved</div>
+            <div class="ssc-value" id="s-energy">—</div>
+            <div class="ssc-unit">kilowatt-hours (kWh)</div>
+          </div>
+          <div class="sustain-stat-card">
+            <span class="ssc-icon">💨</span>
+            <div class="ssc-label">Total Carbon Saved</div>
+            <div class="ssc-value" id="s-carbon">—</div>
+            <div class="ssc-unit">grams CO₂</div>
+          </div>
+          <div class="sustain-stat-card">
+            <span class="ssc-icon">🔬</span>
+            <div class="ssc-label">Operations Logged</div>
+            <div class="ssc-value" id="s-count">—</div>
+            <div class="ssc-unit">with sustainability data</div>
+          </div>
         </div>
       </div>
-      <div class="grid-2">
-        <div class="card">
-          <h3>⚡ Energy Over Time</h3>
-          <div class="chart-wrap"><canvas id="chart-energy"></canvas></div>
-        </div>
-        <div class="card">
-          <h3>🌍 CO₂ Over Time</h3>
-          <div class="chart-wrap"><canvas id="chart-co2"></canvas></div>
+
+      <div class="sustain-chart-card">
+        <div class="sustain-chart-header"><h3>🗂️ Per-Run Breakdown</h3></div>
+        <div class="sustain-run-grid" id="sustain-run-grid">
+          <div class="muted">Load logs to see per-run data</div>
         </div>
       </div>
     </div>
 
-    <!-- ══ TAB: Sustainability (NEW) ══ -->
-    <div id="tab-sustainability" class="tab-content">
+    <!-- Insights -->
+    <div id="tab-insights" class="tab-content">
+      <div class="grid-3">
+        <div class="insight-card"><h4>🏆 Most Optimized File</h4><div class="insight-val" id="ins-top-file">—</div><p id="ins-top-file-count" class="muted">Load logs to see</p></div>
+        <div class="insight-card"><h4>⚡ Best Energy Saving</h4><div class="insight-val" id="ins-best-energy">—</div><p id="ins-best-energy-file" class="muted">single refactoring</p></div>
+        <div class="insight-card"><h4>🌱 Greenest Refactor Type</h4><div class="insight-val" id="ins-greenest">—</div><p id="ins-greenest-sub" class="muted">by total energy saved</p></div>
+      </div>
+      <div class="grid-2" style="margin-top:0">
+        <div class="card"><h3>📁 Top Optimized Files</h3><div id="top-files-list"><div class="muted">No data</div></div></div>
+        <div class="card"><h3>⚡ Energy Saved per Refactor Type</h3><div id="energy-by-type"><div class="muted">No data</div></div></div>
+      </div>
       <div class="card">
         <div class="card-title-row">
-          <h3>🌱 Sustainability Metrics</h3>
-          <span class="badge badge-success">Live from Logs</span>
+          <h3>📅 Energy Saved Per Day</h3>
+          <span class="badge badge-info" id="daily-range-badge" style="display:none"></span>
         </div>
-        <div class="muted" style="font-size:13px;margin-bottom:16px">
-          Pulled from <code style="background:var(--chip);padding:2px 6px;border-radius:5px;font-family:var(--mono)">sustainability</code> field in each log entry
-        </div>
-
-        <!-- Score Ring + Description -->
-        <div class="score-ring-wrap" id="score-ring-wrap">
-          <div class="score-ring">
-            <svg width="100" height="100" viewBox="0 0 100 100">
-              <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="10"/>
-              <circle id="score-arc" cx="50" cy="50" r="40" fill="none"
-                stroke="url(#scoreGrad)" stroke-width="10"
-                stroke-linecap="round"
-                stroke-dasharray="251.2" stroke-dashoffset="251.2"/>
-              <defs>
-                <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stop-color="#00e5a0"/>
-                  <stop offset="100%" stop-color="#00b8d4"/>
-                </linearGradient>
-              </defs>
-            </svg>
-            <div class="score-ring-val" id="score-ring-val">—</div>
-          </div>
-          <div class="score-desc">
-            <h4>Average Sustainability Score</h4>
-            <p>Calculated from all refactoring operations. Higher is greener. Score of 100 = near-zero measurable carbon for the operation.</p>
-          </div>
-        </div>
-
-        <!-- Sustainability Metrics Grid -->
-        <div class="sustain-grid" id="sustain-metrics-grid">
-          <div class="sustain-metric">
-            <div class="s-icon">⚡</div>
-            <div class="s-label">Total Energy</div>
-            <div class="s-value" id="s-energy">—</div>
-            <div class="s-sub">kWh consumed</div>
-          </div>
-          <div class="sustain-metric">
-            <div class="s-icon">💨</div>
-            <div class="s-label">Total Carbon</div>
-            <div class="s-value" id="s-carbon">—</div>
-            <div class="s-sub">gCO₂ emitted</div>
-          </div>
-          <div class="sustain-metric">
-            <div class="s-icon">🏆</div>
-            <div class="s-label">Best Score</div>
-            <div class="s-value" id="s-best">—</div>
-            <div class="s-sub">/ 100</div>
-          </div>
-          <div class="sustain-metric">
-            <div class="s-icon">📉</div>
-            <div class="s-label">Worst Score</div>
-            <div class="s-value" id="s-worst">—</div>
-            <div class="s-sub">/ 100</div>
-          </div>
-          <div class="sustain-metric">
-            <div class="s-icon">🔢</div>
-            <div class="s-label">Logged Entries</div>
-            <div class="s-value" id="s-count">—</div>
-            <div class="s-sub">with sustainability data</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Sustainability Over Time Chart -->
-      <div class="card">
-        <h3>📈 Sustainability Score Over Time</h3>
-        <div class="chart-wrap"><canvas id="chart-sustain"></canvas></div>
-      </div>
-
-      <!-- Per-Run Table -->
-      <div class="card">
-        <h3>📋 Per-Run Sustainability Data</h3>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>#</th><th>File</th><th>Time</th>
-                <th>Energy (kWh)</th><th>Carbon (gCO₂)</th><th>Score</th>
-              </tr>
-            </thead>
-            <tbody id="sustain-tbody">
-              <tr><td class="muted" colspan="6">Load logs to see sustainability data</td></tr>
-            </tbody>
-          </table>
+        <div style="position:relative;height:320px;margin-top:4px;">
+          <canvas id="chart-daily" style="background:var(--chip);border-radius:12px;border:1px solid var(--border);width:100%;height:100%;display:block;"></canvas>
         </div>
       </div>
     </div>
 
-    <!-- ══ TAB: Insights ══ -->
-    <div id="tab-insights" class="tab-content">
-      <div class="grid-3" id="insight-cards-grid">
-        <div class="insight-card">
-          <h4>🏆 Most Optimized File</h4>
-          <div class="insight-val" id="ins-top-file">—</div>
-          <p id="ins-top-file-count" class="muted">Load logs to see</p>
-        </div>
-        <div class="insight-card">
-          <h4>⚡ Best Energy Saving</h4>
-          <div class="insight-val" id="ins-best-energy">—</div>
-          <p id="ins-best-energy-file" class="muted">single refactoring</p>
-        </div>
-        <div class="insight-card">
-          <h4>🌱 Greenest Refactor Type</h4>
-          <div class="insight-val" id="ins-greenest">—</div>
-          <p id="ins-greenest-sub" class="muted">by total energy saved</p>
-        </div>
-      </div>
-
-      <div class="grid-2" style="margin-top:0">
-        <div class="card">
-          <h3>📁 Top Optimized Files</h3>
-          <div id="top-files-list"><div class="muted">No data</div></div>
-        </div>
-        <div class="card">
-          <h3>⚡ Energy Saved per Refactor Type</h3>
-          <div id="energy-by-type"><div class="muted">No data</div></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <h3>📅 Energy Saved Per Day</h3>
-        <div class="chart-wrap"><canvas id="chart-daily"></canvas></div>
-      </div>
-    </div>
-
-    <!-- ══ TAB: Individual Logs ══ -->
+    <!-- Individual Logs — no score in sustain section -->
     <div id="tab-individual" class="tab-content">
       <div id="individual-logs"><div class="muted">Load logs to see individual entries</div></div>
     </div>
 
-    <!-- ══ TAB: Hardware ══ -->
+    <!-- Hardware -->
     <div id="tab-hardware" class="tab-content">
       <div class="card">
         <div class="card-title-row">
@@ -763,177 +406,89 @@
     </div>
 
     <script>
-    // ══════════════════════════════════════════════
-    // VS Code API
-    // ══════════════════════════════════════════════
-    const vscode = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : null;
-    const $ = id => document.getElementById(id);
+    const vscode=typeof acquireVsCodeApi==='function'?acquireVsCodeApi():null;
+    const $=id=>document.getElementById(id);
+    let allRows=[],viewRows=[],selectedIndex=-1,animPct=0;
 
-    // ══════════════════════════════════════════════
-    // State
-    // ══════════════════════════════════════════════
-    let allRows = [], viewRows = [], selectedIndex = -1, animPct = 0;
+    function setStatus(t,l=false){$('status-dot').className='dot'+(l?' active':'');$('status-text').textContent=t;}
+    function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);}
+    function nf(n,d=6){const v=Number(n||0);if(v===0)return'0';if(v>=1)return v.toFixed(Math.min(d,3));if(v>=0.01)return v.toFixed(4);if(v>=0.001)return v.toFixed(5);if(v>=0.0001)return v.toFixed(6);return v.toFixed(8);}
+    function gv(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim();}
 
-    // ══════════════════════════════════════════════
-    // Status helpers
-    // ══════════════════════════════════════════════
-    function setStatus(text, loading=false){
-      $('status-dot').className = 'dot' + (loading?' active':'');
-      $('status-text').textContent = text;
-    }
-    function esc(s){ return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]); }
-    function nf(n,d=6){ const v=Number(n||0); if(v===0)return'0'; if(v>=1)return v.toFixed(Math.min(d,3)); if(v>=0.01)return v.toFixed(4); if(v>=0.001)return v.toFixed(5); if(v>=0.0001)return v.toFixed(6); return v.toFixed(8); }
-    function gv(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
-
-    // ══════════════════════════════════════════════
-    // Tabs
-    // ══════════════════════════════════════════════
     document.querySelectorAll('.tab').forEach(tab=>{
       tab.addEventListener('click',()=>{
         document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
         tab.classList.add('active');
         $('tab-'+tab.dataset.tab).classList.add('active');
-        if(tab.dataset.tab==='hardware') requestHardware();
+        if(tab.dataset.tab==='hardware')requestHardware();
+        if(tab.dataset.tab==='insights')setTimeout(drawDailyChart,80);
+        if(tab.dataset.tab==='overview')setTimeout(()=>{animPct=0;drawMainChart();},50);
+        setTimeout(drawAllCharts,50);
       });
     });
 
-    // ══════════════════════════════════════════════
-    // Buttons
-    // ══════════════════════════════════════════════
-    $('load-analysis').addEventListener('click',()=>{ setStatus('Loading analysis…',true); vscode&&vscode.postMessage({type:'readAnalysis'}); });
-    $('load-log').addEventListener('click',()=>{ setStatus('Loading logs…',true); vscode&&vscode.postMessage({type:'readLog'}); });
-    $('filter').addEventListener('input',e=>{ applyFilter(e.target.value); renderAll(); });
-    $('export-png').addEventListener('click',()=>{ const a=document.createElement('a'); a.download='sustainadev.png'; a.href=document.getElementById('chart-main').toDataURL(); a.click(); });
+    $('load-log').addEventListener('click',()=>{setStatus('Loading logs…',true);vscode&&vscode.postMessage({type:'readLog'});});
+    $('filter').addEventListener('input',e=>{applyFilter(e.target.value);renderAll();});
+    $('export-png').addEventListener('click',()=>{const a=document.createElement('a');a.download='sustainadev.png';a.href=$('chart-main').toDataURL();a.click();});
     $('load-hardware').addEventListener('click',requestHardware);
 
-    function requestHardware(){
-      $('hw-status').textContent='Loading…';
-      $('load-hardware').disabled=true;
-      vscode&&vscode.postMessage({type:'readHardware'});
-    }
+    function requestHardware(){$('hw-status').textContent='Loading…';$('load-hardware').disabled=true;vscode&&vscode.postMessage({type:'readHardware'});}
 
-    // ══════════════════════════════════════════════
-    // Message handler
-    // ══════════════════════════════════════════════
     window.addEventListener('message',ev=>{
       const msg=ev.data;
-      if(msg.type==='analysisContent'){
-        try{ renderAnalysis(JSON.parse(msg.content)); }
-        catch{ $('analysis-content').innerHTML=`<pre>${msg.content}</pre>`; }
-        setStatus('Analysis loaded ✓');
-      }
-      if(msg.type==='analysisError'){ $('analysis-content').innerHTML=`<div class="muted">⚠ ${esc(msg.error)}</div>`; setStatus('Error'); }
       if(msg.type==='logContent'){
-        try{
-          allRows=msg.lines.map(l=>JSON.parse(l));
-          allRows.sort((a,b)=>new Date(b.timestamp||0)-new Date(a.timestamp||0));
-          applyFilter($('filter').value);
-          renderAll();
-          setStatus(`${allRows.length} logs loaded ✓`);
-        }catch(e){ setStatus('Parse error'); console.error(e); }
+        try{allRows=msg.lines.map(l=>JSON.parse(l));allRows.sort((a,b)=>new Date(b.timestamp||0)-new Date(a.timestamp||0));applyFilter($('filter').value);renderAll();setStatus(`${allRows.length} logs loaded ✓`);}
+        catch(e){setStatus('Parse error');console.error(e);}
       }
-      if(msg.type==='logError'){ setStatus('Error loading logs'); }
+      if(msg.type==='logError')setStatus('Error loading logs');
       if(msg.type==='hardwareContent'){
         const s=msg.specs||{};
-        $('hw-cpu').textContent=s.cpu||'—'; $('hw-gpu').textContent=s.gpu||'—';
-        $('hw-ram').textContent=s.ram||'—'; $('hw-os').textContent=s.os||'—';
-        $('hw-disks').textContent=s.disks||'—'; $('hw-battery').textContent=s.battery||'—';
-        $('hw-status').textContent='Loaded ✓';
-        $('load-hardware').disabled=false; $('load-hardware').textContent='Reload';
+        $('hw-cpu').textContent=s.cpu||'—';$('hw-gpu').textContent=s.gpu||'—';$('hw-ram').textContent=s.ram||'—';$('hw-os').textContent=s.os||'—';$('hw-disks').textContent=s.disks||'—';$('hw-battery').textContent=s.battery||'—';
+        $('hw-status').textContent='Loaded ✓';$('load-hardware').disabled=false;$('load-hardware').textContent='Reload';
       }
-      if(msg.type==='hardwareError'){
-        $('hw-status').textContent='Error: '+(msg.error||'unknown');
-        $('load-hardware').disabled=false; $('load-hardware').textContent='Retry';
-      }
+      if(msg.type==='hardwareError'){$('hw-status').textContent='Error: '+(msg.error||'unknown');$('load-hardware').disabled=false;$('load-hardware').textContent='Retry';}
     });
 
-    // ══════════════════════════════════════════════
-    // Data Helpers
-    // ══════════════════════════════════════════════
     function applyFilter(q){
-      viewRows=q ? allRows.filter(r=>(r.file||'').toLowerCase().includes(q.toLowerCase())||(r.refactor||'').toLowerCase().includes(q.toLowerCase())) : [...allRows];
+      viewRows=q?allRows.filter(r=>(r.file||'').toLowerCase().includes(q.toLowerCase())||(r.refactor||'').toLowerCase().includes(q.toLowerCase())):[...allRows];
       selectedIndex=-1;
       $('count').textContent=`${viewRows.length} item${viewRows.length!==1?'s':''}`;
     }
-
     function getBigO(row){
-      const p=(...vs)=>{ for(const v of vs){ if(v!=null){ const s=String(v).trim(); if(s)return s; } } return null; };
-      return {
-        before: p(row?.complexity?.before, row?.bigO?.before, row?.before?.bigO),
-        after:  p(row?.complexity?.after,  row?.bigO?.after,  row?.after?.bigO)
-      };
+      const p=(...vs)=>{for(const v of vs){if(v!=null){const s=String(v).trim();if(s)return s;}}return null;};
+      return{before:p(row?.complexity?.before,row?.bigO?.before,row?.before?.bigO),after:p(row?.complexity?.after,row?.bigO?.after,row?.after?.bigO)};
     }
-
-   function getSustain(row){
-  const s = row?.sustainability;
-  if (!s) return null;
-  // New nested format: {before, after, saved, sustainabilityScore}
-  if (s.after !== undefined) {
-    return {
-      energyKwh: s.after.energyKwh,
-      carbonGrams: s.after.carbonGrams,
-      sustainabilityScore: s.sustainabilityScore,
-      beforeEnergyKwh: s.before?.energyKwh,
-      beforeCarbonGrams: s.before?.carbonGrams,
-      savedEnergyKwh: s.saved?.energyKwh,
-      savedCarbonGrams: s.saved?.carbonGrams,
-    };
-  }
-  // Old flat format fallback
-  return s;
-}
-    // ══════════════════════════════════════════════
-    // Render All
-    // ══════════════════════════════════════════════
-    function renderAll(){
-      updateKPIs();
-      renderTable();
-      renderFrequency();
-      renderEnergyTab();
-      renderSustainabilityTab();
-      renderInsights();
-      renderIndividualLogs();
-      renderQuickStats();
-      drawAllCharts();
+    function getSustain(row){
+      const s=row?.sustainability;if(!s)return null;
+      if(s.after!==undefined)return{energyKwh:s.after.energyKwh,carbonGrams:s.after.carbonGrams,sustainabilityScore:s.sustainabilityScore,beforeEnergyKwh:s.before?.energyKwh,beforeCarbonGrams:s.before?.carbonGrams,savedEnergyKwh:s.saved?.energyKwh,savedCarbonGrams:s.saved?.carbonGrams};
+      return s;
     }
+    function getSavedEnergy(row){const s=row?.sustainability;if(s?.saved?.energyKwh!=null)return Number(s.saved.energyKwh);return Number(row?.energy?.estimated_kwh_saved??0);}
+    function getSavedCO2grams(row){const s=row?.sustainability;if(s?.saved?.carbonGrams!=null)return Number(s.saved.carbonGrams);return Number(row?.energy?.estimated_co2_saved_kg??row?.energy?.emissions_kg??0)*1000;}
 
-    // ══════════════════════════════════════════════
-    // KPIs
-    // ══════════════════════════════════════════════
+    function renderAll(){updateKPIs();renderTable();renderFrequency();renderSustainabilityTab();renderInsights();renderIndividualLogs();renderQuickStats();drawAllCharts();}
+
     function updateKPIs(){
-      const count=viewRows.length;
-      const energy=viewRows.reduce((s,r)=>s+Number(r?.energy?.estimated_kwh_saved??0),0);
-      const co2=viewRows.reduce((s,r)=>s+Number(r?.energy?.estimated_co2_saved_kg??r?.energy?.emissions_kg??0),0);
+      const energy=viewRows.reduce((s,r)=>s+getSavedEnergy(r),0);
+      const co2g=viewRows.reduce((s,r)=>s+getSavedCO2grams(r),0);
       const files=new Set(viewRows.map(r=>r.file)).size;
-
-      // sustainability scores
-      const scores=viewRows.map(r=>getSustain(r)?.sustainabilityScore).filter(v=>v!=null);
-      const avgScore=scores.length ? (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1) : '—';
-
-      $('kpi-refactors').textContent=count;
-      $('kpi-energy').textContent=nf(energy,4)+' kWh';
-      $('kpi-co2').textContent=nf(co2,6)+' kg';
-      $('kpi-score').textContent=avgScore;
+      $('kpi-refactors').textContent=viewRows.length;
+      $('kpi-energy').textContent=nf(energy,6)+' kWh';
+      $('kpi-co2').textContent=co2g<1000?nf(co2g,4)+' g':nf(co2g/1000,6)+' kg';
       $('kpi-files').textContent=files;
     }
 
-    // ══════════════════════════════════════════════
-    // Table
-    // ══════════════════════════════════════════════
+    // Refactor History table — NO score column
     function renderTable(){
-      const tbody=$('log-tbody');
-      tbody.innerHTML='';
+      const tbody=$('log-tbody');tbody.innerHTML='';
       viewRows.forEach((row,i)=>{
         const fn=(row.file||'').split('\\').pop()||'—';
         const bigO=getBigO(row);
-        const energy=Number(row?.energy?.estimated_kwh_saved??0);
-        const co2=Number(row?.energy?.estimated_co2_saved_kg??row?.energy?.emissions_kg??0);
-        const sustain=getSustain(row);
-        const score=sustain?.sustainabilityScore!=null ? sustain.sustainabilityScore.toFixed(1) : '—';
-
+        const energy=getSavedEnergy(row);
+        const co2g=getSavedCO2grams(row);
         const tr=document.createElement('tr');
-        if(i===selectedIndex) tr.classList.add('selected');
+        if(i===selectedIndex)tr.classList.add('selected');
         tr.dataset.index=i;
         tr.innerHTML=`
           <td style="font-size:12px;color:var(--muted)">${row.timestamp?new Date(row.timestamp).toLocaleString():''}</td>
@@ -941,409 +496,462 @@
           <td><span class="badge badge-info">${esc(row.refactor||'')}</span></td>
           <td style="font-family:var(--mono);color:var(--danger)">${bigO.before?esc(bigO.before):'—'}</td>
           <td style="font-family:var(--mono);color:var(--accent)">${bigO.after?esc(bigO.after):'—'}</td>
-          <td style="font-family:var(--mono)">${nf(energy,6)}</td>
-          <td style="font-family:var(--mono)">${nf(co2,6)}</td>
-          <td><span class="badge ${score!=='—'&&Number(score)>=80?'badge-success':score!=='—'&&Number(score)>=50?'badge-warn':'badge-danger'}">${score}</span></td>
-          <td><button class="btn-ghost" style="padding:5px 10px;font-size:11px" onclick="selectRow(${i})">View</button></td>
-        `;
+          <td style="font-family:var(--mono)">${nf(energy,6)} kWh</td>
+          <td style="font-family:var(--mono)">${nf(co2g,4)} g</td>
+          <td><button class="btn-ghost" style="padding:5px 10px;font-size:11px" onclick="selectRow(${i})">View</button></td>`;
         tbody.appendChild(tr);
       });
     }
-
     function selectRow(i){
-      selectedIndex=i;
-      renderTable();
-      const row=viewRows[i];
-      const bigO=getBigO(row);
+      selectedIndex=i;renderTable();
+      const row=viewRows[i];const bigO=getBigO(row);
       $('comparison-view').style.display='block';
-      $('cmp-before').textContent=bigO.before||'—';
-      $('cmp-after').textContent=bigO.after||'—';
+      $('cmp-before').textContent=bigO.before||'—';$('cmp-after').textContent=bigO.after||'—';
       $('cmp-badge').textContent=bigO.before&&bigO.after?`${bigO.before} → ${bigO.after}`:'N/A';
       $('comparison-view').scrollIntoView({behavior:'smooth',block:'nearest'});
       drawAllCharts();
     }
 
-    // ══════════════════════════════════════════════
-    // Frequency
-    // ══════════════════════════════════════════════
     function renderFrequency(){
-      const map={};
-      viewRows.forEach(r=>{ const t=r.refactor||'Unknown'; map[t]=(map[t]||0)+1; });
+      const map={};viewRows.forEach(r=>{const t=r.refactor||'Unknown';map[t]=(map[t]||0)+1;});
       const sorted=Object.entries(map).sort((a,b)=>b[1]-a[1]);
       const max=sorted[0]?.[1]||1;
-
       let html='';
-      sorted.forEach(([type,count])=>{
-        const pct=(count/max*100).toFixed(0);
-        html+=`<div class="freq-row">
-          <div class="freq-name">${esc(type)}</div>
-          <div class="freq-bar-bg"><div class="freq-bar-fill" style="width:${pct}%">${count}</div></div>
-          <div class="freq-count">${count}x</div>
-        </div>`;
-      });
+      sorted.forEach(([type,count])=>{const pct=(count/max*100).toFixed(0);html+=`<div class="freq-row"><div class="freq-name">${esc(type)}</div><div class="freq-bar-bg"><div class="freq-bar-fill" style="width:${pct}%">${count}</div></div><div class="freq-count">${count}x</div></div>`;});
       $('freq-bars').innerHTML=html||'<div class="muted">No data</div>';
-
       let topHtml='';
       sorted.slice(0,5).forEach(([type,count],i)=>{
         const pct=((count/viewRows.length)*100).toFixed(1);
-        topHtml+=`<div style="padding:10px 0;border-bottom:1px solid var(--border)">
-          <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-            <span style="font-weight:700">${i+1}. ${esc(type)}</span>
-            <span class="badge badge-info">${pct}%</span>
-          </div>
-          <div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div>
-        </div>`;
+        topHtml+=`<div style="padding:10px 0;border-bottom:1px solid var(--border)"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-weight:700">${i+1}. ${esc(type)}</span><span class="badge badge-info">${pct}%</span></div><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div></div>`;
       });
       $('top-patterns').innerHTML=topHtml||'<div class="muted">No data</div>';
-
-      drawPieChart(sorted);
+      drawDonutChart(sorted);
     }
 
-    // ══════════════════════════════════════════════
-    // Energy Tab
-    // ══════════════════════════════════════════════
-    function renderEnergyTab(){
-      const totalEnergy=viewRows.reduce((s,r)=>s+Number(r?.energy?.estimated_kwh_saved??0),0);
-      const totalCO2=viewRows.reduce((s,r)=>s+Number(r?.energy?.estimated_co2_saved_kg??r?.energy?.emissions_kg??0),0);
-      $('energy-before').textContent=nf(viewRows.length*0.001,4);
-      $('energy-after').textContent=nf(totalEnergy,4);
-
-      const trees=(totalCO2/21); const miles=(totalCO2/0.4); const hours=(totalEnergy/0.1);
-      $('env-impact-grid').innerHTML=`
-        <div class="env-item"><div class="env-icon">⚡</div><div class="env-val">${nf(totalEnergy,6)}</div><div class="env-label">kWh Saved</div></div>
-        <div class="env-item"><div class="env-icon">🌍</div><div class="env-val">${nf(totalCO2,6)}</div><div class="env-label">kg CO₂ Reduced</div></div>
-        <div class="env-item"><div class="env-icon">🌳</div><div class="env-val">${nf(trees,6)}</div><div class="env-label">Trees Equivalent / yr</div></div>
-        <div class="env-item"><div class="env-icon">🚗</div><div class="env-val">${nf(miles,6)}</div><div class="env-label">Miles Not Driven</div></div>
-        <div class="env-item"><div class="env-icon">💡</div><div class="env-val">${nf(hours,6)}</div><div class="env-label">100W Bulb Hours</div></div>
-      `;
-    }
-
-    // ══════════════════════════════════════════════
-    // 🌱 Sustainability Tab (NEW — reads sustainability field)
-    // ══════════════════════════════════════════════
+    // Sustainability Tab — creative, NO score anywhere
     function renderSustainabilityTab(){
       const entries=viewRows.filter(r=>getSustain(r)!==null);
       const count=entries.length;
-
       if(!count){
-        $('sustain-tbody').innerHTML='<tr><td class="muted" colspan="6">No sustainability data in logs yet — run a refactor to populate this tab</td></tr>';
-        $('score-ring-val').textContent='—';
+        $('sustain-run-grid').innerHTML='<div class="muted">No sustainability data — run a refactor to populate</div>';
+        $('s-energy').textContent='—';$('s-carbon').textContent='—';$('s-count').textContent='—';
         return;
       }
-
-      const totalEnergy=entries.reduce((s,r)=>s+Number(getSustain(r).energyKwh||0),0);
-      const totalCarbon=entries.reduce((s,r)=>s+Number(getSustain(r).carbonGrams||0),0);
-      const scores=entries.map(r=>Number(getSustain(r).sustainabilityScore||0));
-      const avg=scores.reduce((a,b)=>a+b,0)/scores.length;
-      const best=Math.max(...scores); const worst=Math.min(...scores);
-
-      // Update metric cards
-      $('s-energy').textContent=nf(totalEnergy,6);
-      $('s-carbon').textContent=nf(totalCarbon,4);
-      $('s-best').textContent=best.toFixed(1);
-      $('s-worst').textContent=worst.toFixed(1);
+      const totalE=entries.reduce((s,r)=>s+getSavedEnergy(r),0);
+      const totalC=entries.reduce((s,r)=>s+getSavedCO2grams(r),0);
+      $('s-energy').textContent=nf(totalE,6);
+      $('s-carbon').textContent=nf(totalC,4);
       $('s-count').textContent=count;
 
-      // Score ring
-      $('score-ring-val').textContent=avg.toFixed(1);
-      const circumference=251.2;
-      $('score-arc').style.strokeDashoffset=circumference-(avg/100)*circumference;
-
-      // Per-run table
+      // Per-run cards, NO score
       let html='';
       entries.forEach((row,i)=>{
         const fn=(row.file||'').split('\\').pop()||'—';
+        const savedE=getSavedEnergy(row);
+        const savedC=getSavedCO2grams(row);
         const s=getSustain(row);
-        const score=Number(s.sustainabilityScore||0);
-        html+=`<tr>
-          <td style="font-family:var(--mono);color:var(--muted)">${i+1}</td>
-          <td><span class="pill">${esc(fn)}</span></td>
-          <td style="font-size:12px;color:var(--muted)">${row.timestamp?new Date(row.timestamp).toLocaleString():''}</td>
-          <td style="font-family:var(--mono)">${nf(s.energyKwh,6)}</td>
-          <td style="font-family:var(--mono)">${nf(s.carbonGrams,4)}</td>
-          <td><span class="badge ${score>=80?'badge-success':score>=50?'badge-warn':'badge-danger'}">${score.toFixed(1)}</span></td>
-        </tr>`;
-      });
-      $('sustain-tbody').innerHTML=html;
-
-      drawSustainChart(entries);
-    }
-
-    // ══════════════════════════════════════════════
-    // Insights Tab
-    // ══════════════════════════════════════════════
-    function renderInsights(){
-      if(!viewRows.length) return;
-
-      // Top files by refactor count
-      const fileMap={};
-      viewRows.forEach(r=>{ fileMap[r.file||'unknown']=(fileMap[r.file||'unknown']||0)+1; });
-      const topFiles=Object.entries(fileMap).sort((a,b)=>b[1]-a[1]);
-      const topFile=topFiles[0];
-      if(topFile){
-        $('ins-top-file').textContent=(topFile[0]||'').split('\\').pop()||topFile[0];
-        $('ins-top-file-count').textContent=`${topFile[1]} refactoring${topFile[1]!==1?'s':''}`;
-      }
-
-      // Best single energy saving
-      const best=viewRows.reduce((b,r)=>{ const e=Number(r?.energy?.estimated_kwh_saved??0); return e>b.e?{e,r}:b; },{e:-1,r:null});
-      if(best.r){
-        $('ins-best-energy').textContent=nf(best.e,6)+' kWh';
-        $('ins-best-energy-file').textContent=(best.r.file||'').split('\\').pop()||'—';
-      }
-
-      // Greenest refactor type (by total energy saved)
-      const typeEnergy={};
-      viewRows.forEach(r=>{ const t=r.refactor||'Unknown'; typeEnergy[t]=(typeEnergy[t]||0)+Number(r?.energy?.estimated_kwh_saved??0); });
-      const greenest=Object.entries(typeEnergy).sort((a,b)=>b[1]-a[1])[0];
-      if(greenest){
-        $('ins-greenest').textContent=greenest[0];
-        $('ins-greenest-sub').textContent=nf(greenest[1],6)+' kWh total';
-      }
-
-      // Top files list
-      let topHtml='';
-      topFiles.slice(0,6).forEach(([file,count],i)=>{
-        const fn=file.split('\\').pop()||file;
-        topHtml+=`<div class="top-file-row">
-          <div class="tf-rank">${i+1}</div>
-          <div class="tf-name">${esc(fn)}</div>
-          <div class="tf-count">${count}x</div>
+        html+=`<div class="sustain-run-card">
+          <div class="src-header"><span class="src-num">Run #${i+1}</span><span class="src-file">${esc(fn)}</span></div>
+          <div class="src-grid">
+            <div class="src-item"><div class="src-l">⚡ Before Energy</div><div class="src-v red">${nf(s.beforeEnergyKwh,6)}</div><div class="src-u">kWh</div></div>
+            <div class="src-item"><div class="src-l">⚡ After Energy</div><div class="src-v">${nf(s.energyKwh,6)}</div><div class="src-u">kWh</div></div>
+            <div class="src-item"><div class="src-l">💚 Energy Saved</div><div class="src-v">${nf(savedE,6)}</div><div class="src-u">kWh</div></div>
+            <div class="src-item"><div class="src-l">💚 Carbon Saved</div><div class="src-v">${nf(savedC,4)}</div><div class="src-u">gCO₂</div></div>
+          </div>
+          <div class="src-time">${row.timestamp?new Date(row.timestamp).toLocaleString():''}</div>
         </div>`;
       });
-      $('top-files-list').innerHTML=topHtml||'<div class="muted">No data</div>';
+      $('sustain-run-grid').innerHTML=html;
+    }
 
-      // Energy by type
+    function renderInsights(){
+      if(!viewRows.length)return;
+      const fileMap={};viewRows.forEach(r=>{fileMap[r.file||'unknown']=(fileMap[r.file||'unknown']||0)+1;});
+      const topFiles=Object.entries(fileMap).sort((a,b)=>b[1]-a[1]);
+      const topFile=topFiles[0];
+      if(topFile){$('ins-top-file').textContent=(topFile[0]||'').split('\\').pop()||topFile[0];$('ins-top-file-count').textContent=`${topFile[1]} refactoring${topFile[1]!==1?'s':''}`;}
+      const best=viewRows.reduce((b,r)=>{const e=getSavedEnergy(r);return e>b.e?{e,r}:b;},{e:-1,r:null});
+      if(best.r){$('ins-best-energy').textContent=nf(best.e,6)+' kWh';$('ins-best-energy-file').textContent=(best.r.file||'').split('\\').pop()||'—';}
+      const typeEnergy={};viewRows.forEach(r=>{const t=r.refactor||'Unknown';typeEnergy[t]=(typeEnergy[t]||0)+getSavedEnergy(r);});
+      const greenest=Object.entries(typeEnergy).sort((a,b)=>b[1]-a[1])[0];
+      if(greenest){$('ins-greenest').textContent=greenest[0];$('ins-greenest-sub').textContent=nf(greenest[1],6)+' kWh total';}
+      let topHtml='';
+      topFiles.slice(0,6).forEach(([file,count],i)=>{const fn=file.split('\\').pop()||file;topHtml+=`<div class="top-file-row"><div class="tf-rank">${i+1}</div><div class="tf-name">${esc(fn)}</div><div class="tf-count">${count}x</div></div>`;});
+      $('top-files-list').innerHTML=topHtml||'<div class="muted">No data</div>';
       const typesSorted=Object.entries(typeEnergy).sort((a,b)=>b[1]-a[1]);
       const maxE=typesSorted[0]?.[1]||1;
       let eHtml='';
-      typesSorted.forEach(([type,e])=>{
-        const pct=(e/maxE*100).toFixed(0);
-        eHtml+=`<div class="freq-row">
-          <div class="freq-name">${esc(type)}</div>
-          <div class="freq-bar-bg"><div class="freq-bar-fill" style="width:${pct}%">${nf(e,6)} kWh</div></div>
-        </div>`;
-      });
+      typesSorted.forEach(([type,e])=>{const pct=maxE>0?(e/maxE*100).toFixed(0):0;eHtml+=`<div class="freq-row"><div class="freq-name">${esc(type)}</div><div class="freq-bar-bg"><div class="freq-bar-fill" style="width:${pct}%">${nf(e,6)} kWh</div></div></div>`;});
       $('energy-by-type').innerHTML=eHtml||'<div class="muted">No data</div>';
-
-      drawDailyChart();
+      setTimeout(drawDailyChart,20);
     }
 
-    // ══════════════════════════════════════════════
-    // Individual Logs
-    // ══════════════════════════════════════════════
+    // Individual Logs — NO score in sustain section
     function renderIndividualLogs(){
       const container=$('individual-logs');
-      if(!viewRows.length){ container.innerHTML='<div class="muted">No logs available</div>'; return; }
-
+      if(!viewRows.length){container.innerHTML='<div class="muted">No logs available</div>';return;}
       let html='';
       viewRows.forEach((row,i)=>{
         const fn=(row.file||'').split('\\').pop()||'Unknown';
-        const bigO=getBigO(row);
-        const sustain=getSustain(row);
-        const energy=Number(row?.energy?.estimated_kwh_saved??0);
-        const co2=Number(row?.energy?.estimated_co2_saved_kg??row?.energy?.emissions_kg??0);
-
+        const bigO=getBigO(row);const sustain=getSustain(row);
+        const savedEnergy=getSavedEnergy(row);const savedCO2=getSavedCO2grams(row);
         html+=`<div class="ilog-card">
           <div class="ilog-header">
             <div class="ilog-title">🧠 Optimization #${i+1} — <span style="color:var(--accent2)">${esc(fn)}</span></div>
             <span class="badge badge-info">${esc(row.refactor||'Algorithmic Optimization')}</span>
           </div>
-
           <div class="stat-row">
             <div class="stat-item"><div class="s-l">Timestamp</div><div class="s-v" style="font-size:13px">${row.timestamp?new Date(row.timestamp).toLocaleString():'N/A'}</div></div>
             <div class="stat-item"><div class="s-l">Before</div><div class="s-v" style="color:var(--danger)">${bigO.before?esc(bigO.before):'—'}</div></div>
             <div class="stat-item"><div class="s-l">After</div><div class="s-v" style="color:var(--accent)">${bigO.after?esc(bigO.after):'—'}</div></div>
-            <div class="stat-item"><div class="s-l">Energy Saved</div><div class="s-v">${nf(energy,6)} kWh</div></div>
-            <div class="stat-item"><div class="s-l">CO₂ Saved</div><div class="s-v">${nf(co2,6)} kg</div></div>
+            <div class="stat-item"><div class="s-l">Energy Saved</div><div class="s-v" style="color:var(--accent)">${nf(savedEnergy,6)} kWh</div></div>
+            <div class="stat-item"><div class="s-l">CO₂ Saved</div><div class="s-v" style="color:var(--accent)">${nf(savedCO2,4)} g</div></div>
           </div>
-
-          ${bigO.before&&bigO.after?`
-          <div class="comparison" style="margin:10px 0">
-            <div class="cmp-side cmp-before"><div class="cmp-label">Before</div><div class="cmp-value">${esc(bigO.before)}</div></div>
-            <div class="cmp-arrow">→</div>
-            <div class="cmp-side cmp-after"><div class="cmp-label">After</div><div class="cmp-value">${esc(bigO.after)}</div></div>
-          </div>`:''}
-
-  ${sustain ? `
-<div class="sustain-highlight">
-  <h4>🌱 Sustainability Metrics</h4>
-  <div class="sh-grid">
-    <div class="sh-item"><div class="sh-l">⚡ Before Energy</div><div class="sh-v" style="color:var(--danger)">${nf(sustain.beforeEnergyKwh,6)}</div><div class="sh-s">kWh</div></div>
-    <div class="sh-item"><div class="sh-l">⚡ After Energy</div><div class="sh-v">${nf(sustain.energyKwh,6)}</div><div class="sh-s">kWh</div></div>
-    <div class="sh-item"><div class="sh-l">💚 Energy Saved</div><div class="sh-v" style="color:var(--accent)">${nf(sustain.savedEnergyKwh,6)}</div><div class="sh-s">kWh</div></div>
-    <div class="sh-item"><div class="sh-l">💨 Before Carbon</div><div class="sh-v" style="color:var(--danger)">${nf(sustain.beforeCarbonGrams,4)}</div><div class="sh-s">gCO₂</div></div>
-    <div class="sh-item"><div class="sh-l">💨 After Carbon</div><div class="sh-v">${nf(sustain.carbonGrams,4)}</div><div class="sh-s">gCO₂</div></div>
-    <div class="sh-item"><div class="sh-l">💚 Carbon Saved</div><div class="sh-v" style="color:var(--accent)">${nf(sustain.savedCarbonGrams,4)}</div><div class="sh-s">gCO₂</div></div>
-    <div class="sh-item"><div class="sh-l">🏆 Score</div><div class="sh-v">${Number(sustain.sustainabilityScore).toFixed(2)}</div><div class="sh-s">/ 100</div></div>
-  </div>
-</div>` : `<div style="margin-top:10px;padding:10px 14px;background:var(--chip);border-radius:8px;font-size:12px;color:var(--muted)">⚠ No sustainability data for this entry</div>`}
-
-          <div style="margin-top:14px">
-            <div class="muted" style="font-size:10px;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:6px">Reason</div>
-            <div class="reason-box">${esc(row.reason||'No explanation available.')}</div>
-          </div>
+          ${bigO.before&&bigO.after?`<div class="comparison" style="margin:10px 0"><div class="cmp-side cmp-before"><div class="cmp-label">Before</div><div class="cmp-value">${esc(bigO.before)}</div></div><div class="cmp-arrow">→</div><div class="cmp-side cmp-after"><div class="cmp-label">After</div><div class="cmp-value">${esc(bigO.after)}</div></div></div>`:''}
+          ${sustain?`<div class="sustain-highlight"><h4>🌱 Sustainability Metrics</h4><div class="sh-grid">
+            <div class="sh-item"><div class="sh-l">⚡ Before Energy</div><div class="sh-v" style="color:var(--danger)">${nf(sustain.beforeEnergyKwh,6)}</div><div class="sh-s">kWh</div></div>
+            <div class="sh-item"><div class="sh-l">⚡ After Energy</div><div class="sh-v">${nf(sustain.energyKwh,6)}</div><div class="sh-s">kWh</div></div>
+            <div class="sh-item"><div class="sh-l">💚 Energy Saved</div><div class="sh-v" style="color:var(--accent)">${nf(sustain.savedEnergyKwh,6)}</div><div class="sh-s">kWh</div></div>
+            <div class="sh-item"><div class="sh-l">💨 Before Carbon</div><div class="sh-v" style="color:var(--danger)">${nf(sustain.beforeCarbonGrams,4)}</div><div class="sh-s">gCO₂</div></div>
+            <div class="sh-item"><div class="sh-l">💨 After Carbon</div><div class="sh-v">${nf(sustain.carbonGrams,4)}</div><div class="sh-s">gCO₂</div></div>
+            <div class="sh-item"><div class="sh-l">💚 Carbon Saved</div><div class="sh-v" style="color:var(--accent)">${nf(sustain.savedCarbonGrams,4)}</div><div class="sh-s">gCO₂</div></div>
+          </div></div>`:`<div style="margin-top:10px;padding:10px 14px;background:var(--chip);border-radius:8px;font-size:12px;color:var(--muted)">⚠ No sustainability data for this entry</div>`}
+          <div style="margin-top:14px"><div class="muted" style="font-size:10px;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:6px">Reason</div><div class="reason-box">${esc(row.reason||'No explanation available.')}</div></div>
         </div>`;
       });
-
       container.innerHTML=html;
     }
 
-    // ══════════════════════════════════════════════
-    // Analysis Report
-    // ══════════════════════════════════════════════
-    function renderAnalysis(data){
-      const container=$('analysis-content');
-      if(!Array.isArray(data)||!data.length){ container.innerHTML='<div class="muted">No analysis data</div>'; return; }
-      let totalM=0, longM=0, html='';
-      data.forEach(f=>{
-        const fn=(f.file||'').split('\\').pop();
-        const methods=f.methods||[];
-        totalM+=methods.length;
-        html+=`<div style="margin-bottom:20px"><h3 style="font-family:var(--mono);font-size:14px;color:var(--accent2);margin-bottom:10px">📄 ${esc(fn)}</h3>`;
-        methods.forEach(m=>{
-          if(m.isLongMethod) longM++;
-          html+=`<div class="method-card ${m.isLongMethod?'bad':''}">
-            <div class="method-name">${esc(m.name)}() ${m.isLongMethod?'<span class="badge badge-danger">Long Method</span>':''}</div>
-            <div class="method-stats">
-              <div class="ms-item"><div class="ms-l">Lines</div><div class="ms-v">${m.lines}</div></div>
-              <div class="ms-item"><div class="ms-l">Params</div><div class="ms-v">${m.params}</div></div>
-              <div class="ms-item"><div class="ms-l">If Stmts</div><div class="ms-v">${m.ifCount}</div></div>
-              <div class="ms-item"><div class="ms-l">For Loops</div><div class="ms-v">${m.forCount}</div></div>
-            </div>
-          </div>`;
-        });
-        html+='</div>';
-      });
-      const health=totalM?Math.round((1-longM/totalM)*100):100;
-      container.innerHTML=`<div class="card" style="margin-bottom:16px">
-        <div class="stat-row">
-          <div class="stat-item"><div class="s-l">Files</div><div class="s-v">${data.length}</div></div>
-          <div class="stat-item"><div class="s-l">Methods</div><div class="s-v">${totalM}</div></div>
-          <div class="stat-item"><div class="s-l">Long Methods</div><div class="s-v" style="color:var(--danger)">${longM}</div></div>
-          <div class="stat-item"><div class="s-l">Health Score</div><div class="s-v" style="color:var(--accent)">${health}%</div></div>
-        </div>
-      </div>${html}`;
-    }
-
-    // ══════════════════════════════════════════════
-    // Quick Stats
-    // ══════════════════════════════════════════════
     function renderQuickStats(){
-      if(!viewRows.length){ $('quick-stats').innerHTML='<div class="muted">No data</div>'; return; }
-      const avgE=viewRows.reduce((s,r)=>s+Number(r?.energy?.estimated_kwh_saved??0),0)/viewRows.length;
+      if(!viewRows.length){$('quick-stats').innerHTML='<div class="muted">No data</div>';return;}
+      const totalEnergy=viewRows.reduce((s,r)=>s+getSavedEnergy(r),0);
+      const avgE=totalEnergy/viewRows.length;
       const files=new Set(viewRows.map(r=>r.file)).size;
       const sustainEntries=viewRows.filter(r=>getSustain(r));
-      const avgScore=sustainEntries.length ? (sustainEntries.reduce((s,r)=>s+Number(getSustain(r).sustainabilityScore||0),0)/sustainEntries.length).toFixed(1) : '—';
-
-      $('quick-stats').innerHTML=`
-        <div class="stat-row">
-          <div class="stat-item"><div class="s-l">Files Affected</div><div class="s-v" style="color:var(--accent)">${files}</div></div>
-          <div class="stat-item"><div class="s-l">Avg Energy / Run</div><div class="s-v">${nf(avgE,6)} kWh</div></div>
-          <div class="stat-item"><div class="s-l">Avg Score</div><div class="s-v" style="color:var(--accent)">${avgScore}</div></div>
-          <div class="stat-item"><div class="s-l">With Sustain Data</div><div class="s-v">${sustainEntries.length} / ${viewRows.length}</div></div>
-        </div>`;
+      $('quick-stats').innerHTML=`<div class="stat-row">
+        <div class="stat-item"><div class="s-l">Files Affected</div><div class="s-v" style="color:var(--accent)">${files}</div></div>
+        <div class="stat-item"><div class="s-l">Avg Energy / Run</div><div class="s-v">${nf(avgE,6)} kWh</div></div>
+        <div class="stat-item"><div class="s-l">Total Energy Saved</div><div class="s-v" style="color:var(--accent)">${nf(totalEnergy,6)} kWh</div></div>
+        <div class="stat-item"><div class="s-l">With Sustain Data</div><div class="s-v">${sustainEntries.length} / ${viewRows.length}</div></div>
+      </div>`;
     }
 
-    // ══════════════════════════════════════════════
-    // Charts
-    // ══════════════════════════════════════════════
-    function drawLine(ctx, data, color, W, H, padL=60,padR=24,padT=20,padB=40, label=''){
+    // ══ Charts ══
+    function drawLine(ctx,data,color,W,H,padL=60,padR=24,padT=20,padB=40,label=''){
       ctx.clearRect(0,0,W,H);
-      const pW=W-padL-padR, pH=H-padT-padB;
-      ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
-      for(let i=0;i<=4;i++){ const y=padT+(pH*i)/4; ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(padL+pW,y); ctx.stroke(); }
-      ctx.setLineDash([]);
-      ctx.strokeStyle='rgba(255,255,255,0.1)'; ctx.beginPath(); ctx.moveTo(padL,padT); ctx.lineTo(padL,padT+pH); ctx.lineTo(padL+pW,padT+pH); ctx.stroke();
-      if(!data.length){ ctx.fillStyle=gv('--muted'); ctx.font='13px system-ui'; ctx.textAlign='center'; ctx.fillText('No data',W/2,H/2); return; }
+      const pW=W-padL-padR,pH=H-padT-padB;
+      ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+      for(let i=0;i<=4;i++){const y=padT+(pH*i)/4;ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+pW,y);ctx.stroke();}
+      ctx.setLineDash([]);ctx.strokeStyle='rgba(255,255,255,0.1)';ctx.beginPath();ctx.moveTo(padL,padT);ctx.lineTo(padL,padT+pH);ctx.lineTo(padL+pW,padT+pH);ctx.stroke();
+      if(!data.length){ctx.fillStyle=gv('--muted');ctx.font='13px system-ui';ctx.textAlign='center';ctx.fillText('No data',W/2,H/2);return;}
       const maxV=Math.max(1e-12,...data);
-      ctx.fillStyle=gv('--muted'); ctx.font='11px system-ui'; ctx.textAlign='right';
-      ctx.fillText(nf(maxV,6),padL-6,padT+12); ctx.fillText('0',padL-6,padT+pH);
-      ctx.textAlign='center'; if(label) ctx.fillText(label, padL+pW/2, H-8);
+      ctx.fillStyle=gv('--muted');ctx.font='11px system-ui';ctx.textAlign='right';
+      ctx.fillText(nf(maxV,6),padL-6,padT+12);ctx.fillText('0',padL-6,padT+pH);
+      ctx.textAlign='center';if(label)ctx.fillText(label,padL+pW/2,H-8);
       const gap=pW/Math.max(data.length-1,1);
-      ctx.strokeStyle=color; ctx.lineWidth=2.5; ctx.beginPath();
-      data.forEach((v,i)=>{ const x=padL+i*gap; const y=padT+pH-(v/maxV)*pH; i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); }); ctx.stroke();
+      ctx.strokeStyle=color;ctx.lineWidth=2.5;ctx.beginPath();
+      data.forEach((v,i)=>{const x=padL+i*gap;const y=padT+pH-(v/maxV)*pH;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});ctx.stroke();
       ctx.fillStyle=color;
-      data.forEach((v,i)=>{ const x=padL+i*gap; const y=padT+pH-(v/maxV)*pH; ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2); ctx.fill(); });
+      data.forEach((v,i)=>{const x=padL+i*gap;const y=padT+pH-(v/maxV)*pH;ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill();});
     }
 
     function drawMainChart(){
-      const cv=document.getElementById('chart-main'); if(!cv)return;
-      const ctx=cv.getContext('2d'), W=cv.width, H=cv.height;
+      const cv=document.getElementById('chart-main');if(!cv)return;
+      cv.width=cv.offsetWidth||700;cv.height=cv.offsetHeight||280;
+      const ctx=cv.getContext('2d'),W=cv.width,H=cv.height;
       ctx.clearRect(0,0,W,H);
-      const padL=60,padR=24,padT=20,padB=40,pW=W-padL-padR,pH=H-padT-padB;
-      ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
-      for(let i=0;i<=4;i++){ const y=padT+(pH*i)/4; ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(padL+pW,y); ctx.stroke(); }
+
+      if(!viewRows.length){
+        ctx.fillStyle='rgba(122,134,148,0.6)';ctx.font='14px system-ui';
+        ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText('No data — click Load Logs to begin',W/2,H/2);return;
+      }
+
+      const padL=78,padR=20,padT=36,padB=72;
+      const pW=W-padL-padR,pH=H-padT-padB;
+      const rows=[...viewRows].reverse();
+      const energyVals=rows.map(r=>getSavedEnergy(r));
+      const maxE=Math.max(1e-12,...energyVals)*1.22;
+      const n=rows.length;
+
+      // Grid + Y axis labels
+      const yTicks=4;
+      ctx.setLineDash([4,5]);ctx.lineWidth=1;
+      for(let i=0;i<=yTicks;i++){
+        const v=(maxE/yTicks)*i;
+        const y=padT+pH-(v/maxE)*pH;
+        ctx.strokeStyle=i===0?'rgba(255,255,255,0.12)':'rgba(255,255,255,0.05)';
+        ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+pW,y);ctx.stroke();
+        ctx.fillStyle='rgba(122,134,148,0.85)';
+        ctx.font='10px JetBrains Mono,monospace';ctx.textAlign='right';ctx.textBaseline='middle';
+        ctx.fillText(nf(v,4),padL-8,y);
+      }
       ctx.setLineDash([]);
-      ctx.strokeStyle='rgba(255,255,255,0.1)'; ctx.beginPath(); ctx.moveTo(padL,padT); ctx.lineTo(padL,padT+pH); ctx.lineTo(padL+pW,padT+pH); ctx.stroke();
-      if(!viewRows.length){ ctx.fillStyle=gv('--muted'); ctx.font='13px system-ui'; ctx.textAlign='center'; ctx.fillText('No data — load logs',W/2,H/2); return; }
-      const energy=viewRows.map(r=>Number(r?.energy?.estimated_kwh_saved??0));
-      const maxE=Math.max(1e-12,...energy);
-      const n=viewRows.length; const gap=Math.max(4,Math.floor(pW/n)-3); const bW=gap-2;
-      animPct=Math.min(1,animPct+0.08);
-      energy.forEach((e,i)=>{
-        const x=padL+i*(bW+3); const h=(e/maxE)*pH*animPct; const y=padT+pH-h;
-        ctx.fillStyle=i===selectedIndex?gv('--accent'):'rgba(0,184,212,0.5)';
-        ctx.beginPath(); ctx.roundRect(x,y,bW,h,3); ctx.fill();
+
+      // Y axis line
+      ctx.strokeStyle='rgba(255,255,255,0.12)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(padL,padT-8);ctx.lineTo(padL,padT+pH);ctx.stroke();
+
+      // Y axis title
+      ctx.save();ctx.translate(13,padT+pH/2);ctx.rotate(-Math.PI/2);
+      ctx.fillStyle='rgba(122,134,148,0.7)';ctx.font='bold 9px system-ui';
+      ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('kWh SAVED',0,0);ctx.restore();
+
+      // Subtitle inside canvas
+      ctx.fillStyle='rgba(122,134,148,0.5)';ctx.font='bold 10px system-ui';
+      ctx.textAlign='left';ctx.textBaseline='top';
+      ctx.fillText('Energy saved per refactoring run  (newest → right)',padL+4,6);
+
+      // Bars
+      const slotW=pW/n;
+      const barW=Math.min(slotW*0.58,72);
+      animPct=Math.min(1,animPct+0.07);
+
+      rows.forEach((row,i)=>{
+        const e=energyVals[i];
+        const x=padL+i*slotW+slotW/2;
+        const bh=(e/maxE)*pH*animPct;
+        const by=padT+pH-bh;
+        const bx=x-barW/2;
+        const isSelected=viewRows.indexOf(row)===selectedIndex;
+
+        const grad=ctx.createLinearGradient(0,by,0,by+bh);
+        if(isSelected){
+          grad.addColorStop(0,'rgba(0,229,160,1)');
+          grad.addColorStop(1,'rgba(0,200,140,0.7)');
+        } else {
+          grad.addColorStop(0,'rgba(0,184,212,0.9)');
+          grad.addColorStop(1,'rgba(0,140,180,0.45)');
+        }
+        ctx.shadowColor=isSelected?'rgba(0,229,160,0.5)':'rgba(0,184,212,0.25)';
+        ctx.shadowBlur=isSelected?18:8;
+        ctx.fillStyle=grad;
+        if(bh>0){
+          const r=Math.min(5,barW/2,bh/2);
+          ctx.beginPath();
+          ctx.moveTo(bx+r,by);ctx.lineTo(bx+barW-r,by);
+          ctx.quadraticCurveTo(bx+barW,by,bx+barW,by+r);
+          ctx.lineTo(bx+barW,by+bh);ctx.lineTo(bx,by+bh);
+          ctx.lineTo(bx,by+r);ctx.quadraticCurveTo(bx,by,bx+r,by);
+          ctx.closePath();ctx.fill();
+        }
+        ctx.shadowBlur=0;
+
+        // Top cap
+        if(bh>3){
+          ctx.fillStyle=isSelected?'rgba(0,255,180,0.7)':'rgba(0,220,255,0.5)';
+          ctx.fillRect(bx,by,barW,2);
+        }
+
+        // Value label above bar
+        if(animPct>0.85&&bh>0){
+          ctx.fillStyle=isSelected?'rgba(0,229,160,0.95)':'rgba(0,184,212,0.85)';
+          ctx.font='bold 9px JetBrains Mono,monospace';
+          ctx.textAlign='center';ctx.textBaseline='bottom';
+          ctx.fillText(nf(e,4),x,by-3);
+        }
+
+        // File name
+        const fn=(row.file||'').split('\\').pop()||'?';
+        const shortFn=fn.replace('.java','').replace('.js','').replace('.py','');
+        const displayFn=shortFn.length>14?shortFn.slice(0,13)+'…':shortFn;
+        ctx.fillStyle='rgba(180,190,200,0.85)';
+        ctx.font='bold 10px system-ui';ctx.textAlign='center';ctx.textBaseline='top';
+        ctx.fillText(displayFn,x,padT+pH+10);
+
+        // Refactor type
+        const refType=(row.refactor||'');
+        const shortRef=refType.length>16?refType.slice(0,15)+'…':refType;
+        ctx.fillStyle='rgba(0,184,212,0.65)';
+        ctx.font='9px system-ui';ctx.textAlign='center';ctx.textBaseline='top';
+        ctx.fillText(shortRef,x,padT+pH+24);
+
+        // Run number
+        ctx.fillStyle=isSelected?'rgba(0,229,160,0.9)':'rgba(122,134,148,0.5)';
+        ctx.font='bold 8px system-ui';ctx.textAlign='center';ctx.textBaseline='top';
+        ctx.fillText('#'+(i+1),x,padT+pH+40);
       });
-      ctx.strokeStyle=gv('--accent'); ctx.lineWidth=2.5; ctx.beginPath();
-      energy.forEach((e,i)=>{ const x=padL+i*(bW+3)+bW/2; const y=padT+pH-(e/maxE)*pH*animPct; i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); }); ctx.stroke();
-      ctx.fillStyle=gv('--accent');
-      energy.forEach((e,i)=>{ const x=padL+i*(bW+3)+bW/2; const y=padT+pH-(e/maxE)*pH*animPct; ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2); ctx.fill(); });
-      if(animPct<1) requestAnimationFrame(drawMainChart);
+
+      // X axis line
+      ctx.strokeStyle='rgba(255,255,255,0.1)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(padL,padT+pH);ctx.lineTo(padL+pW,padT+pH);ctx.stroke();
+
+      if(animPct<1)requestAnimationFrame(drawMainChart);
     }
 
-    function drawPieChart(data){
-      const cv=document.getElementById('chart-freq'); if(!cv||!data.length)return;
-      const ctx=cv.getContext('2d'), W=cv.width, H=cv.height;
-      ctx.clearRect(0,0,W,H);
-      const colors=['#00e5a0','#00b8d4','#ffcf5a','#a78bfa','#ff5a5a','#ff9800','#e91e63'];
+    const COLORS=['#00e5a0','#00b8d4','#ffcf5a','#a78bfa','#ff5a5a','#ff9800','#e91e63','#4fc3f7'];
+
+    function drawDonutChart(data){
+      const cv=document.getElementById('chart-freq');
+      if(!cv||!data.length){$('donut-legend').innerHTML='<div class="muted" style="font-size:13px">No data</div>';return;}
+      cv.width=200;cv.height=200;
+      const ctx=cv.getContext('2d');
+      ctx.clearRect(0,0,200,200);
       const total=data.reduce((s,[,c])=>s+c,0);
-      const cx=W/2, cy=H/2, r=Math.min(W,H)/2-36;
+      if(!total)return;
+      const cx=100,cy=100,outerR=92,innerR=58,GAP=0.03;
       let angle=-Math.PI/2;
       data.forEach(([,count],i)=>{
-        const slice=(count/total)*2*Math.PI;
-        ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,angle,angle+slice); ctx.closePath();
-        ctx.fillStyle=colors[i%colors.length]; ctx.fill();
-        ctx.strokeStyle=gv('--bg'); ctx.lineWidth=3; ctx.stroke();
-        const mid=angle+slice/2;
-        if(slice>0.3){
-          ctx.fillStyle='#fff'; ctx.font='bold 13px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
-          ctx.fillText(((count/total)*100).toFixed(0)+'%', cx+Math.cos(mid)*r*0.65, cy+Math.sin(mid)*r*0.65);
-        }
+        const slice=(count/total)*Math.PI*2;
+        const a1=angle+GAP/2,a2=angle+slice-GAP/2;
+        if(a2<=a1){angle+=slice;return;}
+        // Outer glow for first segment
+        if(i===0){ctx.shadowColor=COLORS[0];ctx.shadowBlur=16;}
+        ctx.beginPath();
+        ctx.arc(cx,cy,outerR,a1,a2);
+        ctx.arc(cx,cy,innerR,a2,a1,true);
+        ctx.closePath();
+        ctx.fillStyle=COLORS[i%COLORS.length];
+        ctx.fill();
+        ctx.shadowBlur=0;
         angle+=slice;
       });
-    }
+      // Clean inner circle
+      ctx.beginPath();ctx.arc(cx,cy,innerR-1,0,Math.PI*2);
+      ctx.fillStyle='#13161b';ctx.fill();
+      // Subtle inner ring
+      ctx.beginPath();ctx.arc(cx,cy,innerR,0,Math.PI*2);
+      ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=1;ctx.stroke();
 
-    function drawSustainChart(entries){
-      const cv=document.getElementById('chart-sustain'); if(!cv)return;
-      const ctx=cv.getContext('2d'), W=cv.width, H=cv.height;
-      const scores=entries.map(r=>Number(getSustain(r).sustainabilityScore||0)).reverse();
-      drawLine(ctx,scores,'#00e5a0',W,H,60,24,20,40,'Refactoring Timeline →');
+      $('donut-total').textContent=total;
+      let legendHtml='';
+      data.forEach(([type,count],i)=>{
+        const pct=((count/total)*100).toFixed(1);
+        legendHtml+=`<div class="legend-item">
+          <div class="legend-swatch" style="background:${COLORS[i%COLORS.length]}"></div>
+          <div class="legend-name">${esc(type)}</div>
+          <div class="legend-pct">${pct}%</div>
+          <div class="legend-count">${count}x</div>
+        </div>`;
+      });
+      $('donut-legend').innerHTML=legendHtml;
     }
 
     function drawDailyChart(){
-      const cv=document.getElementById('chart-daily'); if(!cv)return;
-      const ctx=cv.getContext('2d'), W=cv.width, H=cv.height;
+      const cv=document.getElementById('chart-daily');if(!cv)return;
+      cv.width=cv.offsetWidth||900;cv.height=cv.offsetHeight||320;
+      const ctx=cv.getContext('2d'),W=cv.width,H=cv.height;
+      ctx.clearRect(0,0,W,H);
+
+      // Build daily data
       const dailyMap={};
-      viewRows.forEach(r=>{ const d=(r.timestamp||'').split('T')[0]; if(d) dailyMap[d]=(dailyMap[d]||0)+Number(r?.energy?.estimated_kwh_saved??0); });
+      viewRows.forEach(r=>{const d=(r.timestamp||'').split('T')[0];if(d)dailyMap[d]=(dailyMap[d]||0)+getSavedEnergy(r);});
       const sorted=Object.entries(dailyMap).sort((a,b)=>a[0].localeCompare(b[0]));
-      drawLine(ctx,sorted.map(([,v])=>v),'#ffcf5a',W,H,60,24,20,40,'Date');
+
+      // Also count refactors per day for secondary info
+      const dailyCount={};
+      viewRows.forEach(r=>{const d=(r.timestamp||'').split('T')[0];if(d)dailyCount[d]=(dailyCount[d]||0)+1;});
+
+      if(!sorted.length){
+        ctx.fillStyle='rgba(122,134,148,0.6)';ctx.font='14px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText('No data yet — load logs to see daily energy savings',W/2,H/2);return;
+      }
+
+      const padL=72,padR=28,padT=32,padB=64;
+      const pW=W-padL-padR,pH=H-padT-padB;
+      const vals=sorted.map(([,v])=>v);
+      const maxV=Math.max(...vals)*1.18||1e-12;
+      const n=sorted.length;
+
+      // Update range badge
+      const badge=document.getElementById('daily-range-badge');
+      if(badge){badge.style.display='';badge.textContent=n===1?sorted[0][0]:`${sorted[0][0]} → ${sorted[n-1][0]}`;}
+
+      // Grid lines + Y axis labels
+      const yTicks=5;
+      ctx.setLineDash([4,4]);ctx.lineWidth=1;
+      for(let i=0;i<=yTicks;i++){
+        const v=(maxV/yTicks)*i;
+        const y=padT+pH-(v/maxV)*pH;
+        ctx.strokeStyle=`rgba(255,255,255,${i===0?0.1:0.05})`;
+        ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+pW,y);ctx.stroke();
+        ctx.fillStyle='rgba(122,134,148,0.8)';ctx.font='10px JetBrains Mono, monospace';
+        ctx.textAlign='right';ctx.textBaseline='middle';
+        ctx.fillText(nf(v,4),padL-8,y);
+      }
+      ctx.setLineDash([]);
+
+      // Y axis line
+      ctx.strokeStyle='rgba(255,255,255,0.12)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(padL,padT);ctx.lineTo(padL,padT+pH+1);ctx.stroke();
+
+      // Y axis title (rotated)
+      ctx.save();ctx.translate(14,padT+pH/2);ctx.rotate(-Math.PI/2);
+      ctx.fillStyle='rgba(122,134,148,0.7)';ctx.font='bold 10px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('kWh SAVED',0,0);ctx.restore();
+
+      // Bar width
+      const slotW=pW/n;
+      const barW=Math.min(slotW*0.55,60);
+
+      // Draw bars with gradient + glow
+      sorted.forEach(([date,val],i)=>{
+        const x=padL+i*slotW+slotW/2;
+        const bh=(val/maxV)*pH;
+        const by=padT+pH-bh;
+        const bx=x-barW/2;
+
+        // Bar gradient
+        const grad=ctx.createLinearGradient(0,by,0,by+bh);
+        grad.addColorStop(0,'rgba(0,229,160,0.95)');
+        grad.addColorStop(0.5,'rgba(0,200,155,0.8)');
+        grad.addColorStop(1,'rgba(0,184,212,0.6)');
+
+        // Glow under bar
+        ctx.shadowColor='rgba(0,229,160,0.35)';ctx.shadowBlur=14;
+        ctx.fillStyle=grad;
+        ctx.beginPath();
+        const r=Math.min(6,barW/2,bh/2);
+        if(bh>0){
+          ctx.moveTo(bx+r,by);ctx.lineTo(bx+barW-r,by);
+          ctx.quadraticCurveTo(bx+barW,by,bx+barW,by+r);
+          ctx.lineTo(bx+barW,by+bh);ctx.lineTo(bx,by+bh);
+          ctx.lineTo(bx,by+r);ctx.quadraticCurveTo(bx,by,bx+r,by);
+        }
+        ctx.closePath();ctx.fill();
+        ctx.shadowBlur=0;
+
+        // Top accent line on bar
+        if(bh>4){
+          ctx.fillStyle='rgba(0,255,180,0.6)';
+          ctx.fillRect(bx,by,barW,2);
+        }
+
+        // Value label above bar
+        if(bh>0){
+          ctx.fillStyle='rgba(0,229,160,0.9)';
+          ctx.font='bold 10px JetBrains Mono, monospace';
+          ctx.textAlign='center';ctx.textBaseline='bottom';
+          ctx.fillText(nf(val,4),x,by-4);
+        }
+
+        // X axis date label
+        const label=date.slice(5); // MM-DD
+        ctx.fillStyle='rgba(122,134,148,0.85)';
+        ctx.font='11px system-ui';ctx.textAlign='center';ctx.textBaseline='top';
+        ctx.fillText(label,x,padT+pH+10);
+
+        // Refactor count bubble under date
+        const cnt=dailyCount[date]||0;
+        ctx.fillStyle='rgba(0,184,212,0.15)';
+        const bw2=32,bh2=16,bx2=x-bw2/2,by2=padT+pH+28;
+        ctx.beginPath();ctx.roundRect(bx2,by2,bw2,bh2,4);ctx.fill();
+        ctx.fillStyle='rgba(0,184,212,0.8)';
+        ctx.font='bold 9px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText(cnt+'x',x,by2+bh2/2);
+      });
+
+      // X axis base line
+      ctx.strokeStyle='rgba(255,255,255,0.1)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(padL,padT+pH);ctx.lineTo(padL+pW,padT+pH);ctx.stroke();
     }
 
     function drawAllCharts(){
-      animPct=0; drawMainChart();
-      const freqMap={};
-      viewRows.forEach(r=>{ const t=r.refactor||'Unknown'; freqMap[t]=(freqMap[t]||0)+1; });
-      drawPieChart(Object.entries(freqMap).sort((a,b)=>b[1]-a[1]));
-      const cv_e=document.getElementById('chart-energy'); if(cv_e){ const ctx=cv_e.getContext('2d'); drawLine(ctx,viewRows.map(r=>Number(r?.energy?.estimated_kwh_saved??0)),'#ffcf5a',cv_e.width,cv_e.height); }
-      const cv_c=document.getElementById('chart-co2'); if(cv_c){ const ctx=cv_c.getContext('2d'); drawLine(ctx,viewRows.map(r=>Number(r?.energy?.estimated_co2_saved_kg??r?.energy?.emissions_kg??0)),'#00e5a0',cv_c.width,cv_c.height); }
-      const sustainEntries=viewRows.filter(r=>getSustain(r)!==null);
-      if(sustainEntries.length){ drawSustainChart(sustainEntries); }
+      animPct=0;drawMainChart();
+      const freqMap={};viewRows.forEach(r=>{const t=r.refactor||'Unknown';freqMap[t]=(freqMap[t]||0)+1;});
+      drawDonutChart(Object.entries(freqMap).sort((a,b)=>b[1]-a[1]));
       drawDailyChart();
     }
-
-    // Initial draw
     drawAllCharts();
     </script>
   </body>

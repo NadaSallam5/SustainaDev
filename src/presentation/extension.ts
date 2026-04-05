@@ -11,7 +11,6 @@ import { chooseRefactor } from "../business/refactor/chooseRefactor";
 import { initPaths, startCpuSampling } from "../business/codeCarbon";
 import { runJavaAnalyzer } from "../business/analyzer/javaRunner";
 import si from "systeminformation";
-import { calculateSustainabilityScore } from "../business/sustainability/sustainabilityScore";
 
 /**
  * Global state to prevent concurrent executions
@@ -132,6 +131,7 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
       void vscode.window
         .showQuickPick(["✅ Accept Optimization", "❌ Reject"], {
           placeHolder: "Apply the optimized code?",
+          ignoreFocusOut: true,
         })
         .then(async (choice) => {
           if (choice === "✅ Accept Optimization") {
@@ -177,7 +177,7 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
                 | {
                     energyKwh: number;
                     carbonGrams: number;
-                    sustainabilityScore: number;
+                
                     beforeEnergyKwh: number;
                     beforeCarbonGrams: number;
                   }
@@ -200,15 +200,11 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
                 await new Promise((resolve) => setTimeout(resolve, 600));
                 const afterResult = await analyzeSustainability(afterStartTime);
 
-                const score = calculateSustainabilityScore(
-                  afterResult.carbonGrams,
-                  beforeResult.carbonGrams,
-                );
-
+               
                 sustainabilityResult = {
                   energyKwh: afterResult.energyKwh,
                   carbonGrams: afterResult.carbonGrams,
-                  sustainabilityScore: score,
+                 
                   beforeEnergyKwh: beforeResult.energyKwh,
                   beforeCarbonGrams: beforeResult.carbonGrams,
                 };
@@ -244,9 +240,7 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
                     beforeResult.carbonGrams - afterResult.carbonGrams
                   ).toFixed(4)} gCO₂`,
                 );
-                sustainaDevOutput.appendLine(
-                  `Sustainability Score: ${score.toFixed(1)} / 100`,
-                );
+                
               } catch (err) {
                 sustainaDevOutput.appendLine("Sustainability analysis failed:");
                 sustainaDevOutput.appendLine(String(err));

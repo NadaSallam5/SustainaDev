@@ -13,5 +13,5 @@ export interface ExecutionMetrics {
 export interface SustainabilityResult {
   energyKwh: number
   carbonGrams: number
-  sustainabilityScore: number
+  
 }

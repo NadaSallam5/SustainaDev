@@ -3,7 +3,6 @@ import { getHardwareSpecs, estimateHardwarePower } from "./powerEstimator";
 import { measureExecution } from "../codeCarbon";
 import { calculateEnergy } from "./energyCalculator";
 import { calculateCarbon } from "./carbonCalculator";
-import { calculateSustainabilityScore } from "./sustainabilityScore";
 
 export async function analyzeSustainability(startTime: number) {
   const hardware = await getHardwareSpecs();
@@ -20,6 +19,6 @@ export async function analyzeSustainability(startTime: number) {
   return {
     energyKwh: energy,
     carbonGrams: carbon,
-    sustainabilityScore: 0, // computed externally once before+after are both known
+     // computed externally once before+after are both known
   };
 }
