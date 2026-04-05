@@ -255,7 +255,6 @@ Reason:
 function parseAiResponse(text: string, targetLanguage: string = "Java"): OptimizationResult {
   console.log("🤖 Raw AI Output:", text);
 
-  // ✅ Try to match any code block first (with or without language tag)
   const codeBlockRegex = /```[\w]*\n?([\s\S]*?)```/gi;
   const blocks: string[] = [];
   let match;
@@ -269,20 +268,16 @@ function parseAiResponse(text: string, targetLanguage: string = "Java"): Optimiz
   let preview = "";
 
   if (blocks.length > 0) {
-    // Take the longest block
     preview = blocks.reduce((a, b) => (a.length > b.length ? a : b));
   } else {
-    // ✅ FALLBACK — if no code blocks found, take everything after "Preview:"
     const previewMatch = text.match(/Preview:?\s*([\s\S]*?)(?:Reason:|$)/i);
     if (previewMatch) {
       preview = previewMatch[1].trim();
     } else {
-      // Last resort — use the whole response
       preview = text.trim();
     }
   }
 
-  // Clean up Java-specific prefix issue
   if (
     targetLanguage === "Java" &&
     preview.startsWith("public") &&
@@ -398,6 +393,7 @@ function bigOToScore(bigO: string): number {
   return 0;
 }
 
+// ─── Single definition of OptimizationReport ───────────────────────────────
 export type OptimizationReport = {
   metric: "time" | "space";
   before: string;
@@ -405,13 +401,15 @@ export type OptimizationReport = {
   improvement: string;
 };
 
+// ─── Single merged logOptimizationFromReport ────────────────────────────────
 /**
  * Logs an optimization result to .sustainadev/log.jsonl
+ * Supports both full sustainability metrics and simple energy estimation.
  */
 export async function logOptimizationFromReport(
   workspace: string,
   fileName: string | undefined,
-  bigO: { metric: "time" | "space"; before: string; after: string },
+  report: OptimizationReport,
   reason: string,
   sustainability?: {
     energyKwh: number;
@@ -439,74 +437,52 @@ export async function logOptimizationFromReport(
         ? refactorLabelMap[refactorType]
         : refactorType ?? "Algorithmic Optimization";
 
-    const logEntry = {
-    timestamp: new Date().toISOString(),
-    file: fileName ? path.basename(fileName) : "unknown",
-    refactor: refactorLabel,
-    complexity: {
-        metric: report.metric,
-        before: report.before,
-        after: report.after,
-        improvement: `From ${report.before} → ${report.after}`,
-    },
-    sustainability: sustainability
-        ? {
-            before: {
-                energyKwh: sustainability.beforeEnergyKwh,
-                carbonGrams: sustainability.beforeCarbonGrams,
-            },
-            after: {
-                energyKwh: sustainability.energyKwh,
-                carbonGrams: sustainability.carbonGrams,
-            },
-            saved: {
-                energyKwh: sustainability.beforeEnergyKwh - sustainability.energyKwh,
-                carbonGrams: sustainability.beforeCarbonGrams - sustainability.carbonGrams,
-            },
-          
-        }
-        : null,
-    reason,
-};
-    const logDir = path.join(workspace, ".sustainadev");
-    if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
-    fs.appendFileSync(path.join(logDir, "log.jsonl"), JSON.stringify(logEntry) + "\n", "utf8");
-  } catch (e) {
-    console.error("Logging failed:", e);
-  }
-}
-
-export type OptimizationReport = {
-  metric: "time" | "space";
-  before: string;
-  after: string;
-  improvement: string;
-};
-
-export async function logOptimizationFromReport(
-  workspace: string,
-  fileName: string | undefined,
-  report: OptimizationReport,
-  reason: string,
-) {
-  try {
-    const beforeScore = bigOToScore(report.before);
-    const afterScore = bigOToScore(report.after);
-    const scoreDelta = Math.max(0, beforeScore - afterScore);
-    const energy = await estimateEnergy(scoreDelta * 5);
+    // Compute energy from Big-O scores when no sustainability object is provided
+    let energy: any = undefined;
+    if (!sustainability) {
+      const beforeScore = bigOToScore(report.before);
+      const afterScore = bigOToScore(report.after);
+      const scoreDelta = Math.max(0, beforeScore - afterScore);
+      energy = await estimateEnergy(scoreDelta * 5);
+    }
 
     const logEntry = {
       timestamp: new Date().toISOString(),
       file: fileName ? path.basename(fileName) : "unknown",
-      refactor: "Algorithmic Optimization",
-      complexity: { metric: report.metric, before: report.before, after: report.after, improvement: `From ${report.before} → ${report.after}` },
-      energy,
+      refactor: refactorLabel,
+      complexity: {
+        metric: report.metric,
+        before: report.before,
+        after: report.after,
+        improvement: `From ${report.before} → ${report.after}`,
+      },
+      sustainability: sustainability
+        ? {
+            before: {
+              energyKwh: sustainability.beforeEnergyKwh,
+              carbonGrams: sustainability.beforeCarbonGrams,
+            },
+            after: {
+              energyKwh: sustainability.energyKwh,
+              carbonGrams: sustainability.carbonGrams,
+            },
+            saved: {
+              energyKwh: sustainability.beforeEnergyKwh - sustainability.energyKwh,
+              carbonGrams: sustainability.beforeCarbonGrams - sustainability.carbonGrams,
+            },
+          }
+        : null,
+      energy: energy ?? null,
       reason,
     };
 
     const logDir = path.join(workspace, ".sustainadev");
     if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
-    fs.appendFileSync(path.join(logDir, "log.jsonl"), JSON.stringify(logEntry) + "\n", "utf8");
+    fs.appendFileSync(
+      path.join(logDir, "log.jsonl"),
+      JSON.stringify(logEntry) + "\n",
+      "utf8"
+    );
   } catch (e) {
     console.error("Logging failed:", e);
   }
