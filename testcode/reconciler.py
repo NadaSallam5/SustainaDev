@@ -1,7 +1,11 @@
-def find_discrepancies(warehouse, records):
-    result = []
-    for item in warehouse:
-        for record in records:
-            if item == record:
-                result.append(item)
-    return result
+def find_duplicates(nums):
+    seen = set()
+    duplicates = set()
+
+    for num in nums:
+        if num in seen:
+            duplicates.add(num)
+        else:
+            seen.add(num)
+
+    return list(duplicates)
