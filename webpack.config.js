@@ -22,11 +22,11 @@ const extensionConfig = {
   externals: {
   vscode: 'commonjs vscode',
 
-  // ✅ ADD THESE (VERY IMPORTANT)
   'tree-sitter': 'commonjs tree-sitter',
   'tree-sitter-java': 'commonjs tree-sitter-java',
   'tree-sitter-python': 'commonjs tree-sitter-python',
-  'tree-sitter-javascript': 'commonjs tree-sitter-javascript'
+  'tree-sitter-javascript': 'commonjs tree-sitter-javascript',
+  'tree-sitter-typescript': 'commonjs tree-sitter-typescript' // 👈 دي المهمة
 },
   resolve: {
     // support reading TypeScript and JavaScript files, 📖 -> https://github.com/TypeStrong/ts-loader

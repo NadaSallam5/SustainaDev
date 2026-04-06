@@ -6,7 +6,7 @@ export function detectLanguage(fileName:string){
 
  if(fileName.endsWith(".js")) return "javascript"
 
- if(fileName.endsWith(".cpp")) return "cpp"
+ if(fileName.endsWith(".ts")) return "typescript"
 
  return "unknown"
 }

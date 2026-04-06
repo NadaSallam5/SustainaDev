@@ -48,7 +48,7 @@ export async function buildOptimizationPatch(
     ".java": "Java",
     ".py": "Python",
     ".js": "JavaScript",
-    ".cpp": "C++"
+    ".ts": "TypeScript"
   };
   const targetLanguage = langMap[fileExt] || "Java";
 
