@@ -2,18 +2,17 @@ import * as vscode from "vscode";
 import * as path from "path";
 import { buildOptimizationReport } from "../business/complexity/report";
 
-
 import * as fsp from "fs/promises";
 
 // Project internal imports
-
 import {
   buildOptimizationPatch,
   logOptimizationFromReport,
 } from "../business/refactor/optimizeComplexity";
 import { chooseRefactor } from "../business/refactor/chooseRefactor";
 import { initPaths } from "../business/codeCarbon";
-import { runJavaAnalyzer } from "../business/analyzer/javaRunner";
+import { getAnalyzer, isLanguageSupported } from "../business/analyzer/analyzerFactory";
+import { UnsupportedLanguageError } from "../business/analyzer/analyzerTypes";
 import si from "systeminformation";
 
 /**
@@ -35,11 +34,11 @@ const validSmells = [
  */
 export function activate(context: vscode.ExtensionContext) {
   console.log("🟢 SustainaDev Analyzer extension is active");
-sustainaDevOutput = vscode.window.createOutputChannel("SustainaDev");
-sustainaDevOutput.appendLine("SustainaDev activated ✅");
+  sustainaDevOutput = vscode.window.createOutputChannel("SustainaDev");
+  sustainaDevOutput.appendLine("SustainaDev activated ✅");
 
   // 1. Register Analyzer Command
- 
+
 
   // 2. Register Active File Analysis Command
   const analyzeActiveFile = vscode.commands.registerCommand(
@@ -52,7 +51,7 @@ sustainaDevOutput.appendLine("SustainaDev activated ✅");
     "sustainadev.openDashboard",
     () => executeOpenDashboard(context),
   );
-const getSpecs = vscode.commands.registerCommand(
+  const getSpecs = vscode.commands.registerCommand(
     "sustainadev.getSpecs",
     async () => {
       vscode.window.showInformationMessage("🔍 Collecting system specs...");
@@ -69,48 +68,36 @@ const getSpecs = vscode.commands.registerCommand(
             ? gpu.controllers[0].model
             : "No GPU detected";
         const diskInfo = disks
-  .map((d, index) => {
-    const sizeGB = (d.size / 1024 / 1024 / 1024).toFixed(1);
-    const type = d.type || "Unknown";
-    const name = d.name || d.vendor || "Disk " + (index + 1);
+          .map((d, index) => {
+            const sizeGB = (d.size / 1024 / 1024 / 1024).toFixed(1);
+            const type = d.type || "Unknown";
+            const name = d.name || d.vendor || "Disk " + (index + 1);
 
-    return `• ${type} • ${name} • ${sizeGB} GB`;
-  })
-  .join("\n");
+            return `• ${type} • ${name} • ${sizeGB} GB`;
+          })
+          .join("\n");
 
-     const batteryInfo = battery.hasBattery
-  ? `Health: ${
-      battery.designedCapacity && battery.maxCapacity
-        ? ((battery.maxCapacity / battery.designedCapacity) * 100).toFixed(0)
-        : "N/A"
-    }% • Charging: ${battery.isCharging} • Capacity: ${battery.percent}%`
-  : "No battery detected";
+        const batteryInfo = battery.hasBattery
+          ? `Health: ${battery.designedCapacity && battery.maxCapacity
+            ? ((battery.maxCapacity / battery.designedCapacity) * 100).toFixed(0)
+            : "N/A"
+          }% • Charging: ${battery.isCharging} • Capacity: ${battery.percent}%`
+          : "No battery detected";
 
-       const msg = await collectHardwareSpecsMarkdown();
-vscode.window.showInformationMessage(msg, { modal: true });
+        const msg = await collectHardwareSpecsMarkdown();
+        vscode.window.showInformationMessage(msg, { modal: true });
 
       } catch (err: any) {
         vscode.window.showErrorMessage("❌ Failed to read system specs: " + err.message);
       }
     }
   );
-  context.subscriptions.push( analyzeActiveFile, openDash, getSpecs);
+  context.subscriptions.push(analyzeActiveFile, openDash, getSpecs);
 }
 
-export function deactivate() {}
-
-/* =========================================================================
-   COMMAND IMPLEMENTATIONS
-   ========================================================================= */
-
-/**
- * Logic for 'sustainadev.runAnalyzer'
- */
+export function deactivate() { }
 
 
-/**
- * Logic for 'sustainadev.analyzeActiveFile'
- */
 async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
   if (isRunning) {
     vscode.window.showWarningMessage(
@@ -135,131 +122,154 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
       return;
     }
 
+    // Language gate — friendly message for unsupported languages
+    const languageId = editor.document.languageId;
+    if (!isLanguageSupported(languageId)) {
+      vscode.window.showInformationMessage(
+        `SustainaDev: "${languageId}" is not yet supported. ` +
+        `Java is fully supported. Python and JavaScript support is coming soon (Tree-sitter).`
+      );
+      isRunning = false;
+      return;
+    }
+
+    // Get the correct analyzer for the active language
+    const analyzer = getAnalyzer(languageId);
+
     const originalUri = editor.document.uri;
     const filePath = originalUri.fsPath;
     const refreshedDoc = await vscode.workspace.openTextDocument(originalUri);
     await refreshedDoc.save();
 
-const fullCode = refreshedDoc.getText();
+    const fullCode = refreshedDoc.getText();
 
-const factsList = await runJavaAnalyzer(context);
+    const factsList = await analyzer.analyzeFile(context);
 
-if (!factsList.length) {
-  vscode.window.showInformationMessage("No methods detected by analyzer.");
-  isRunning = false;
-  return;
-}
+    if (!factsList.length) {
+      vscode.window.showInformationMessage("No methods detected by analyzer.");
+      isRunning = false;
+      return;
+    }
 
+    // Choose the most actionable method:
+    // Priority: sorting-in-loop > nested loops > string concat > sorting > first method
+    const facts =
+      factsList.find(m => m.sortInsideLoop === true) ||
+      factsList.find(m => m.maxLoopDepth >= 2) ||
+      factsList.find(m => m.hasStringConcatInLoop === true) ||
+      factsList.find(m => m.hasSortingCall === true) ||
+      factsList[0];
 
-// OPTIONAL: choose one method (first or highest complexity later)
-const facts =
-  factsList.find(m => m.sortInsideLoop === true) ||
-  factsList.find(m => m.hasSortingCall === true) ||
-  factsList[0];
-// 🔥 RULE ENGINE (WHAT to do)
-const decision = chooseRefactor(facts);
+    // Rule engine — decide what to do
+    const decision = chooseRefactor(facts);
 
     // 3. Execution Logic
     if (validSmells.includes(decision.type)) {
-     const patch = await buildOptimizationPatch(
-  fullCode,
-  {
-    from: editor.selection.start.line,
-    to: editor.selection.end.line,
-  },
-  filePath,
-  {
-    targetMethodName: facts.methodName,
-    smellType: decision.type,
-    methodFacts: facts, // ✅ REQUIRED
-  }
-);
+      const patch = await buildOptimizationPatch(
+        refreshedDoc,
+        {
+          from: editor.selection.start.line,
+          to: editor.selection.end.line,
+        },
+        filePath,
+        {
+          targetMethodName: facts.methodName,
+          smellType: decision.type,
+          methodFacts: facts,
+        },
+        analyzer,
+      );
 
-void vscode.window.showQuickPick(
-  ["✅ Accept Optimization", "❌ Reject"],
-  {
-    placeHolder: "Apply the optimized code?",
-  }
-).then(async (choice) => {
-if (choice === "✅ Accept Optimization") {
-  await applyPatchToDocument(
-    originalUri,
-    patch.preview,
-    refreshedDoc.lineCount
-  );
+      void vscode.window.showQuickPick(
+        ["✅ Accept Optimization", "❌ Reject"],
+        {
+          placeHolder: "Apply the optimized code?",
+        }
+      ).then(async (choice) => {
+        if (choice === "✅ Accept Optimization") {
+          await applyPatchToDocument(
+            originalUri,
+            patch.preview,
+            refreshedDoc.lineCount
+          );
 
-  await refreshedDoc.save();
+          await refreshedDoc.save();
 
-  vscode.window.showInformationMessage("✅ Optimization applied successfully.");
+          vscode.window.showInformationMessage("✅ Optimization applied successfully.");
 
-  // ✅ Run analyzer AFTER applying patch
-  const afterFactsList = await runJavaAnalyzer(context);
-  const afterFacts = afterFactsList.find(m => m.methodName === facts.methodName);
+          // Run analyzer AFTER applying patch (using the same language analyzer)
+          const afterFactsList = await analyzer.analyzeFile(context);
+          const afterFacts = afterFactsList.find(m => m.methodName === facts.methodName);
 
- if (afterFacts) {
-   const report = buildOptimizationReport(facts, afterFacts);
+          if (afterFacts) {
+            const report = buildOptimizationReport(facts, afterFacts);
 
-const title =
-  report.metric === "space"
-    ? "=== Space Complexity Report ==="
-    : "=== Complexity Report ===";
+            const title =
+              report.metric === "space"
+                ? "=== Space Complexity Report ==="
+                : "=== Complexity Report ===";
 
-const label =
-  report.metric === "space" ? "Space" : "Before";
+            const label =
+              report.metric === "space" ? "Space" : "Before";
 
-sustainaDevOutput.appendLine(title);
+            sustainaDevOutput.appendLine(title);
 
-if (report.metric === "space") {
-  sustainaDevOutput.appendLine(`Space Before: ${report.before}`);
-  sustainaDevOutput.appendLine(`Space After:  ${report.after}`);
-} else {
-  sustainaDevOutput.appendLine(`Before: ${report.before}`);
-  sustainaDevOutput.appendLine(`After:  ${report.after}`);
-}
+            if (report.metric === "space") {
+              sustainaDevOutput.appendLine(`Space Before: ${report.before}`);
+              sustainaDevOutput.appendLine(`Space After:  ${report.after}`);
+            } else {
+              sustainaDevOutput.appendLine(`Before: ${report.before}`);
+              sustainaDevOutput.appendLine(`After:  ${report.after}`);
+            }
 
-sustainaDevOutput.appendLine(`Improvement: ${report.improvement}`);
+            sustainaDevOutput.appendLine(`Improvement: ${report.improvement}`);
 
-vscode.window.showInformationMessage(
-  report.metric === "space"
-    ? `Space improved: ${report.before} → ${report.after}`
-    : `Complexity improved: ${report.before} → ${report.after}`
-);
+            vscode.window.showInformationMessage(
+              report.metric === "space"
+                ? `Space improved: ${report.before} → ${report.after}`
+                : `Complexity improved: ${report.before} → ${report.after}`
+            );
 
 
-    vscode.window.showInformationMessage(
-      `Complexity improved: ${report.before} → ${report.after}`
-    );
-    const workspace =
-  vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
+            vscode.window.showInformationMessage(
+              `Complexity improved: ${report.before} → ${report.after}`
+            );
+            const workspace =
+              vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
 
-await logOptimizationFromReport(
-  workspace,
-  filePath,        // full path is ok; logger uses basename anyway
-  report,          // <-- SAME report you printed in console
-  patch.reason     // <-- same reason you already have
-);
+            await logOptimizationFromReport(
+              workspace,
+              filePath,        // full path is ok; logger uses basename anyway
+              report,          // <-- SAME report you printed in console
+              patch.reason     // <-- same reason you already have
+            );
 
-}
- else {
-    sustainaDevOutput.appendLine(
-      `⚠️ Could not find AFTER facts for method: ${facts.methodName}`
-    );
-  }
-}
- else if (choice) {
-    vscode.window.showInformationMessage(
-      "❌ Optimization discarded."
-    );
-  }
-});
+          }
+          else {
+            sustainaDevOutput.appendLine(
+              `⚠️ Could not find AFTER facts for method: ${facts.methodName}`
+            );
+          }
+        }
+        else if (choice) {
+          vscode.window.showInformationMessage(
+            "❌ Optimization discarded."
+          );
+        }
+      });
 
 
     } else {
       vscode.window.showInformationMessage("No actionable refactor suggested.");
     }
   } catch (err: any) {
-    // 🛡️ Graceful Handling for ALREADY_OPTIMIZED
+    // Graceful handling for known error types
     if (err.message === "ALREADY_OPTIMIZED") {
+      isRunning = false;
+      return;
+    }
+    if (err instanceof UnsupportedLanguageError) {
+      vscode.window.showInformationMessage(err.message);
       isRunning = false;
       return;
     }
@@ -339,16 +349,16 @@ async function executeOpenDashboard(context: vscode.ExtensionContext) {
         await handleReadHardware(panel);
       }
       else if (message?.type === "getSpecs") {
-  try {
-    const content = await collectHardwareSpecsMarkdown();
-    panel.webview.postMessage({ type: "specsContent", content });
-  } catch (e: any) {
-    panel.webview.postMessage({
-      type: "specsError",
-      error: e?.message ?? String(e),
-    });
-  }
-}
+        try {
+          const content = await collectHardwareSpecsMarkdown();
+          panel.webview.postMessage({ type: "specsContent", content });
+        } catch (e: any) {
+          panel.webview.postMessage({
+            type: "specsError",
+            error: e?.message ?? String(e),
+          });
+        }
+      }
 
     },
     undefined,
@@ -475,11 +485,10 @@ async function collectHardwareSpecsMarkdown(): Promise<string> {
     .join("\n");
 
   const batteryInfo = battery.hasBattery
-    ? `Health: ${
-        battery.designedCapacity && battery.maxCapacity
-          ? ((battery.maxCapacity / battery.designedCapacity) * 100).toFixed(0)
-          : "N/A"
-      }% • Charging: ${battery.isCharging} • Capacity: ${battery.percent}%`
+    ? `Health: ${battery.designedCapacity && battery.maxCapacity
+      ? ((battery.maxCapacity / battery.designedCapacity) * 100).toFixed(0)
+      : "N/A"
+    }% • Charging: ${battery.isCharging} • Capacity: ${battery.percent}%`
     : "No battery detected";
 
   return `💻 System Specifications
@@ -616,11 +625,10 @@ async function collectHardwareSpecsForDashboard(): Promise<{
       new Promise<any>((_, reject) => setTimeout(() => reject(new Error("Battery timeout")), 5000))
     ]);
     batteryInfo = battery.hasBattery
-      ? `Health: ${
-          battery.designedCapacity && battery.maxCapacity
-            ? ((battery.maxCapacity / battery.designedCapacity) * 100).toFixed(0)
-            : "N/A"
-        }% • Charging: ${battery.isCharging} • Capacity: ${battery.percent}%`
+      ? `Health: ${battery.designedCapacity && battery.maxCapacity
+        ? ((battery.maxCapacity / battery.designedCapacity) * 100).toFixed(0)
+        : "N/A"
+      }% • Charging: ${battery.isCharging} • Capacity: ${battery.percent}%`
       : "No battery detected";
     console.log("  ✓ Battery info collected");
   } catch (e: any) {

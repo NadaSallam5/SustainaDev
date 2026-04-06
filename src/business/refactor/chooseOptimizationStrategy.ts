@@ -14,36 +14,36 @@ export enum OptimizationStrategy {
 export function chooseOptimizationStrategy(
   facts: MethodFacts
 ): OptimizationStrategy {
-  // ✅ 1) STRING CONCAT — 
-
-  if (facts.hasStringConcatInLoop === true) {
-    return OptimizationStrategy.STRING_BUILDER;
-  }
-
- // ✅ 3) SORTING inside loop (NEW)
-  if (facts.sortInsideLoop === true) {
-    return OptimizationStrategy.SORTING_IN_LOOP;
-  }
-
-  // ✅ 4) SORTING detected (NEW)
-  if (facts.hasSortingCall === true) {
-    return OptimizationStrategy.SORTING;
-  }
-  // ✅ 3) Nested loops → O(n^2)
+  // 1) Nested loops → O(n^2) — biggest algorithmic win
   if (facts.maxLoopDepth >= 2) {
     return OptimizationStrategy.NESTED_LOOPS;
   }
 
-  // ✅ 4) Fibonacci-style recursion 
+  // 2) Sorting inside a loop → O(n^2 log n)  smell
+  if (facts.sortInsideLoop === true) {
+    return OptimizationStrategy.SORTING_IN_LOOP;
+  }
+
+  // 3) Sorting anywhere → O(n log n) — worth flagging
+  if (facts.hasSortingCall === true) {
+    return OptimizationStrategy.SORTING;
+  }
+
+  // 4) String concat in a loop → GC pressure
+  if (facts.hasStringConcatInLoop === true) {
+    return OptimizationStrategy.STRING_BUILDER;
+  }
+
+  // 5) Fibonacci-style recursion → memoization candidate
   if (facts.hasOverlappingSubproblems === true) {
     return OptimizationStrategy.MEMOIZATION;
   }
 
-  // ✅ 5) Linear recursion 
+  // 6) Linear recursion → convert to iterative
   if (facts.isLinearRecursion === true) {
     return OptimizationStrategy.ITERATIVE_REWRITE;
   }
 
-  // ❗ 6) No optimization available
+  // 7) No optimization available
   return OptimizationStrategy.KEEP_RECURSION;
 }
