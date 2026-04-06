@@ -3,6 +3,7 @@ import * as path from "path";
 import { buildOptimizationReport } from "../business/complexity/report";
 
 import * as fsp from "fs/promises";
+import * as fs from "fs";
 
 // Project internal imports
 import {
@@ -186,11 +187,23 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
           placeHolder: "Apply the optimized code?",
         }
       ).then(async (choice) => {
+        // Proactive cleanup: 1. Close the tab, 2. Delete the file
+        if (patch.previewUri) {
+          try {
+            await closeExistingPreview(patch.previewUri);
+            if (fs.existsSync(patch.previewUri)) {
+              await fsp.unlink(patch.previewUri);
+            }
+            console.log(`🧹 Proactive cleanup: ${patch.previewUri}`);
+          } catch (e) {
+            console.warn(`⚠️ Failed to cleanup preview file: ${patch.previewUri}`, e);
+          }
+        }
+
         if (choice === "✅ Accept Optimization") {
           await applyPatchToDocument(
             originalUri,
-            patch.preview,
-            refreshedDoc.lineCount
+            patch.preview
           );
 
           await refreshedDoc.save();
@@ -371,23 +384,23 @@ async function executeOpenDashboard(context: vscode.ExtensionContext) {
    HELPER FUNCTIONS
    ========================================================================= */
 
-async function closeExistingPreview(uriStringPartial: string) {
-  const oldDoc = vscode.workspace.textDocuments.find((d) =>
-    d.uri.toString().includes(uriStringPartial),
-  );
-  if (oldDoc) {
-    // Attempt to show it so we can close it, or check visible editors
-    const editor = vscode.window.visibleTextEditors.find(
-      (e) => e.document === oldDoc,
-    );
-    if (editor) {
-      await vscode.window.showTextDocument(oldDoc, {
-        preview: false,
-        preserveFocus: false,
-      });
-      await vscode.commands.executeCommand(
-        "workbench.action.revertAndCloseActiveEditor",
-      );
+async function closeExistingPreview(previewPath: string) {
+  for (const group of vscode.window.tabGroups.all) {
+    for (const tab of group.tabs) {
+      // Look specifically for Diff editors where the 'modified' side is our temp preview file
+      if (tab.input instanceof vscode.TabInputTextDiff) {
+        if (tab.input.modified.fsPath === previewPath) {
+          await vscode.window.tabGroups.close(tab);
+          return;
+        }
+      }
+      // Also check standard text editors (in case the user opened it directly)
+      if (tab.input instanceof vscode.TabInputText) {
+        if (tab.input.uri.fsPath === previewPath) {
+          await vscode.window.tabGroups.close(tab);
+          return;
+        }
+      }
     }
   }
 }
@@ -416,13 +429,16 @@ async function createAndShowPreview(
 async function applyPatchToDocument(
   uri: vscode.Uri,
   content: string,
-  lineCount: number,
 ) {
+  const document = await vscode.workspace.openTextDocument(uri);
   const we = new vscode.WorkspaceEdit();
+  
+  // Calculate the full range based on the CURRENT state of the file
   const fullRange = new vscode.Range(
     new vscode.Position(0, 0),
-    new vscode.Position(lineCount, 0),
+    document.lineAt(document.lineCount - 1).range.end
   );
+  
   we.replace(uri, fullRange, content);
 
   const applied = await vscode.workspace.applyEdit(we);

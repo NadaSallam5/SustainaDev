@@ -18,6 +18,7 @@ import { ICodeAnalyzer, MiniSkeleton } from "../analyzer/analyzerTypes";
 interface OptimizationResult {
   preview: string;
   reason: string;
+  previewUri?: string; // NEW: Path to temp file for cleanup
 }
 
 /**
@@ -272,40 +273,17 @@ export async function buildOptimizationPatch(
   const restoreEdit = new vscode.WorkspaceEdit();
   restoreEdit.replace(document.uri, fullRange, originalText);
   await vscode.workspace.applyEdit(restoreEdit);
-  console.log("👻 Ghost Edit complete. Original file restored.");
+  
+  // FINAL STEP: Revert the document to clear the dirty flag in VS Code.
+  // Since we already restored the text to its original state, this is safe and 
+  // ensures the tab doesn't show an unsaved 'dot'.
+  await vscode.commands.executeCommand("workbench.action.files.revert");
+  console.log("👻 Ghost Edit complete. Original file restored and dirty flag cleared.");
 
   const patch: OptimizationResult = { preview: finalPreview, reason: parseResult.reason };
 
-  // ✅✅✅ HARD VALIDATION for Duplicate Computation refactor
-  // Prevent invalid changes (AtomicInteger, Map caching, method signature changes)
-  if (strategy === OptimizationStrategy.DUPLICATE_COMPUTATION) {
-    const invalidPatterns = [
-      "AtomicInteger",
-      "HashMap",
-      "Map<",
-      "ConcurrentHashMap",
-      "cache",
-      "memo",
-    ];
 
-    // Ensure method signatures are unchanged (basic guard)
-    // If original has "private int expensive(" then preview must also have it.
-    if (fullCode.includes("private int expensive(") && !patch.preview.includes("private int expensive(")) {
-      throw new Error("AI changed method signature for expensive().");
-    }
-  }
-  // ✅ Optional validation for SORTING_IN_LOOP:
-  // Ensure sorting is not still repeatedly done inside the loop (basic heuristic)
-  if (strategy === OptimizationStrategy.SORTING_IN_LOOP) {
-    const stillHasSortInsideLoop =
-      patch.preview.includes("for (") &&
-      (patch.preview.includes("Collections.sort") || patch.preview.includes("Arrays.sort")) &&
-      patch.preview.indexOf("sort") > patch.preview.indexOf("for (");
 
-    if (stillHasSortInsideLoop) {
-      throw new Error("AI did not move sorting out of the loop for SORTING_IN_LOOP.");
-    }
-  }
   // 🛡️ NO-OP CHECK: The "Logic Gate"
   const logicOnlyOriginal = fullCode.replace(/\/\/.*|\/\*[\s\S]*?\*\/|\s/g, "");
   const logicOnlyPatch = patch.preview.replace(
@@ -322,10 +300,19 @@ export async function buildOptimizationPatch(
   if (fileName) {
     const originalUri = vscode.Uri.file(fileName);
 
+    // Derive the file extension from the language so the diff viewer uses correct syntax highlighting.
+    const langExtMap: Record<string, string> = {
+      java: 'java',
+      python: 'py',
+      typescript: 'ts',
+      javascript: 'js',
+
+    };
+    const fileExt = langExtMap[skeleton.language] ?? skeleton.language;
     const previewUri = vscode.Uri.file(
       path.join(
         os.tmpdir(),
-        `sustainadev-preview-${Date.now()}.java`
+        `sustainadev-preview-${Date.now()}.${fileExt}`
       )
     );
 
@@ -339,6 +326,7 @@ export async function buildOptimizationPatch(
       "🧠 SustainaDev: Algorithmic Optimization (Original ↔ Optimized)",
       { preview: true }
     );
+    patch.previewUri = previewUri.fsPath;
   }
 
 
@@ -529,13 +517,29 @@ function parseAiResponse(text: string, expectedMethodName?: string): { newMethod
   }
 
   // Sometimes the AI puts the imports inside the Preview block. Strip them out.
-  newMethod = newMethod.replace(/^import\s+[\w\.]+;[\r\n]*/gm, "").trim();
+  // Handles all major language import styles:
+  //   Java:              import java.util.List;
+  //   Python:            import os  /  from datetime import date
+  //   TypeScript/JS:     import { X } from 'y'
+  //   Kotlin/Dart:       import kotlin.collections.*
+  newMethod = newMethod
+    .replace(/^import\s+[\w\.]+;[\r\n]*/gm, "")           // Java (semicolon)
+    .replace(/^import\s+[\w\.\*]+[\r\n]*/gm, "")           // Python bare import
+    .replace(/^from\s+[\w\.]+\s+import\s+[^\r\n]*[\r\n]*/gm, "") // Python from...import
+    .replace(/^import\s+\{[^}]*\}\s+from\s+['"][^'"]+['"][\r\n]*/gm, "") // TS/JS named
+    .replace(/^import\s+[\w*]+\s+from\s+['"][^'"]+['"][\r\n]*/gm, "")   // TS/JS default
+    .trim();
 
   // If the AI disobeyed and printed the DTOs/class wrapper inside the Preview block,
   // we must slice out everything before the actual target method signature,
   // AND trim any trailing class-closing braces via brace-counting.
   if (expectedMethodName) {
-    const methodStartRegex = new RegExp(`(?:public|private|protected|static|final|\\s)*\\w[\\w<>,\\.\\[\\]\\s]*\\s+${expectedMethodName}\\s*\\(`, 'm');
+    // Language-agnostic method/function signature detection:
+    const methodStartRegex = new RegExp(
+      `(?:(?:public|private|protected|static|final|async|override|abstract|def|fun|func)\\s+)*` +
+      `(?:[\\w<>,[\\]\\s]+\\s+)?${expectedMethodName}\\s*\\(`,
+      'm'
+    );
     const match = methodStartRegex.exec(newMethod);
     if (match) {
       newMethod = newMethod.substring(match.index).trim();
@@ -572,101 +576,6 @@ function parseAiResponse(text: string, expectedMethodName?: string): { newMethod
   return { newMethod, reason };
 }
 
-/**
- * Extract just the target method body so we can estimate Big-O.
- * This is a heuristic (NOT a formal proof) but it matches the simple reporting style you show in the console.
- */
-function extractMethodBody(fullCode: string, methodName: string): string {
-  // Find the method signature line (very forgiving regex).
-  const sig = new RegExp(`\\b${methodName}\\s*\\(`);
-  const lines = fullCode.split(/\r?\n/);
-  let startLine = -1;
-  for (let i = 0; i < lines.length; i++) {
-    if (sig.test(lines[i])) {
-      startLine = i;
-      break;
-    }
-  }
-  if (startLine === -1) return fullCode;
-
-  // Walk forward and capture braces to isolate the method block.
-  let brace = 0;
-  let started = false;
-  const out: string[] = [];
-
-  for (let i = startLine; i < lines.length; i++) {
-    const line = lines[i];
-    out.push(line);
-    for (const ch of line) {
-      if (ch === "{") {
-        brace++;
-        started = true;
-      } else if (ch === "}") {
-        brace--;
-      }
-    }
-    if (started && brace === 0) break;
-  }
-
-  return out.join("\n");
-}
-
-
-function estimateBigOFromCode(fullCode: string, methodName: string): string {
-  const method = extractMethodBody(fullCode, methodName);
-  const cleaned = method
-    .replace(/\/\/.*$/gm, "")
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  // Detect recursion calls (exclude the signature by searching after the first "{")
-  const bodyOnly = cleaned.includes("{") ? cleaned.slice(cleaned.indexOf("{") + 1) : cleaned;
-  const selfCalls = (bodyOnly.match(new RegExp(`\\b${methodName}\\s*\\(`, "g")) || []).length;
-
-  // Loop nesting depth estimation (brace-based heuristic)
-  let brace = 0;
-  const loopStack: number[] = [];
-  let maxLoopDepth = 0;
-
-  const tokens = method.split(/\r?\n/);
-  for (const line of tokens) {
-    const l = line.replace(/\/\/.*$/, "");
-    // entering a loop (very rough but works for typical student code)
-    if (/\b(for|while)\s*\(/.test(l)) {
-      loopStack.push(brace);
-      if (loopStack.length > maxLoopDepth) maxLoopDepth = loopStack.length;
-    }
-
-    for (const ch of l) {
-      if (ch === "{") brace++;
-      else if (ch === "}") {
-        // pop loops when leaving their brace scope
-        brace--;
-        while (loopStack.length && brace < loopStack[loopStack.length - 1]) {
-          loopStack.pop();
-        }
-      }
-    }
-  }
-
-  // String concatenation inside a loop can behave like O(n^2) due to repeated allocations.
-  const hasStringVar = /\bString\s+\w+\s*=/.test(method);
-  const stringConcatInLoop = /\b(for|while)\s*\([\s\S]*?\)\s*\{[\s\S]*?(=\s*\w+\s*\+|\+=)\s*[\s\S]*?\}/.test(method);
-  if (maxLoopDepth === 1 && hasStringVar && stringConcatInLoop) {
-    return "O(n^2)";
-  }
-
-  if (maxLoopDepth >= 3) return "O(n^3)";
-  if (maxLoopDepth === 2) return "O(n^2)";
-  if (maxLoopDepth === 1) return "O(n)";
-
-  // Recursion fallback (very rough)
-  if (selfCalls >= 2) return "O(2^n)";
-  if (selfCalls === 1) return "O(n)";
-
-  return "O(1)";
-}
 
 function bigOToScore(bigO: string): number {
   const s = (bigO || "").replace(/\s+/g, "").toLowerCase();
@@ -770,32 +679,3 @@ export async function logOptimizationFromReport(
   }
 }
 
-export function extractClassBlock(fullCode: string, startLine: number) {
-  const lines = fullCode.split(/\r?\n/);
-  let classStart = -1;
-  for (let i = startLine; i >= 0; i--) {
-    if (/\bclass\s+\w+/.test(lines[i])) {
-      classStart = i;
-      break;
-    }
-  }
-  classStart = classStart === -1 ? 0 : classStart;
-
-  let braceCount = 0,
-    foundBrace = false,
-    classEnd = lines.length - 1;
-  for (let i = classStart; i < lines.length; i++) {
-    for (const ch of lines[i]) {
-      if (ch === "{") {
-        braceCount++;
-        foundBrace = true;
-      }
-      if (ch === "}") braceCount--;
-    }
-    if (foundBrace && braceCount === 0) {
-      classEnd = i;
-      break;
-    }
-  }
-  return { classBlock: lines.slice(classStart, classEnd + 1).join("\n") };
-}
