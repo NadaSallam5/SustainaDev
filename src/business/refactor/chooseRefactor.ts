@@ -26,12 +26,7 @@ export function chooseRefactor(facts: MethodFacts) {
     return { type: "NESTED_LOOPS", reason: "Nested loops detected." };
   }
 
-  // 5) Recursion
-  if (facts.callsSelf === true) {
-    return { type: "RECURSION", reason: "Recursive method detected." };
-  }
 
   return { type: "GENERAL", reason: "General optimization." };
 }
-  return { type: "GENERAL", reason: "General optimization" };
-}
+  

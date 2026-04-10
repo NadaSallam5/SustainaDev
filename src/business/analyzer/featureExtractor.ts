@@ -2,10 +2,6 @@ import { UniversalFeatures } from "../types/universalFeatures"
 
 export function extractFeatures(root: any, methodName?: string): UniversalFeatures {
 
-  // ─── C++ fast path: features were pre-computed by regex in astParser ───
-  if (root.__cppFeatures) {
-    return root.__cppFeatures as UniversalFeatures;
-  }
 
   // ─── Tree-sitter path: Java / Python / JS ───────────────────────────────
 

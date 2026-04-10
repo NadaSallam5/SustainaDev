@@ -1,9 +1,102 @@
 import * as vscode from 'vscode';
 import { ICodeAnalyzer, MiniSkeleton } from './analyzerTypes';
 import { MethodFacts } from '../types';
+import { parseCode } from '../parser/astParser';
+import { extractFeatures } from './featureExtractor';
 
 export class UniversalLspAnalyzer implements ICodeAnalyzer {
-  
+
+  // ─── analyzeFile ────────────────────────────────────────────────────────────
+  // Uses LSP to discover all methods in the file, then runs Tree-sitter
+  // featureExtractor on each one to build a MethodFacts list.
+  // Tree-sitter handles smell detection. LSP only provides method names + ranges.
+  async analyzeFile(context: vscode.ExtensionContext): Promise<MethodFacts[]> {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      throw new Error("No active editor.");
+    }
+
+    // Use document directly to prevent mismatch if editor reference changes
+    const document = editor.document;
+
+    // Step 1: Get all symbols from LSP
+    const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+      'vscode.executeDocumentSymbolProvider',
+      document.uri
+    );
+
+    if (!symbols || symbols.length === 0) {
+      throw new Error("No symbols found by LSP. Make sure a language server is active.");
+    }
+
+    // Step 2: Collect only real methods and functions — no constructors
+    const methodSymbols: vscode.DocumentSymbol[] = [];
+
+    const collectMethods = (syms: vscode.DocumentSymbol[]) => {
+      for (const sym of syms) {
+        if (
+          sym.kind === vscode.SymbolKind.Method ||
+          sym.kind === vscode.SymbolKind.Function
+        ) {
+          methodSymbols.push(sym);
+        }
+        if (sym.children) {
+          collectMethods(sym.children);
+        }
+      }
+    };
+    collectMethods(symbols);
+
+    if (methodSymbols.length === 0) {
+      throw new Error("No methods found in file.");
+    }
+
+    // Step 3: Run Tree-sitter featureExtractor on each method individually.
+    // FIX 2: Changed from .map() to async for-loop with UI yield between iterations.
+    // The sync .map() was blocking the VS Code extension thread causing UI glitches.
+    const filePath = document.uri.fsPath;
+    const fileExt = filePath.split('.').pop()?.toLowerCase() ?? 'java';
+
+    const factsList: MethodFacts[] = [];
+
+    for (const sym of methodSymbols) {
+      const methodName = sym.name.replace(/\(.*\)/, '').trim();
+
+      // Use document.getText (not editor.document.getText) to prevent
+      // mismatch if editor state changes during async processing
+      const methodText = document.getText(sym.range);
+
+      // Wrap in a dummy class so Tree-sitter can parse it as valid Java/TS syntax.
+      // Python functions are top-level and don't need wrapping.
+      const wrappedCode = fileExt === 'py'
+        ? methodText
+        : `class __Wrapper__ {\n${methodText}\n}`;
+
+      const methodTree = parseCode(wrappedCode, filePath);
+      const features = extractFeatures(methodTree.rootNode, methodName);
+
+      factsList.push({
+        methodName,
+        callsSelf: features.recursion,
+        maxLoopDepth: features.loopDepth,
+        cyclomaticComplexity: 1,
+        isLinearRecursion: false,
+        isPureAccumulation: false,
+        hasOverlappingSubproblems: false,
+        hasStringConcatInLoop: features.stringConcatInLoop,
+        hasSortingCall: features.sortingCalls > 0,
+        sortInsideLoop: features.sortingInsideLoop,
+      });
+
+      // FIX 2: Yield to UI thread between each method parse to prevent
+      // blocking the extension host and causing rendering glitches
+      await new Promise(r => setTimeout(r, 0));
+    }
+
+    return factsList;
+  }
+
+  // ─── extractSkeleton ────────────────────────────────────────────────────────
   async extractSkeleton(document: vscode.TextDocument, methodName: string): Promise<MiniSkeleton> {
     const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
       'vscode.executeDocumentSymbolProvider',
@@ -17,11 +110,15 @@ export class UniversalLspAnalyzer implements ICodeAnalyzer {
     let targetMethodSymbol: vscode.DocumentSymbol | undefined;
     let classSymbol: vscode.DocumentSymbol | undefined;
 
-    // 1. Traverse the symbol tree to find the Target Method and its parent Class
     const findTarget = (syms: vscode.DocumentSymbol[], parent?: vscode.DocumentSymbol) => {
       for (const sym of syms) {
-        if (sym.name.includes(methodName) && 
-           (sym.kind === vscode.SymbolKind.Method || sym.kind === vscode.SymbolKind.Function)) {
+        const symBaseName = sym.name.replace(/\(.*\)/, '').trim();
+        if (
+          symBaseName === methodName &&
+          (sym.kind === vscode.SymbolKind.Method ||
+           sym.kind === vscode.SymbolKind.Function ||
+           sym.kind === vscode.SymbolKind.Constructor)
+        ) {
           targetMethodSymbol = sym;
           classSymbol = parent;
           return;
@@ -37,10 +134,8 @@ export class UniversalLspAnalyzer implements ICodeAnalyzer {
       throw new Error(`Method ${methodName} not found by LSP.`);
     }
 
-    // 2. Extract EXACT target method text using the LSP Range
     const targetMethodText = document.getText(targetMethodSymbol.range);
 
-    // 3. Extract Class Fields (Only fields, no other methods)
     let classFieldsText = "";
     if (classSymbol && classSymbol.children) {
       const fields = classSymbol.children.filter(
@@ -49,33 +144,25 @@ export class UniversalLspAnalyzer implements ICodeAnalyzer {
       classFieldsText = fields.map(f => document.getText(f.range)).join('\n');
     }
 
-    // 4. Extract Type Definitions (DTOs, Interfaces, Enums, Structs) for AI context!
-    // TODO: Currently, executeDocumentSymbolProvider ONLY scans the active text document.
-    // If DTOs live in external files (e.g. `WarehouseStock.java` in another folder), they are missed.
-    // FUTURE ROADMAP: To support cross-file DTO extraction:
-    // 1. Scan target method parameters natively to find custom types.
-    // 2. Fire `vscode.commands.executeCommand("vscode.executeDefinitionProvider")` on those types.
-    // 3. Open the returned external URIs in the background and pull their class definitions.
     const extractTypes = (syms: vscode.DocumentSymbol[]): vscode.DocumentSymbol[] => {
       let found: vscode.DocumentSymbol[] = [];
       for (const sym of syms) {
-        const isTypeDecl = sym.kind === vscode.SymbolKind.Class || 
-                           sym.kind === vscode.SymbolKind.Interface || 
-                           sym.kind === vscode.SymbolKind.Struct || 
-                           sym.kind === vscode.SymbolKind.Enum;
-        
+        const isTypeDecl =
+          sym.kind === vscode.SymbolKind.Class ||
+          sym.kind === vscode.SymbolKind.Interface ||
+          sym.kind === vscode.SymbolKind.Struct ||
+          sym.kind === vscode.SymbolKind.Enum;
+
         if (isTypeDecl) {
-          // If this is the main class wrapping our method, DO NOT capture it entirely!
-          // We only want its nested children (Inner Classes/DTOs).
           if (classSymbol && sym.name === classSymbol.name) {
             if (sym.children) found = found.concat(extractTypes(sym.children));
           } else {
-            // It's a distinct DTO, interface, or struct!
             found.push(sym);
           }
-        } 
-        // Recurse into namespaces/modules to find root-level types (C#/TypeScript)
-        else if (sym.kind === vscode.SymbolKind.Namespace || sym.kind === vscode.SymbolKind.Module) {
+        } else if (
+          sym.kind === vscode.SymbolKind.Namespace ||
+          sym.kind === vscode.SymbolKind.Module
+        ) {
           if (sym.children) found = found.concat(extractTypes(sym.children));
         }
       }
@@ -85,9 +172,12 @@ export class UniversalLspAnalyzer implements ICodeAnalyzer {
     const typeSymbols = extractTypes(symbols);
     const typeDefinitionsText = typeSymbols.map(t => document.getText(t.range)).join('\n\n');
 
-    // 5. Extract Imports (Heuristic: grab everything before the first major symbol)
     const firstSymbolLine = symbols[0]?.range.start.line || 0;
-    const importsRange = new vscode.Range(0, 0, Math.max(0, firstSymbolLine - 1), document.lineAt(Math.max(0, firstSymbolLine - 1)).text.length);
+    const importsRange = new vscode.Range(
+      0, 0,
+      Math.max(0, firstSymbolLine - 1),
+      document.lineAt(Math.max(0, firstSymbolLine - 1)).text.length
+    );
     const importsText = document.getText(importsRange).trim();
 
     return {
@@ -106,11 +196,5 @@ export class UniversalLspAnalyzer implements ICodeAnalyzer {
         return { name: t.name, text: document.getText(t.range), fields };
       }),
     };
-  }
-
-
-  // Fallback for analysis - we continue to let the Java parser or TS parser handle complexity
-  async analyzeFile(context: vscode.ExtensionContext): Promise<MethodFacts[]> {
-    throw new Error("UniversalLspAnalyzer does not implement analyzeFile. Use a dedicated language parser.");
   }
 }

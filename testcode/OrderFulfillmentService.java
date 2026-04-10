@@ -173,36 +173,35 @@ public class OrderFulfillmentService {
         LOGGER.info("Assigning carriers to " + fulfillments.size() + " fulfillments.");
         List<OrderShipment> shipments = new ArrayList<>();
 
-        Map<String, String> warehouseToShippingZoneMap = new HashMap<>();
-        for (WarehouseStock stock : stockSnapshot) {
-            warehouseToShippingZoneMap.put(stock.warehouseId, stock.shippingZone);
-        }
-
-        Map<String, ShippingCarrier> zoneToBestCarrierMap = new HashMap<>();
-        for (ShippingCarrier carrier : availableCarriers) {
-            if (!zoneToBestCarrierMap.containsKey(carrier.coverageZone)) {
-                zoneToBestCarrierMap.put(carrier.coverageZone, carrier);
-            } else {
-                ShippingCarrier existingCarrier = zoneToBestCarrierMap.get(carrier.coverageZone);
-                if (carrier.costPerUnit < existingCarrier.costPerUnit) {
-                    zoneToBestCarrierMap.put(carrier.coverageZone, carrier);
-                }
-            }
-        }
-
         for (FulfillmentResult fulfillment : fulfillments) {
             if (!"FULFILLED".equals(fulfillment.status)) {
                 continue;
             }
 
-            String shippingZone = warehouseToShippingZoneMap.get(fulfillment.warehouseId);
+            String shippingZone = null;
+            for (WarehouseStock stock : stockSnapshot) {
+                if (fulfillment.warehouseId != null && fulfillment.warehouseId.equals(stock.warehouseId)) {
+                    shippingZone = stock.shippingZone;
+                    break;
+                }
+            }
+
             if (shippingZone == null) {
                 LOGGER.warning("Could not determine shipping zone for warehouse: " + fulfillment.warehouseId);
                 shipments.add(new OrderShipment(fulfillment.orderId, null, 0.0, "NO_CARRIER"));
                 continue;
             }
 
-            ShippingCarrier bestCarrier = zoneToBestCarrierMap.get(shippingZone);
+            // Step 2: Find the cheapest carrier for that zone
+            ShippingCarrier bestCarrier = null;
+            for (ShippingCarrier carrier : availableCarriers) {
+                if (shippingZone.equals(carrier.coverageZone)) {
+                    if (bestCarrier == null || carrier.costPerUnit < bestCarrier.costPerUnit) {
+                        bestCarrier = carrier;
+                    }
+                }
+            }
+
             if (bestCarrier != null) {
                 double totalCost = bestCarrier.costPerUnit * fulfillment.allocatedQuantity;
                 shipments.add(new OrderShipment(fulfillment.orderId, bestCarrier.carrierId, totalCost, "ASSIGNED"));
@@ -220,22 +219,26 @@ public class OrderFulfillmentService {
             List<CustomerProfile> customerProfiles) {
 
         LOGGER.info("Enriching " + orders.size() + " orders with loyalty data.");
-        Map<String, CustomerProfile> profileMap = new HashMap<>();
-        for (CustomerProfile profile : customerProfiles) {
-            profileMap.put(profile.customerId, profile);
-        }
-
         List<OrderEnrichment> enrichments = new ArrayList<>();
+
         for (CustomerOrder order : orders) {
-            CustomerProfile profile = profileMap.get(order.customerId);
-            if (profile != null) {
-                boolean isEligibleForDiscount = "GOLD".equals(profile.loyaltyTier)
-                        && profile.totalOrdersPlaced >= 10;
-                enrichments.add(new OrderEnrichment(
-                        order.orderId,
-                        profile.loyaltyTier,
-                        isEligibleForDiscount));
-            } else {
+            boolean profileFound = false;
+
+            for (CustomerProfile profile : customerProfiles) {
+                if (order.customerId.equals(profile.customerId)) {
+                    profileFound = true;
+                    boolean isEligibleForDiscount = "GOLD".equals(profile.loyaltyTier)
+                            && profile.totalOrdersPlaced >= 10;
+
+                    enrichments.add(new OrderEnrichment(
+                            order.orderId,
+                            profile.loyaltyTier,
+                            isEligibleForDiscount));
+                    break;
+                }
+            }
+
+            if (!profileFound) {
                 enrichments.add(new OrderEnrichment(order.orderId, "STANDARD", false));
                 LOGGER.warning("No profile found for customerId: " + order.customerId);
             }
