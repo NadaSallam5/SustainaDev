@@ -18,6 +18,10 @@ export function chooseRefactor(facts: MethodFacts) {
   }
 
   // 4) Nested loops
+  if (facts.callsSelf) {
+    return { type: "RECURSION", reason: "Recursive method detected" };
+  }
+
   if (facts.maxLoopDepth >= 2) {
     return { type: "NESTED_LOOPS", reason: "Nested loops detected." };
   }
@@ -28,4 +32,6 @@ export function chooseRefactor(facts: MethodFacts) {
   }
 
   return { type: "GENERAL", reason: "General optimization." };
+}
+  return { type: "GENERAL", reason: "General optimization" };
 }

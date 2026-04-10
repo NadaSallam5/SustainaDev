@@ -5,6 +5,7 @@ import { extractFeatures } from "../business/analyzer/featureExtractor";
 import { detectByRules } from "../business/refactor/ruleEngine";
 
 import * as fsp from "fs/promises";
+import * as fs from "fs";
 
 // Project internal imports
 import { buildOptimizationReport } from "../business/complexity/report";
@@ -16,6 +17,9 @@ import {
 import { chooseRefactor } from "../business/refactor/chooseRefactor";
 import { initPaths, startCpuSampling } from "../business/codeCarbon";
 
+import { initPaths } from "../business/codeCarbon";
+import { getAnalyzer, isLanguageSupported } from "../business/analyzer/analyzerFactory";
+import { UnsupportedLanguageError } from "../business/analyzer/analyzerTypes";
 import si from "systeminformation";
 import { parseCode } from "../business/parser/astParser";
 
@@ -36,7 +40,6 @@ const validSmells = [
   "MEMOIZATION",
   "STRING_CONCAT",
 ];
-
 /**
  * SustainaDev Extension Activation
  */
@@ -54,14 +57,41 @@ export function activate(context: vscode.ExtensionContext) {
     "sustainadev.openDashboard",
     () => executeOpenDashboard(context),
   );
-
   const getSpecs = vscode.commands.registerCommand(
     "sustainadev.getSpecs",
     async () => {
       vscode.window.showInformationMessage("🔍 Collecting system specs...");
       try {
+        const cpu = await si.cpu();
+        const gpu = await si.graphics();
+        const mem = await si.mem();
+        const os = await si.osInfo();
+        const disks = await si.diskLayout();
+        const battery = await si.battery();
+        const gpuModel =
+          gpu.controllers && gpu.controllers.length > 0
+            ? gpu.controllers[0].model
+            : "No GPU detected";
+        const diskInfo = disks
+          .map((d, index) => {
+            const sizeGB = (d.size / 1024 / 1024 / 1024).toFixed(1);
+            const type = d.type || "Unknown";
+            const name = d.name || d.vendor || "Disk " + (index + 1);
+
+            return `• ${type} • ${name} • ${sizeGB} GB`;
+          })
+          .join("\n");
+
+        const batteryInfo = battery.hasBattery
+          ? `Health: ${battery.designedCapacity && battery.maxCapacity
+            ? ((battery.maxCapacity / battery.designedCapacity) * 100).toFixed(0)
+            : "N/A"
+          }% • Charging: ${battery.isCharging} • Capacity: ${battery.percent}%`
+          : "No battery detected";
+
         const msg = await collectHardwareSpecsMarkdown();
         vscode.window.showInformationMessage(msg, { modal: true });
+
       } catch (err: any) {
         vscode.window.showErrorMessage(
           "❌ Failed to read system specs: " + err.message,
@@ -69,15 +99,11 @@ export function activate(context: vscode.ExtensionContext) {
       }
     },
   );
-
   context.subscriptions.push(analyzeActiveFile, openDash, getSpecs);
 }
 
-export function deactivate() {}
+export function deactivate() { }
 
-/* =========================================================================
-   COMMAND IMPLEMENTATIONS
-   ========================================================================= */
 
 async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
   if (isRunning) {
@@ -102,6 +128,20 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
       return;
     }
 
+    // Language gate — friendly message for unsupported languages
+    const languageId = editor.document.languageId;
+    if (!isLanguageSupported(languageId)) {
+      vscode.window.showInformationMessage(
+        `SustainaDev: "${languageId}" is not yet supported. ` +
+        `Java is fully supported. Python and JavaScript support is coming soon (Tree-sitter).`
+      );
+      isRunning = false;
+      return;
+    }
+
+    // Get the correct analyzer for the active language
+    const analyzer = getAnalyzer(languageId);
+
     const originalUri = editor.document.uri;
     const filePath = originalUri.fsPath;
     const refreshedDoc = await vscode.workspace.openTextDocument(originalUri);
@@ -113,6 +153,7 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
     const cursorLine = editor.selection.active.line;
     const lines = fullCode.split(/\r?\n/);
     let targetMethodName: string | undefined;
+    const factsList = await analyzer.analyzeFile(context);
 
     for (let i = cursorLine; i >= 0; i--) {
       const match = lines[i].match(
@@ -165,10 +206,22 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
       return;
     }
 
-    // STEP 4 — Execution Logic
+    // Choose the most actionable method:
+    // Priority: sorting-in-loop > nested loops > string concat > sorting > first method
+    const facts =
+      factsList.find(m => m.sortInsideLoop === true) ||
+      factsList.find(m => m.maxLoopDepth >= 2) ||
+      factsList.find(m => m.hasStringConcatInLoop === true) ||
+      factsList.find(m => m.hasSortingCall === true) ||
+      factsList[0];
+
+    // Rule engine — decide what to do
+    const decision = chooseRefactor(facts);
+
+    // 3. Execution Logic
     if (validSmells.includes(decision.type)) {
       const patch = await buildOptimizationPatch(
-        fullCode,
+        refreshedDoc,
         {
           from: editor.selection.start.line,
           to: editor.selection.end.line,
@@ -179,6 +232,7 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
           smellType: decision.type,
           methodFacts: facts,
         },
+        analyzer,
       );
 
       void vscode.window
@@ -193,6 +247,26 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
               patch.preview,
               refreshedDoc.lineCount,
             );
+        }
+      ).then(async (choice) => {
+        // Proactive cleanup: 1. Close the tab, 2. Delete the file
+        if (patch.previewUri) {
+          try {
+            await closeExistingPreview(patch.previewUri);
+            if (fs.existsSync(patch.previewUri)) {
+              await fsp.unlink(patch.previewUri);
+            }
+            console.log(`🧹 Proactive cleanup: ${patch.previewUri}`);
+          } catch (e) {
+            console.warn(`⚠️ Failed to cleanup preview file: ${patch.previewUri}`, e);
+          }
+        }
+
+        if (choice === "✅ Accept Optimization") {
+          await applyPatchToDocument(
+            originalUri,
+            patch.preview
+          );
 
             sustainaDevOutput.appendLine(
               "✅ Optimization applied (Tree-sitter mode)",
@@ -335,6 +409,11 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
       isRunning = false;
       return;
     }
+    if (err instanceof UnsupportedLanguageError) {
+      vscode.window.showInformationMessage(err.message);
+      isRunning = false;
+      return;
+    }
     vscode.window.showErrorMessage(
       `❌ SustainaDev failed: ${err.message || err}`,
     );
@@ -397,7 +476,8 @@ async function executeOpenDashboard(context: vscode.ExtensionContext) {
         await handleReadLog(panel, ws);
       } else if (message?.type === "readHardware") {
         await handleReadHardware(panel);
-      } else if (message?.type === "getSpecs") {
+      }
+      else if (message?.type === "getSpecs") {
         try {
           const content = await collectHardwareSpecsMarkdown();
           panel.webview.postMessage({ type: "specsContent", content });
@@ -414,20 +494,66 @@ async function executeOpenDashboard(context: vscode.ExtensionContext) {
   );
 }
 
+
 /* =========================================================================
    HELPER FUNCTIONS
    ========================================================================= */
 
+async function closeExistingPreview(previewPath: string) {
+  for (const group of vscode.window.tabGroups.all) {
+    for (const tab of group.tabs) {
+      // Look specifically for Diff editors where the 'modified' side is our temp preview file
+      if (tab.input instanceof vscode.TabInputTextDiff) {
+        if (tab.input.modified.fsPath === previewPath) {
+          await vscode.window.tabGroups.close(tab);
+          return;
+        }
+      }
+      // Also check standard text editors (in case the user opened it directly)
+      if (tab.input instanceof vscode.TabInputText) {
+        if (tab.input.uri.fsPath === previewPath) {
+          await vscode.window.tabGroups.close(tab);
+          return;
+        }
+      }
+    }
+  }
+}
+
+async function createAndShowPreview(
+  previewUri: vscode.Uri,
+  content: string,
+  originalUri: vscode.Uri,
+) {
+  const edit = new vscode.WorkspaceEdit();
+  edit.insert(previewUri, new vscode.Position(0, 0), content);
+  await vscode.workspace.applyEdit(edit);
+
+  // Wait briefly for FS update
+  await new Promise((resolve) => setTimeout(resolve, 200));
+
+  await vscode.commands.executeCommand(
+    "vscode.diff",
+    originalUri,
+    previewUri,
+    "🔄 SustainaDev: Algorithmic Optimization (Original ← → Optimized)",
+    { preview: true },
+  );
+}
+
 async function applyPatchToDocument(
   uri: vscode.Uri,
   content: string,
-  lineCount: number,
 ) {
+  const document = await vscode.workspace.openTextDocument(uri);
   const we = new vscode.WorkspaceEdit();
+  
+  // Calculate the full range based on the CURRENT state of the file
   const fullRange = new vscode.Range(
     new vscode.Position(0, 0),
-    new vscode.Position(lineCount, 0),
+    document.lineAt(document.lineCount - 1).range.end
   );
+  
   we.replace(uri, fullRange, content);
 
   const applied = await vscode.workspace.applyEdit(we);
@@ -467,7 +593,6 @@ async function handleReadLog(panel: vscode.WebviewPanel, ws: string) {
     });
   }
 }
-
 async function collectHardwareSpecsMarkdown(): Promise<string> {
   const cpu = await si.cpu();
   const gpu = await si.graphics();
@@ -516,6 +641,7 @@ ${batteryInfo}
 `;
 }
 
+
 async function handleReadHardware(panel: vscode.WebviewPanel) {
   try {
     console.log("🔍 Starting hardware collection...");
@@ -546,6 +672,7 @@ async function collectHardwareSpecsForDashboard(): Promise<{
   let diskInfo = "Loading...";
   let batteryInfo = "Loading...";
 
+  // Collect each hardware component separately with timeout and error handling
   try {
     const cpu = await Promise.race([
       si.cpu(),
