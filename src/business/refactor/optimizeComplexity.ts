@@ -196,8 +196,24 @@ export async function buildOptimizationPatch(
     throw new Error(`AI returned empty response for strategy: ${strategy}`);
   }
 
-  // 4. Extraction & Validation
-  const parseResult = parseAiResponse(rawAiResponse, methodName);
+  // ── FIX 3: Parse with language passed in ──────────────────────────────────
+  const parseResult = parseAiResponse(rawAiResponse, methodName, skeleton.language);
+
+  // ── FIX 3: Safety guard — method name must appear in output ───────────────
+  if (!parseResult.newMethod.includes(methodName)) {
+    vscode.window.showErrorMessage(
+      `⚠️ SustainaDev: AI returned invalid code for '${methodName}'. Optimization cancelled.`
+    );
+    return { preview: fullCode, reason: "AI failed to return valid optimized method." };
+  }
+
+  // ── FIX 3: Extra Python guard — must start with def ───────────────────────
+  if (skeleton.language === "python" && !parseResult.newMethod.trimStart().startsWith("def ")) {
+    vscode.window.showErrorMessage(
+      `⚠️ SustainaDev: Python optimization returned incomplete code. Optimization cancelled.`
+    );
+    return { preview: fullCode, reason: "AI returned Python body without def signature." };
+  }
 
   console.log("─────────────────────────────────────────────────");
   console.log("📄 BEFORE (Original Method):");
@@ -409,6 +425,19 @@ function getOptimizationPrompt(skeleton: MiniSkeleton, smellType: string): strin
       ? `**Type Shapes (fields only):**\n${referencedTypeLines.join("\n")}`
       : "";
 
+  // ── FIX 1: Python-specific output rule injected into the prompt ───────────
+  const pythonDefName = lang === "python"
+    ? skeleton.targetMethod.match(/def\s+(\w+)/)?.[1] ?? "the_method"
+    : null;
+
+  const targetMethodOnlyRule = lang === "python"
+    ? `- **Target Method Only**: Return ONLY the optimized method. For Python: ALWAYS start with the complete \`def ${pythonDefName}(...):\` signature on the first line. NEVER return just the body without the def line.`
+    : `- **Target Method Only**: You must return ONLY the optimized target method in the "Preview" section. Do NOT wrap it in a class or invent a new class name. The method already belongs to class \`${skeleton.className ?? "the existing class"}\` — return just the method.`;
+
+  const neverPartialRule = lang === "python"
+    ? `- **NEVER return partial code**: Always include the COMPLETE function — def signature, all loops, all branches, and the return statement. Incomplete snippets will be rejected.`
+    : `- **NEVER Repaper DTOs**: CRITICAL! Do NOT output the existing DTOs, Enums, or Type Definitions in the Preview code. ONLY the single optimized method.`;
+
   return `
 ### ROLE
 Expert ${lang.charAt(0).toUpperCase() + lang.slice(1)} Performance Engineer (Sustainability Specialist).
@@ -426,8 +455,8 @@ Expert ${lang.charAt(0).toUpperCase() + lang.slice(1)} Performance Engineer (Sus
 - **Syntax Compatibility**: Use only standard library features available in the language. Do not modernize syntax. Match the coding style of the original code.
 
 ### OUTPUT RULES (CRITICAL)
-- **Target Method Only**: You must return ONLY the optimized target method in the "Preview" section. Do NOT wrap it in a class or invent a new class name. The method already belongs to class \`${skeleton.className ?? "the existing class"}\` — return just the method.
-- **NEVER Repaper DTOs**: CRITICAL! Do NOT output the existing DTOs, Enums, or Type Definitions in the Preview code. ONLY the single optimized method.
+- ${targetMethodOnlyRule}
+- ${neverPartialRule}
 - **Pure Code**: Return pure, raw code without JSON formatting.
 - **Clean Up Comments**: adjust any comments inside the method that reference the old, inefficient logic.
 - **Permission to Delete**: You have explicit permission to delete absolutely any dead code, unused flags, and variables rendered obsolete by your optimization.
@@ -461,10 +490,12 @@ Reason:
 
 /**
  * Robustly parses AI markdown response.
+ * FIX 2: Added language parameter for Python-specific validation.
  */
 function parseAiResponse(
   text: string,
-  expectedMethodName?: string
+  expectedMethodName?: string,
+  language?: string            // ── FIX 2: new parameter ──
 ): { newMethod: string; reason: string } {
   console.log("🤖 Raw AI Output:", text);
 
@@ -494,6 +525,26 @@ function parseAiResponse(
     .replace(/^import\s+[\w*]+\s+from\s+['"][^'"]+['"][\r\n]*/gm, "")
     .trim();
 
+  // ── FIX 2: Python-specific validation ────────────────────────────────────
+  if (expectedMethodName && language === "python") {
+    if (!newMethod.trimStart().startsWith("def ")) {
+      throw new Error(
+        `AI returned Python method body without 'def ${expectedMethodName}' signature. Rejecting.`
+      );
+    }
+    if (!newMethod.includes(`def ${expectedMethodName}`)) {
+      throw new Error(
+        `AI returned wrong method name. Expected 'def ${expectedMethodName}'.`
+      );
+    }
+    const nonEmptyLines = newMethod.split("\n").filter(l => l.trim().length > 0);
+    if (nonEmptyLines.length < 3) {
+      throw new Error(
+        `AI returned incomplete Python method (only ${nonEmptyLines.length} non-empty lines).`
+      );
+    }
+  }
+
   if (expectedMethodName) {
     const methodStartRegex = new RegExp(
       `(?:(?:public|private|protected|static|final|async|override|abstract|def|fun|func)\\s+)*` +
@@ -504,23 +555,26 @@ function parseAiResponse(
     if (match) {
       newMethod = newMethod.substring(match.index).trim();
 
-      let braceDepth = 0;
-      let started = false;
-      let methodEndIndex = newMethod.length;
-      for (let i = 0; i < newMethod.length; i++) {
-        const ch = newMethod[i];
-        if (ch === "{") {
-          braceDepth++;
-          started = true;
-        } else if (ch === "}") {
-          braceDepth--;
-          if (started && braceDepth === 0) {
-            methodEndIndex = i + 1;
-            break;
+      // For Python, skip brace-counting entirely — indentation ends the method
+      if (language !== "python") {
+        let braceDepth = 0;
+        let started = false;
+        let methodEndIndex = newMethod.length;
+        for (let i = 0; i < newMethod.length; i++) {
+          const ch = newMethod[i];
+          if (ch === "{") {
+            braceDepth++;
+            started = true;
+          } else if (ch === "}") {
+            braceDepth--;
+            if (started && braceDepth === 0) {
+              methodEndIndex = i + 1;
+              break;
+            }
           }
         }
+        newMethod = newMethod.substring(0, methodEndIndex).trim();
       }
-      newMethod = newMethod.substring(0, methodEndIndex).trim();
     }
   }
 
@@ -536,34 +590,6 @@ function parseAiResponse(
   return { newMethod, reason };
 }
 
-function extractMethodBody(fullCode: string, methodName: string): string {
-  const sig = new RegExp(`\\b${methodName}\\s*\\(`);
-  const lines = fullCode.split(/\r?\n/);
-  let startLine = -1;
-  for (let i = 0; i < lines.length; i++) {
-    if (sig.test(lines[i])) {
-      startLine = i;
-      break;
-    }
-  }
-  if (startLine === -1) return fullCode;
-
-  let brace = 0;
-  let started = false;
-  const out: string[] = [];
-
-  for (let i = startLine; i < lines.length; i++) {
-    const line = lines[i];
-    out.push(line);
-    for (const ch of line) {
-      if (ch === "{") { brace++; started = true; }
-      else if (ch === "}") { brace--; }
-    }
-    if (started && brace === 0) break;
-  }
-
-  return out.join("\n");
-}
 
 function bigOToScore(bigO: string): number {
   const s = (bigO || "").replace(/\s+/g, "").toLowerCase();
