@@ -46,7 +46,7 @@ export class UnsupportedLanguageError extends Error {
   constructor(public readonly languageId: string) {
     super(
       `SustainaDev: Language "${languageId}" is not yet supported. ` +
-      `Java is fully supported. Python and JavaScript support is coming soon.`
+      `Supported languages: Java, Python, JavaScript, and TypeScript.`
     );
     this.name = "UnsupportedLanguageError";
   }

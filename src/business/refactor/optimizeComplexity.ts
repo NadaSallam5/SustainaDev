@@ -17,12 +17,10 @@ interface OptimizationResult {
   previewUri?: string;
 }
 
-/**
- * Step 2 of the Ghost Edit pipeline.
- * Polls the LSP until at least one ERROR-level diagnostic appears on the document.
- */
 async function pollForLspErrors(uri: vscode.Uri): Promise<void> {
-  const deadline = Date.now() + 4500;
+  // If the AI generated perfect code, there will never be errors, so we shouldn't wait 4.5s!
+  // Wait exactly 800ms to give the LSP a chance to wake up and parse the dirty buffer.
+  const deadline = Date.now() + 800;
   while (Date.now() < deadline) {
     const errors = vscode.languages
       .getDiagnostics(uri)
@@ -33,9 +31,9 @@ async function pollForLspErrors(uri: vscode.Uri): Promise<void> {
       );
       return;
     }
-    await new Promise((r) => setTimeout(r, 150));
+    await new Promise((r) => setTimeout(r, 50));
   }
-  console.log("⚠️ LSP poll timed out — proceeding anyway.");
+  console.log("✅ LSP poll finished — no errors detected.");
 }
 
 /**
@@ -45,15 +43,14 @@ async function pollForLspErrors(uri: vscode.Uri): Promise<void> {
 const NATIVE_IMPORT_LANGUAGES = new Set([
   "typescript",
   "javascript",
-  "typescriptreact",
-  "javascriptreact",
+
 ]);
 
 async function applyMissingImports(
   uri: vscode.Uri,
   languageId: string
 ): Promise<void> {
-  await new Promise((r) => setTimeout(r, 300));
+  await new Promise((r) => setTimeout(r, 50));
 
   if (NATIVE_IMPORT_LANGUAGES.has(languageId)) {
     console.log(
@@ -63,7 +60,7 @@ async function applyMissingImports(
       kind: "source.addMissingImports",
       apply: "first",
     });
-    await new Promise((r) => setTimeout(r, 300));
+    await new Promise((r) => setTimeout(r, 100));
     return;
   }
 
@@ -112,7 +109,7 @@ async function applyMissingImports(
     }
   }
 
-  await new Promise((r) => setTimeout(r, 300));
+  await new Promise((r) => setTimeout(r, 50));
 }
 
 export async function buildOptimizationPatch(
@@ -152,6 +149,18 @@ export async function buildOptimizationPatch(
   // 2. Build MiniSkeleton
   const skeleton = await analyzer.extractSkeleton(document, methodName);
 
+  // DEBUG: Dumps the exactly what context is being sent to the AI
+  console.log("🧩 [Skeleton Debug] Full Payload Context:");
+  console.log(JSON.stringify({
+    language: skeleton.language,
+    imports: skeleton.imports,
+    classFields: skeleton.classFields,
+    typeDefinitions: skeleton.typeDefinitions,
+    targetMethod: skeleton.targetMethod,
+    className: skeleton.className,
+    typeSymbolsCount: skeleton.typeSymbolList?.length ?? 0
+  }, null, 2));
+
   const referencedTypeLines = (skeleton.typeSymbolList ?? [])
     .filter((t) => skeleton.targetMethod.includes(t.name))
     .map((t) => `${t.name} { ${t.fields} }`);
@@ -167,8 +176,8 @@ export async function buildOptimizationPatch(
 
   console.log(
     `[MiniSkeleton] Payload sent to LLM: ~${skeletonTokenEstimate} tokens ` +
-      `vs full file ~${fullCodeTokenEstimate} tokens ` +
-      `(${Math.round((1 - skeletonTokenEstimate / fullCodeTokenEstimate) * 100)}% savings)`
+    `vs full file ~${fullCodeTokenEstimate} tokens ` +
+    `(${Math.round((1 - skeletonTokenEstimate / fullCodeTokenEstimate) * 100)}% savings)`
   );
 
   const strategySmellMap: Partial<Record<OptimizationStrategy, string>> = {
@@ -221,9 +230,8 @@ export async function buildOptimizationPatch(
   injectEdit.replace(document.uri, skeleton.targetMethodRange, parseResult.newMethod);
   await vscode.workspace.applyEdit(injectEdit);
 
-  // FIX 3: Stabilization delay AFTER inject — let editor repaint settle
-  // before LSP starts analyzing the dirty buffer
-  await new Promise((r) => setTimeout(r, 300));
+  // FIX 3: Stabilization delay AFTER inject
+  await new Promise((r) => setTimeout(r, 50));
 
   // Step 2: Wait for LSP
   console.log("⏳ Waiting for native LSP to analyze the dirty buffer...");
@@ -239,7 +247,7 @@ export async function buildOptimizationPatch(
       kind: "source.fixAll",
       apply: "first",
     });
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 100));
   } catch (e) {
     console.warn("fixAll not supported for this language, skipping.", e);
   }
@@ -257,18 +265,7 @@ export async function buildOptimizationPatch(
   restoreEdit.replace(document.uri, fullRange, originalText);
   await vscode.workspace.applyEdit(restoreEdit);
 
-  // FIX 3: Stabilization delay AFTER restore — let editor repaint settle
-  // before revert command fires
-  await new Promise((r) => setTimeout(r, 300));
-
-  await vscode.commands.executeCommand("workbench.action.files.revert");
-
-  // FIX 3: Wait for revert to fully complete before proceeding.
-  // Without this, the diff opens while the buffer is still in the injected state,
-  // causing both sides of the diff to show the optimized code (the glitch).
-  await new Promise((r) => setTimeout(r, 800));
-
-  console.log("👻 Ghost Edit complete. Original file restored and dirty flag cleared.");
+  console.log("👻 Ghost Edit complete. Original file restored.");
 
   const patch: OptimizationResult = { preview: finalPreview, reason: parseResult.reason };
 
@@ -291,20 +288,28 @@ export async function buildOptimizationPatch(
       javascript: "js",
     };
     const fileExt = langExtMap[skeleton.language] ?? skeleton.language;
-    const previewUri = vscode.Uri.file(
+
+    // Create temp file for ORIGINAL
+    const originalTmpUri = vscode.Uri.file(
+      path.join(os.tmpdir(), `sustainadev-orig-${Date.now()}.${fileExt}`)
+    );
+    // Create temp file for PREVIEW (optimized)
+    const previewTmpUri = vscode.Uri.file(
       path.join(os.tmpdir(), `sustainadev-preview-${Date.now()}.${fileExt}`)
     );
 
-    fs.writeFileSync(previewUri.fsPath, patch.preview, "utf8");
+    // Write both to disk to guarantee stable diff inputs
+    fs.writeFileSync(originalTmpUri.fsPath, originalText, "utf8");
+    fs.writeFileSync(previewTmpUri.fsPath, patch.preview, "utf8");
 
     await vscode.commands.executeCommand(
       "vscode.diff",
-      originalUri,
-      previewUri,
+      originalTmpUri,
+      previewTmpUri,
       `🧠 SustainaDev: Algorithmic Optimization (Original ↔ Optimized)`,
       { preview: true }
     );
-    patch.previewUri = previewUri.fsPath;
+    patch.previewUri = previewTmpUri.fsPath;
   }
 
   return patch;
@@ -492,7 +497,7 @@ function parseAiResponse(
   if (expectedMethodName) {
     const methodStartRegex = new RegExp(
       `(?:(?:public|private|protected|static|final|async|override|abstract|def|fun|func)\\s+)*` +
-        `(?:[\\w<>,[\\]\\s]+\\s+)?${expectedMethodName}\\s*\\(`,
+      `(?:[\\w<>,[\\]\\s]+\\s+)?${expectedMethodName}\\s*\\(`,
       "m"
     );
     const match = methodStartRegex.exec(newMethod);
@@ -634,19 +639,19 @@ export async function logOptimizationFromReport(
       },
       sustainability: sustainability
         ? {
-            before: {
-              energyKwh: sustainability.beforeEnergyKwh,
-              carbonGrams: sustainability.beforeCarbonGrams,
-            },
-            after: {
-              energyKwh: sustainability.energyKwh,
-              carbonGrams: sustainability.carbonGrams,
-            },
-            saved: {
-              energyKwh: sustainability.beforeEnergyKwh - sustainability.energyKwh,
-              carbonGrams: sustainability.beforeCarbonGrams - sustainability.carbonGrams,
-            },
-          }
+          before: {
+            energyKwh: sustainability.beforeEnergyKwh,
+            carbonGrams: sustainability.beforeCarbonGrams,
+          },
+          after: {
+            energyKwh: sustainability.energyKwh,
+            carbonGrams: sustainability.carbonGrams,
+          },
+          saved: {
+            energyKwh: sustainability.beforeEnergyKwh - sustainability.energyKwh,
+            carbonGrams: sustainability.beforeCarbonGrams - sustainability.carbonGrams,
+          },
+        }
         : null,
       energy: energy ?? null,
       reason,

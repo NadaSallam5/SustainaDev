@@ -1,21 +1,33 @@
+/**
+ * Unoptimized 3-Sum (Before Refactoring)
+ * Time Complexity: O(N^3)
+ * SustainaDev Detection: NESTED_LOOPS (Level 3)
+ */
 function findTriplets(arr: number[]): number[][] {
     let result: number[][] = [];
-    const seenPairs = new Map<number, Set<number>>();
+    const n = arr.length;
 
-    for (let i = 0; i < arr.length; i++) {
-        for (let j = i + 1; j < arr.length; j++) {
-            const sum = -(arr[i] + arr[j]);
-            if (seenPairs.has(sum)) {
-                seenPairs.get(sum)!.forEach(k => result.push([arr[i], arr[j], k]));
-            }
+    // Create a map to store the indices of each element
+    const indexMap = new Map<number, number[]>();
+    for (let i = 0; i < n; i++) {
+        if (!indexMap.has(arr[i])) {
+            indexMap.set(arr[i], []);
         }
+        indexMap.get(arr[i])!.push(i);
+    }
 
-        for (let k = 0; k < i; k++) {
-            const currentSum = arr[i] + arr[k];
-            if (!seenPairs.has(currentSum)) {
-                seenPairs.set(currentSum, new Set<number>());
+    // Iterate through the array with two pointers
+    for (let i = 0; i < n - 2; i++) {
+        for (let j = i + 1; j < n - 1; j++) {
+            const target = -(arr[i] + arr[j]);
+            if (indexMap.has(target)) {
+                const indices = indexMap.get(target)!;
+                for (const k of indices) {
+                    if (k > j) {
+                        result.push([arr[i], arr[j], arr[k]]);
+                    }
+                }
             }
-            seenPairs.get(currentSum)!.add(arr[k]);
         }
     }
 

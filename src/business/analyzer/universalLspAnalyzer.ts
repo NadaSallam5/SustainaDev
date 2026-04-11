@@ -66,11 +66,23 @@ export class UniversalLspAnalyzer implements ICodeAnalyzer {
       // mismatch if editor state changes during async processing
       const methodText = document.getText(sym.range);
 
-      // Wrap in a dummy class so Tree-sitter can parse it as valid Java/TS syntax.
-      // Python functions are top-level and don't need wrapping.
-      const wrappedCode = fileExt === 'py'
-        ? methodText
-        : `class __Wrapper__ {\n${methodText}\n}`;
+      // Language-aware wrapping for Tree-sitter parsing:
+      // - Java: ALWAYS wrap — tree-sitter-java can't parse a method outside a class.
+      // - Python: NEVER wrap — standalone def/class methods parse fine.
+      // - JS/TS: wrap ONLY class methods (SymbolKind.Method), NOT standalone functions.
+      //   Wrapping a `function foo() {}` in a class is invalid JS syntax because
+      //   class methods don't use the `function` keyword.
+      let wrappedCode: string;
+      if (fileExt === 'java') {
+        wrappedCode = `class __Wrapper__ {\n${methodText}\n}`;
+      } else if (fileExt === 'py') {
+        wrappedCode = methodText;
+      } else {
+        // JS/TS: class methods need a wrapper, standalone functions don't
+        wrappedCode = sym.kind === vscode.SymbolKind.Method
+          ? `class __Wrapper__ {\n${methodText}\n}`
+          : methodText;
+      }
 
       const methodTree = parseCode(wrappedCode, filePath);
       const features = extractFeatures(methodTree.rootNode, methodName);
