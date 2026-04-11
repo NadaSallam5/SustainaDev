@@ -173,40 +173,34 @@ public class OrderFulfillmentService {
         LOGGER.info("Assigning carriers to " + fulfillments.size() + " fulfillments.");
         List<OrderShipment> shipments = new ArrayList<>();
 
-        // Step 1: Build a map of warehouseId to shippingZone
-        Map<String, String> warehouseToShippingZoneMap = new HashMap<>();
-        for (WarehouseStock stock : stockSnapshot) {
-            warehouseToShippingZoneMap.put(stock.warehouseId, stock.shippingZone);
-        }
-
-        // Step 2: Build a map of coverageZone to carriers
-        Map<String, List<ShippingCarrier>> zoneToCarriersMap = new HashMap<>();
-        for (ShippingCarrier carrier : availableCarriers) {
-            zoneToCarriersMap.computeIfAbsent(carrier.coverageZone, k -> new ArrayList<>()).add(carrier);
-        }
-
         for (FulfillmentResult fulfillment : fulfillments) {
             if (!"FULFILLED".equals(fulfillment.status)) {
                 continue;
             }
 
-            String shippingZone = warehouseToShippingZoneMap.get(fulfillment.warehouseId);
+            String shippingZone = null;
+            for (WarehouseStock stock : stockSnapshot) {
+                if (fulfillment.warehouseId != null && fulfillment.warehouseId.equals(stock.warehouseId)) {
+                    shippingZone = stock.shippingZone;
+                    break;
+                }
+            }
+
             if (shippingZone == null) {
                 LOGGER.warning("Could not determine shipping zone for warehouse: " + fulfillment.warehouseId);
                 shipments.add(new OrderShipment(fulfillment.orderId, null, 0.0, "NO_CARRIER"));
                 continue;
             }
 
-            // Step 3: Find the cheapest carrier for that zone
-            List<ShippingCarrier> carriers = zoneToCarriersMap.get(shippingZone);
-            if (carriers == null || carriers.isEmpty()) {
-                shipments.add(new OrderShipment(fulfillment.orderId, null, 0.0, "NO_CARRIER"));
-                continue;
+            // Step 2: Find the cheapest carrier for that zone
+            ShippingCarrier bestCarrier = null;
+            for (ShippingCarrier carrier : availableCarriers) {
+                if (shippingZone.equals(carrier.coverageZone)) {
+                    if (bestCarrier == null || carrier.costPerUnit < bestCarrier.costPerUnit) {
+                        bestCarrier = carrier;
+                    }
+                }
             }
-
-            ShippingCarrier bestCarrier = carriers.stream()
-                    .min((c1, c2) -> Double.compare(c1.costPerUnit, c2.costPerUnit))
-                    .orElse(null);
 
             if (bestCarrier != null) {
                 double totalCost = bestCarrier.costPerUnit * fulfillment.allocatedQuantity;

@@ -90,11 +90,11 @@ export class UniversalLspAnalyzer implements ICodeAnalyzer {
       factsList.push({
         methodName,
         callsSelf: features.recursion,
+        isLinearRecursion: features.recursiveCallCount === 1,        // ✅ factorial
+        hasOverlappingSubproblems: features.recursiveCallCount > 1,  // ✅ fibonacci
         maxLoopDepth: features.loopDepth,
         cyclomaticComplexity: 1,
-        isLinearRecursion: false,
         isPureAccumulation: false,
-        hasOverlappingSubproblems: false,
         hasStringConcatInLoop: features.stringConcatInLoop,
         hasSortingCall: features.sortingCalls > 0,
         sortInsideLoop: features.sortingInsideLoop,

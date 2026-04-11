@@ -2,13 +2,11 @@ import { UniversalFeatures } from "../types/universalFeatures"
 
 export function extractFeatures(root: any, methodName?: string): UniversalFeatures {
 
-
-  // ─── Tree-sitter path: Java / Python / JS ───────────────────────────────
-
   const features: UniversalFeatures = {
     loops: 0,
     loopDepth: 0,
     recursion: false,
+    recursiveCallCount: 0,
     stringConcatInLoop: false,
     sortingCalls: 0,
     sortingInsideLoop: false,
@@ -17,7 +15,6 @@ export function extractFeatures(root: any, methodName?: string): UniversalFeatur
 
   let depth = 0
 
-  // Track variable names declared as String type
   const stringVars = new Set<string>()
 
   function collectStringVars(node: any) {
@@ -53,7 +50,6 @@ export function extractFeatures(root: any, methodName?: string): UniversalFeatur
   function isStringConcatNode(node: any): boolean {
     const text: string = node.text ?? ""
 
-    // Pattern 1: binary_expression with + containing a string literal
     if (
       node.type === "binary_expression" &&
       text.includes("+") &&
@@ -62,7 +58,6 @@ export function extractFeatures(root: any, methodName?: string): UniversalFeatur
       return true
     }
 
-    // Pattern 2: binary_expression with + where one operand is a known String var
     if (node.type === "binary_expression" && text.includes("+")) {
       const children = node.children ?? []
       const left = children[0]
@@ -75,7 +70,6 @@ export function extractFeatures(root: any, methodName?: string): UniversalFeatur
       }
     }
 
-    // Pattern 3: assignment_expression  s = s + i  or  s += i
     if (node.type === "assignment_expression") {
       const children = node.children ?? []
       const left = children[0]
@@ -126,17 +120,19 @@ export function extractFeatures(root: any, methodName?: string): UniversalFeatur
 
       if (text.includes("sort")) {
         features.sortingCalls++
-        if (depth > 0) {
-          features.sortingInsideLoop = true
-        }
+        if (depth > 0) features.sortingInsideLoop = true
       }
 
-      if (methodName && text.startsWith(methodName + "(")) {
-        features.recursion = true
+      // ✅ AST-based recursion detection (most reliable)
+      if (methodName) {
+        const nameNode = node.children?.find((c: any) => c.type === "identifier")
+        if (nameNode?.text === methodName) {
+          features.recursion = true
+          features.recursiveCallCount++
+        }
       }
     }
 
-    // String concat INSIDE loop
     if (depth > 0 && isStringConcatNode(node)) {
       features.stringConcatInLoop = true
     }

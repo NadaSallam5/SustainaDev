@@ -144,14 +144,15 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
 
     // STEP 3 — Rule Engine with AI fallback
     const featuresForRules = {
-      loops: facts.maxLoopDepth,
-      loopDepth: facts.maxLoopDepth,
-      recursion: facts.callsSelf,
-      stringConcatInLoop: facts.hasStringConcatInLoop,
-      sortingCalls: facts.hasSortingCall ? 1 : 0,
-      sortingInsideLoop: facts.sortInsideLoop,
-      methodLength: 0,
-    };
+  loops: facts.maxLoopDepth,
+  loopDepth: facts.maxLoopDepth,
+  recursion: facts.callsSelf,
+  recursiveCallCount: 0,           // ✅ add this
+  stringConcatInLoop: facts.hasStringConcatInLoop,
+  sortingCalls: facts.hasSortingCall ? 1 : 0,
+  sortingInsideLoop: facts.sortInsideLoop,
+  methodLength: 0,
+};
 
     const ruleDecision = detectByRules(featuresForRules);
     let decision;
