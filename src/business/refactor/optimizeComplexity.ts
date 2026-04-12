@@ -4,7 +4,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { estimateEnergy } from "../codeCarbon";
-import { OptimizationStrategy, chooseOptimizationStrategy } from "./chooseOptimizationStrategy";
+import { OptimizationStrategy } from "./ruleEngine";
 import { MethodFacts } from "../types";
 import { ICodeAnalyzer, MiniSkeleton } from "../analyzer/analyzerTypes";
 
@@ -17,23 +17,25 @@ interface OptimizationResult {
   previewUri?: string;
 }
 
-async function pollForLspErrors(uri: vscode.Uri): Promise<void> {
-  // If the AI generated perfect code, there will never be errors, so we shouldn't wait 4.5s!
+async function pollForLspErrors(uri: vscode.Uri, initialErrorCount: number): Promise<void> {
+  // If the AI generated perfect code, there will never be new errors, so we wait max 800ms.
   // Wait exactly 800ms to give the LSP a chance to wake up and parse the dirty buffer.
   const deadline = Date.now() + 800;
   while (Date.now() < deadline) {
     const errors = vscode.languages
       .getDiagnostics(uri)
       .filter((d) => d.severity === vscode.DiagnosticSeverity.Error);
-    if (errors.length > 0) {
+      
+    // Wait until LSP surfaces NEW errors (like missing imports)
+    if (errors.length !== initialErrorCount) {
       console.log(
-        `⚡ LSP ready — ${errors.length} error(s): ${errors.map((e) => e.message).join(", ")}`
+        `⚡ LSP ready — Error count changed from ${initialErrorCount} to ${errors.length}`
       );
       return;
     }
     await new Promise((r) => setTimeout(r, 50));
   }
-  console.log("✅ LSP poll finished — no errors detected.");
+  console.log("✅ LSP poll finished — max wait reached or no new errors.");
 }
 
 /**
@@ -131,18 +133,11 @@ export async function buildOptimizationPatch(
 
   console.log(`🛠️ Patch Builder received type: ${smellType}`);
 
-  const smellToStrategy: Partial<Record<string, OptimizationStrategy>> = {
-    NESTED_LOOPS: OptimizationStrategy.NESTED_LOOPS,
-    RECURSION: OptimizationStrategy.ITERATIVE_REWRITE,
-    SORTING_IN_LOOP: OptimizationStrategy.SORTING_IN_LOOP,
-    SORTING: OptimizationStrategy.SORTING,
-    STRING_CONCAT: OptimizationStrategy.STRING_BUILDER,
-  };
-  const strategy: OptimizationStrategy =
-    smellToStrategy[smellType] ?? chooseOptimizationStrategy(methodFacts);
-
-  if (!strategy || strategy === OptimizationStrategy.KEEP_RECURSION) {
-    vscode.window.showInformationMessage("ℹ️ No greener refactor available...");
+  // The strategy IS the smell type string — enum values are identical to their keys.
+  // ruleEngine.detectByRules() guarantees only valid strategies reach this point.
+  const strategy = smellType as OptimizationStrategy;
+  if (!Object.values(OptimizationStrategy).includes(strategy)) {
+    vscode.window.showInformationMessage("ℹ️ No greener refactor available for this method.");
     return { preview: fullCode, reason: "No energy-efficient refactor detected." };
   }
 
@@ -181,15 +176,14 @@ export async function buildOptimizationPatch(
   );
 
   const strategySmellMap: Partial<Record<OptimizationStrategy, string>> = {
-    [OptimizationStrategy.ITERATIVE_REWRITE]: "RECURSION",
-    [OptimizationStrategy.MEMOIZATION]: smellType,
+    [OptimizationStrategy.ITERATIVE_REWRITE]: "ITERATIVE_REWRITE",
     [OptimizationStrategy.STRING_BUILDER]: "STRING_BUILDER",
     [OptimizationStrategy.NESTED_LOOPS]: "NESTED_LOOPS",
     [OptimizationStrategy.SORTING_IN_LOOP]: "SORTING_IN_LOOP",
     [OptimizationStrategy.SORTING]: "SORTING",
   };
 
-  const mappedSmell = strategySmellMap[strategy] ?? "GENERAL";
+  const mappedSmell = strategySmellMap[strategy]!;
   const rawAiResponse = await callOptimizationAI(skeleton, mappedSmell);
 
   if (!rawAiResponse || rawAiResponse.trim().length < 10) {
@@ -242,6 +236,10 @@ export async function buildOptimizationPatch(
   console.log("🚀 Injecting new method directly into the Active Document buffer...");
 
   // Step 1: Inject AI code into the real active buffer
+  const initialErrors = vscode.languages
+    .getDiagnostics(document.uri)
+    .filter(d => d.severity === vscode.DiagnosticSeverity.Error).length;
+
   const injectEdit = new vscode.WorkspaceEdit();
   injectEdit.replace(document.uri, skeleton.targetMethodRange, parseResult.newMethod);
   await vscode.workspace.applyEdit(injectEdit);
@@ -251,7 +249,7 @@ export async function buildOptimizationPatch(
 
   // Step 2: Wait for LSP
   console.log("⏳ Waiting for native LSP to analyze the dirty buffer...");
-  await pollForLspErrors(document.uri);
+  await pollForLspErrors(document.uri, initialErrors);
 
   // Step 3: Resolve missing imports
   await applyMissingImports(document.uri, document.languageId);
@@ -372,7 +370,7 @@ async function callOptimizationAI(
 
 function getTaskInstructions(smellType: string): string {
   const TaskLibrary: Record<string, string> = {
-    RECURSION:
+    ITERATIVE_REWRITE:
       "Refactor recursion to a PURE iterative loop (for/while). DO NOT use memoization, HashMaps, or any secondary storage. Achieve O(1) space complexity by using only primitive variables and completely removing self-calls.\n" +
       "If it's a Try/Catch retry:\n" +
       "for(int i=attempt; i<=MAX; i++) { try { doWork(); return; } catch(e) { continue; } }\n" +
@@ -387,8 +385,9 @@ function getTaskInstructions(smellType: string): string {
       "// Then in the main loop: User u = userMap.get(order.userId);\n",
 
     STRING_BUILDER:
-      "Replace String concatenation inside loops with StringBuilder. Avoid using '+' on Strings inside loops. " +
-      "CRITICAL RULE: DO NOT modify the loop structures (e.g. do not convert traditional for-loops to for-each loops). Preserve the exact logic, variables, and output.",
+      "Replace all String concatenation inside loops with a StringBuilder (Java), an array + join (JS/TS/Python), or equivalent. " +
+      "Avoid using '+' or '+=' on Strings inside any loop. " +
+      "CRITICAL RULE: DO NOT modify the loop structure. Preserve the exact logic, variables, and output.",
 
     SORTING_IN_LOOP:
       "Sorting is performed INSIDE a loop. Refactor to avoid repeated sorting. " +
@@ -399,12 +398,13 @@ function getTaskInstructions(smellType: string): string {
     SORTING:
       "Sorting detected. Ensure sorting is necessary. If sorting is only used for max/min lookup, replace with a linear scan. " +
       "If order is required, keep sorting but avoid redundant sorts. Preserve exact output.",
-
-    GENERAL:
-      "Audit the code for general Green Coding principles: reduce CPU cycles and minimize memory footprints.",
   };
 
-  return TaskLibrary[smellType] || TaskLibrary["GENERAL"];
+  const instruction = TaskLibrary[smellType];
+  if (!instruction) {
+    throw new Error(`[SustainaDev] No task instruction found for smell: '${smellType}'. Only the 5 supported strategies are allowed.`);
+  }
+  return instruction;
 }
 
 function getOptimizationPrompt(skeleton: MiniSkeleton, smellType: string): string {
@@ -630,14 +630,10 @@ export async function logOptimizationFromReport(
   try {
     const refactorLabelMap: Record<string, string> = {
       ITERATIVE_REWRITE: "Iterative Rewrite (Recursion → Loop)",
-      MEMOIZATION: "Memoization (Overlapping Subproblems)",
       STRING_BUILDER: "String Concatenation → StringBuilder",
-      STRING_CONCAT: "String Concatenation → StringBuilder",
-      DUPLICATE_COMPUTATION: "Duplicate Computation Elimination",
       NESTED_LOOPS: "Nested Loops Optimization",
       SORTING_IN_LOOP: "Sorting Moved Out of Loop",
       SORTING: "Redundant Sorting Removal",
-      GENERAL: "General Green Coding Optimization",
     };
 
     const refactorLabel =

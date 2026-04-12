@@ -3,18 +3,18 @@
  */
 
 /**
- * Smell: STRING_CONCAT (O(N^2) string building)
+ * Smell: STRING_BUILDER (O(N^2) string building)
  * In JavaScript, strings are immutable, so this creates a new string 
  * object in every iteration of the loop.
  */
 function buildReportLog(entries) {
-    const parts = [];
+    let logStr = "";
 
     for (let i = 0; i < entries.length; i++) {
-        parts.push("Entry ID: " + entries[i].id + " | Status: " + entries[i].status + "\n");
+        logStr += "Entry ID: " + entries[i].id + " | Status: " + entries[i].status + "\n";
     }
 
-    return parts.join('');
+    return logStr;
 }
 
 /**
@@ -22,16 +22,17 @@ function buildReportLog(entries) {
  * Finding duplicates using two nested loops.
  */
 function findDuplicateIDs(ids) {
-    const seen = new Set();
     const duplicates = [];
 
+    // Highly inefficient O(N^2) algorithm
     for (let i = 0; i < ids.length; i++) {
-        if (seen.has(ids[i])) {
-            if (!duplicates.includes(ids[i])) {
-                duplicates.push(ids[i]);
+        for (let j = i + 1; j < ids.length; j++) {
+            if (ids[i] === ids[j]) {
+                // Another hidden O(N) loop here
+                if (!duplicates.includes(ids[i])) {
+                    duplicates.push(ids[i]);
+                }
             }
-        } else {
-            seen.add(ids[i]);
         }
     }
 

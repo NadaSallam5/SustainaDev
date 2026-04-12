@@ -1,3 +1,4 @@
+
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -133,7 +134,7 @@ public class OrderFulfillmentService {
         List<FulfillmentResult> results = new ArrayList<>();
         Map<String, WarehouseStock> stockMap = new HashMap<>();
 
-        // Build lookup map from stockSnapshot
+        // Build a lookup map from stockSnapshot
         for (WarehouseStock stock : stockSnapshot) {
             stockMap.put(stock.productSku, stock);
         }

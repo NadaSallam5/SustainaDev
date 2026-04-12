@@ -1,11 +1,10 @@
-import * as vscode from 'vscode';
-import { ICodeAnalyzer, MiniSkeleton } from './analyzerTypes';
-import { MethodFacts } from '../types';
-import { parseCode } from '../parser/astParser';
-import { extractFeatures } from './featureExtractor';
+import * as vscode from "vscode";
+import { ICodeAnalyzer, MiniSkeleton } from "./analyzerTypes";
+import { MethodFacts } from "../types";
+import { parseCode } from "../parser/astParser";
+import { extractFeatures } from "./featureExtractor";
 
 export class UniversalLspAnalyzer implements ICodeAnalyzer {
-
   // ─── analyzeFile ────────────────────────────────────────────────────────────
   // Uses LSP to discover all methods in the file, then runs Tree-sitter
   // featureExtractor on each one to build a MethodFacts list.
@@ -20,13 +19,14 @@ export class UniversalLspAnalyzer implements ICodeAnalyzer {
     const document = editor.document;
 
     // Step 1: Get all symbols from LSP
-    const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
-      'vscode.executeDocumentSymbolProvider',
-      document.uri
-    );
+    const symbols = await vscode.commands.executeCommand<
+      vscode.DocumentSymbol[]
+    >("vscode.executeDocumentSymbolProvider", document.uri);
 
     if (!symbols || symbols.length === 0) {
-      throw new Error("No symbols found by LSP. Make sure a language server is active.");
+      throw new Error(
+        "No symbols found by LSP. Make sure a language server is active.",
+      );
     }
 
     // Step 2: Collect only real methods and functions — no constructors
@@ -55,12 +55,12 @@ export class UniversalLspAnalyzer implements ICodeAnalyzer {
     // FIX 2: Changed from .map() to async for-loop with UI yield between iterations.
     // The sync .map() was blocking the VS Code extension thread causing UI glitches.
     const filePath = document.uri.fsPath;
-    const fileExt = filePath.split('.').pop()?.toLowerCase() ?? 'java';
+    const fileExt = filePath.split(".").pop()?.toLowerCase() ?? "java";
 
     const factsList: MethodFacts[] = [];
 
     for (const sym of methodSymbols) {
-      const methodName = sym.name.replace(/\(.*\)/, '').trim();
+      const methodName = sym.name.replace(/\(.*\)/, "").trim();
 
       // Use document.getText (not editor.document.getText) to prevent
       // mismatch if editor state changes during async processing
@@ -73,15 +73,16 @@ export class UniversalLspAnalyzer implements ICodeAnalyzer {
       //   Wrapping a `function foo() {}` in a class is invalid JS syntax because
       //   class methods don't use the `function` keyword.
       let wrappedCode: string;
-      if (fileExt === 'java') {
+      if (fileExt === "java") {
         wrappedCode = `class __Wrapper__ {\n${methodText}\n}`;
-      } else if (fileExt === 'py') {
+      } else if (fileExt === "py") {
         wrappedCode = methodText;
       } else {
         // JS/TS: class methods need a wrapper, standalone functions don't
-        wrappedCode = sym.kind === vscode.SymbolKind.Method
-          ? `class __Wrapper__ {\n${methodText}\n}`
-          : methodText;
+        wrappedCode =
+          sym.kind === vscode.SymbolKind.Method
+            ? `class __Wrapper__ {\n${methodText}\n}`
+            : methodText;
       }
 
       const methodTree = parseCode(wrappedCode, filePath);
@@ -90,8 +91,8 @@ export class UniversalLspAnalyzer implements ICodeAnalyzer {
       factsList.push({
         methodName,
         callsSelf: features.recursion,
-        isLinearRecursion: features.recursiveCallCount === 1,        // ✅ factorial
-        hasOverlappingSubproblems: features.recursiveCallCount > 1,  // ✅ fibonacci
+        isLinearRecursion: features.recursiveCallCount === 1, // ✅ factorial
+        hasOverlappingSubproblems: features.recursiveCallCount > 1, // ✅ fibonacci
         maxLoopDepth: features.loopDepth,
         cyclomaticComplexity: 1,
         isPureAccumulation: false,
@@ -102,18 +103,20 @@ export class UniversalLspAnalyzer implements ICodeAnalyzer {
 
       // FIX 2: Yield to UI thread between each method parse to prevent
       // blocking the extension host and causing rendering glitches
-      await new Promise(r => setTimeout(r, 0));
+      await new Promise((r) => setTimeout(r, 0));
     }
 
     return factsList;
   }
 
   // ─── extractSkeleton ────────────────────────────────────────────────────────
-  async extractSkeleton(document: vscode.TextDocument, methodName: string): Promise<MiniSkeleton> {
-    const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
-      'vscode.executeDocumentSymbolProvider',
-      document.uri
-    );
+  async extractSkeleton(
+    document: vscode.TextDocument,
+    methodName: string,
+  ): Promise<MiniSkeleton> {
+    const symbols = await vscode.commands.executeCommand<
+      vscode.DocumentSymbol[]
+    >("vscode.executeDocumentSymbolProvider", document.uri);
 
     if (!symbols) {
       throw new Error("No language server active for this file type.");
@@ -122,14 +125,17 @@ export class UniversalLspAnalyzer implements ICodeAnalyzer {
     let targetMethodSymbol: vscode.DocumentSymbol | undefined;
     let classSymbol: vscode.DocumentSymbol | undefined;
 
-    const findTarget = (syms: vscode.DocumentSymbol[], parent?: vscode.DocumentSymbol) => {
+    const findTarget = (
+      syms: vscode.DocumentSymbol[],
+      parent?: vscode.DocumentSymbol,
+    ) => {
       for (const sym of syms) {
-        const symBaseName = sym.name.replace(/\(.*\)/, '').trim();
+        const symBaseName = sym.name.replace(/\(.*\)/, "").trim();
         if (
           symBaseName === methodName &&
           (sym.kind === vscode.SymbolKind.Method ||
-           sym.kind === vscode.SymbolKind.Function ||
-           sym.kind === vscode.SymbolKind.Constructor)
+            sym.kind === vscode.SymbolKind.Function ||
+            sym.kind === vscode.SymbolKind.Constructor)
         ) {
           targetMethodSymbol = sym;
           classSymbol = parent;
@@ -151,12 +157,16 @@ export class UniversalLspAnalyzer implements ICodeAnalyzer {
     let classFieldsText = "";
     if (classSymbol && classSymbol.children) {
       const fields = classSymbol.children.filter(
-        c => c.kind === vscode.SymbolKind.Field || c.kind === vscode.SymbolKind.Property
+        (c) =>
+          c.kind === vscode.SymbolKind.Field ||
+          c.kind === vscode.SymbolKind.Property,
       );
-      classFieldsText = fields.map(f => document.getText(f.range)).join('\n');
+      classFieldsText = fields.map((f) => document.getText(f.range)).join("\n");
     }
 
-    const extractTypes = (syms: vscode.DocumentSymbol[]): vscode.DocumentSymbol[] => {
+    const extractTypes = (
+      syms: vscode.DocumentSymbol[],
+    ): vscode.DocumentSymbol[] => {
       let found: vscode.DocumentSymbol[] = [];
       for (const sym of syms) {
         const isTypeDecl =
@@ -182,13 +192,16 @@ export class UniversalLspAnalyzer implements ICodeAnalyzer {
     };
 
     const typeSymbols = extractTypes(symbols);
-    const typeDefinitionsText = typeSymbols.map(t => document.getText(t.range)).join('\n\n');
+    const typeDefinitionsText = typeSymbols
+      .map((t) => document.getText(t.range))
+      .join("\n\n");
 
     const firstSymbolLine = symbols[0]?.range.start.line || 0;
     const importsRange = new vscode.Range(
-      0, 0,
+      0,
+      0,
       Math.max(0, firstSymbolLine - 1),
-      document.lineAt(Math.max(0, firstSymbolLine - 1)).text.length
+      document.lineAt(Math.max(0, firstSymbolLine - 1)).text.length,
     );
     const importsText = document.getText(importsRange).trim();
 
@@ -200,11 +213,15 @@ export class UniversalLspAnalyzer implements ICodeAnalyzer {
       imports: importsText,
       targetMethodRange: targetMethodSymbol.range,
       className: classSymbol?.name,
-      typeSymbolList: typeSymbols.map(t => {
+      typeSymbolList: typeSymbols.map((t) => {
         const fieldSymbols = (t.children ?? []).filter(
-          c => c.kind === vscode.SymbolKind.Field || c.kind === vscode.SymbolKind.Property
+          (c) =>
+            c.kind === vscode.SymbolKind.Field ||
+            c.kind === vscode.SymbolKind.Property,
         );
-        const fields = fieldSymbols.map(f => document.getText(f.range).trim()).join(', ');
+        const fields = fieldSymbols
+          .map((f) => document.getText(f.range).trim())
+          .join(", ");
         return { name: t.name, text: document.getText(t.range), fields };
       }),
     };

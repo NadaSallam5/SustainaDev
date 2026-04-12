@@ -23,7 +23,6 @@ public class EnterprisePaymentGateway {
     }
 
     public PaymentResponse processPayment(PaymentRequest request, int attemptCount) {
-
         // Safety base case
         if (attemptCount > MAX_RETRIES) {
             LOGGER.severe("Transaction " + request.transactionId + " failed after " + MAX_RETRIES + " attempts.");
@@ -32,34 +31,53 @@ public class EnterprisePaymentGateway {
 
         LOGGER.info("Attempt " + attemptCount + " to process payment for " + request.transactionId);
 
-        while (attemptCount <= MAX_RETRIES) {
-            try {
-                // Simulated vulnerable network call
-                boolean networkSuccess = simulateExternalHttpCall(request);
+        try {
+            // Simulated vulnerable network call
+            boolean networkSuccess = simulateExternalHttpCall(request);
 
-                if (networkSuccess) {
-                    LOGGER.info("Payment " + request.transactionId + " processed successfully.");
-                    return new PaymentResponse("SUCCESS", null);
-                } else {
-                    throw new RuntimeException("503 Service Unavailable");
-                }
-
-            } catch (Exception e) {
-                LOGGER.warning("Attempt " + attemptCount + " failed: " + e.getMessage() + ". Retrying...");
-
-                // Artificial delay to prevent aggressive spamming
-                try {
-                    Thread.sleep(500);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                }
-
-                attemptCount++;
+            if (networkSuccess) {
+                LOGGER.info("Payment " + request.transactionId + " processed successfully.");
+                return new PaymentResponse("SUCCESS", null);
+            } else {
+                throw new RuntimeException("503 Service Unavailable");
             }
-        }
 
-        LOGGER.severe("Transaction " + request.transactionId + " failed after all attempts.");
-        return new PaymentResponse("FAILED", "All retries exhausted");
+        } catch (Exception e) {
+            LOGGER.warning("Attempt " + attemptCount + " failed: " + e.getMessage() + ". Retrying...");
+
+            // Artificial delay to prevent aggressive spamming
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+            }
+
+            // Optimized iterative loop instead of recursion
+            for (int i = attemptCount; i <= MAX_RETRIES; i++) {
+                try {
+                    boolean networkSuccess = simulateExternalHttpCall(request);
+
+                    if (networkSuccess) {
+                        LOGGER.info("Payment " + request.transactionId + " processed successfully.");
+                        return new PaymentResponse("SUCCESS", null);
+                    } else {
+                        throw new RuntimeException("503 Service Unavailable");
+                    }
+                } catch (Exception e2) {
+                    LOGGER.warning("Attempt " + i + " failed: " + e2.getMessage() + ". Retrying...");
+
+                    // Artificial delay to prevent aggressive spamming
+                    try {
+                        Thread.sleep(500);
+                    } catch (InterruptedException ie2) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+            }
+
+            LOGGER.severe("Transaction " + request.transactionId + " failed after " + MAX_RETRIES + " attempts.");
+            return new PaymentResponse("FAILED", "Max retries exceeded");
+        }
     }
 
     /**

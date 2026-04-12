@@ -29,23 +29,30 @@ function processLargeMatrix(matrix: number[][], context: AnalysisContext): numbe
 
     console.log(`Starting analysis for context: ` + context.id);
 
-    // O(N^2) Nested Loops + String Concat inside loops issues
+    // Precompute deep scan transformation
+    const deepScanTransform = context.config.enableDeepScan ? (value: number) => Math.sin(value) * Math.cos(value) : (value: number) => value;
+
+    // Precompute mapping transformations
+    const prefixMap = new Map<string, (value: number) => number>();
+    for (const [key, transform] of context.mapping.entries()) {
+        if (key.startsWith("p_")) {
+            prefixMap.set(key, transform);
+        }
+    }
+
+    // Process each row in the matrix
     for (let i = 0; i < rows; i++) {
         const processedRow: number[] = [];
 
         for (let j = 0; j < cols; j++) {
             let value = matrix[i][j];
 
-            // Deep scan config checking happens redundantly in the inner loop (inefficient)
-            if (context.config.enableDeepScan) {
-                value = Math.sin(value) * Math.cos(value);
-            }
+            // Apply deep scan transformation if enabled
+            value = deepScanTransform(value);
 
-            // NESTED LOOPS SMELL: Iterating over map keys deeply inside N*M matrix
-            context.mapping.forEach((transform, key) => {
-                if (key.startsWith("p_")) {
-                    value = transform(value);
-                }
+            // Apply prefix-based transformations
+            prefixMap.forEach((transform) => {
+                value = transform(value);
             });
 
             processedRow.push(value);
@@ -65,4 +72,4 @@ function logMetrics(metrics: PerformanceMetric[]): void {
 
 // Export an empty object to treat this file as an isolated module
 // rather than a global script, resolving the duplicate identifier error.
-export {};
+export { };

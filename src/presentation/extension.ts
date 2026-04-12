@@ -12,7 +12,7 @@ import {
   buildOptimizationPatch,
   logOptimizationFromReport,
 } from "../business/refactor/optimizeComplexity";
-import { chooseRefactor } from "../business/refactor/chooseRefactor";
+
 import { initPaths, startCpuSampling } from "../business/codeCarbon";
 import { UniversalLspAnalyzer } from "../business/analyzer/universalLspAnalyzer";
 import { UnsupportedLanguageError } from "../business/analyzer/analyzerTypes";
@@ -25,17 +25,7 @@ import si from "systeminformation";
 let isRunning = false;
 export let sustainaDevOutput: vscode.OutputChannel;
 
-const validSmells = [
-  "ITERATIVE_REWRITE",
-  "RECURSION",
-  "NESTED_LOOPS",
-  "GENERAL",
-  "SORTING_IN_LOOP",
-  "SORTING",
-  "STRING_BUILDER",
-  "MEMOIZATION",
-  "STRING_CONCAT",
-];
+
 
 export function activate(context: vscode.ExtensionContext) {
   console.log("🟢 SustainaDev Analyzer extension is active");
@@ -70,7 +60,7 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(analyzeActiveFile, openDash, getSpecs);
 }
 
-export function deactivate() {}
+export function deactivate() { }
 
 async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
   if (isRunning) {
@@ -100,7 +90,7 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
     if (!supported.has(languageId)) {
       vscode.window.showInformationMessage(
         `SustainaDev: "${languageId}" is not yet supported. ` +
-          `Java, Python, JavaScript and TypeScript are supported.`
+        `Java, Python, JavaScript and TypeScript are supported.`
       );
       isRunning = false;
       return;
@@ -129,13 +119,14 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
       `📋 Methods found: ${factsList.map(m => m.methodName).join(', ')}`
     );
 
-    // STEP 2 — Pick the most problematic method by priority
-    // Priority: sorting-in-loop > nested loops > string concat > sorting > first method
+    // STEP 2 — Pick the most problematic method, in the same priority order as ruleEngine.ts
+    // Priority: sorting-in-loop > nested loops > string concat > sorting > recursion > first method
     const facts =
       factsList.find(m => m.sortInsideLoop === true) ||
       factsList.find(m => m.maxLoopDepth >= 2) ||
       factsList.find(m => m.hasStringConcatInLoop === true) ||
       factsList.find(m => m.hasSortingCall === true) ||
+      factsList.find(m => m.callsSelf === true) ||
       factsList[0];
 
     sustainaDevOutput.appendLine(
@@ -144,35 +135,28 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
 
     // STEP 3 — Rule Engine with AI fallback
     const featuresForRules = {
-  loops: facts.maxLoopDepth,
-  loopDepth: facts.maxLoopDepth,
-  recursion: facts.callsSelf,
-  recursiveCallCount: 0,           // ✅ add this
-  stringConcatInLoop: facts.hasStringConcatInLoop,
-  sortingCalls: facts.hasSortingCall ? 1 : 0,
-  sortingInsideLoop: facts.sortInsideLoop,
-  methodLength: 0,
-};
+      loops: facts.maxLoopDepth,
+      loopDepth: facts.maxLoopDepth,
+      recursion: facts.callsSelf,
+      recursiveCallCount: 0,           // ✅ add this
+      stringConcatInLoop: facts.hasStringConcatInLoop,
+      sortingCalls: facts.hasSortingCall ? 1 : 0,
+      sortingInsideLoop: facts.sortInsideLoop,
+      methodLength: 0,
+    };
 
-    const ruleDecision = detectByRules(featuresForRules);
-    let decision;
+    const decision = detectByRules(featuresForRules);
 
-    if (ruleDecision) {
-      decision = { type: ruleDecision };
-      sustainaDevOutput.appendLine(`⚡ Rule decision: ${ruleDecision}`);
-    } else {
-      decision = chooseRefactor(facts);
-      sustainaDevOutput.appendLine(`🤖 AI fallback: ${decision.type}`);
-    }
-
-    if (!decision || !decision.type) {
-      sustainaDevOutput.appendLine("❌ No decision made.");
-      vscode.window.showInformationMessage("No optimization decision made.");
+    if (!decision) {
+      sustainaDevOutput.appendLine("❌ No actionable smell detected by rule engine.");
+      vscode.window.showInformationMessage("SustainaDev: No optimization opportunity found in this method.");
       isRunning = false;
       return;
     }
 
-    sustainaDevOutput.appendLine(`🔧 Strategy: ${decision.type}`);
+    sustainaDevOutput.appendLine(`⚡ Strategy: ${decision}`);
+
+
 
     // STEP 4 — Log selected method's facts (already computed per-method in analyzeFile)
     // CHANGED: Removed full-file parseCode + extractFeatures scan. Use facts directly.
@@ -186,155 +170,151 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
     }, null, 2));
 
     // STEP 5 — Build patch and show diff
-    if (validSmells.includes(decision.type)) {
-      const patch = await buildOptimizationPatch(
-        refreshedDoc,
-        {
-          from: editor.selection.start.line,
-          to: editor.selection.end.line,
-        },
-        filePath,
-        {
-          targetMethodName: facts.methodName,
-          smellType: decision.type,
-          methodFacts: facts,
-        },
-        analyzer
-      );
+    const patch = await buildOptimizationPatch(
+      refreshedDoc,
+      {
+        from: editor.selection.start.line,
+        to: editor.selection.end.line,
+      },
+      filePath,
+      {
+        targetMethodName: facts.methodName,
+        smellType: decision,
+        methodFacts: facts,
+      },
+      analyzer
+    );
 
-      void vscode.window
-        .showQuickPick(["✅ Accept Optimization", "❌ Reject"], {
-          placeHolder: "Apply the optimized code?",
-          ignoreFocusOut: true,
-        })
-        .then(async (choice) => {
-          // Proactive cleanup of temp preview file
-          if (patch.previewUri) {
-            try {
-              await closeExistingPreview(patch.previewUri);
-              if (fs.existsSync(patch.previewUri)) {
-                await fsp.unlink(patch.previewUri);
-              }
-              console.log(`🧹 Proactive cleanup: ${patch.previewUri}`);
-            } catch (e) {
-              console.warn(
-                `⚠️ Failed to cleanup preview file: ${patch.previewUri}`,
-                e
-              );
+    void vscode.window
+      .showQuickPick(["✅ Accept Optimization", "❌ Reject"], {
+        placeHolder: "Apply the optimized code?",
+        ignoreFocusOut: true,
+      })
+      .then(async (choice) => {
+        // Proactive cleanup of temp preview file
+        if (patch.previewUri) {
+          try {
+            await closeExistingPreview(patch.previewUri);
+            if (fs.existsSync(patch.previewUri)) {
+              await fsp.unlink(patch.previewUri);
             }
+            console.log(`🧹 Proactive cleanup: ${patch.previewUri}`);
+          } catch (e) {
+            console.warn(
+              `⚠️ Failed to cleanup preview file: ${patch.previewUri}`,
+              e
+            );
+          }
+        }
+
+        if (choice === "✅ Accept Optimization") {
+          await applyPatchToDocument(originalUri, patch.preview);
+
+          sustainaDevOutput.appendLine(
+            "✅ Optimization applied (Tree-sitter mode)"
+          );
+
+          // CHANGED: Build afterFacts from patch preview using analyzeFile
+          // on the optimized content instead of a full-file Tree-sitter scan.
+          // We reuse facts structure but scan the optimized file for after-metrics.
+          const optimizedAnalyzer = new UniversalLspAnalyzer();
+          let afterFacts = facts; // fallback to before-facts if re-analysis fails
+
+          try {
+            const optimizedFactsList = await optimizedAnalyzer.analyzeFile(context);
+            const found = optimizedFactsList.find(m => m.methodName === facts.methodName);
+            if (found) afterFacts = found;
+          } catch {
+            // If re-analysis fails after apply, keep before facts — report will show no change
           }
 
-          if (choice === "✅ Accept Optimization") {
-            await applyPatchToDocument(originalUri, patch.preview);
+          const report = buildOptimizationReport(facts, afterFacts);
 
-            sustainaDevOutput.appendLine(
-              "✅ Optimization applied (Tree-sitter mode)"
-            );
+          sustainaDevOutput.appendLine(
+            report.metric === "space"
+              ? "=== Space Complexity Report ==="
+              : "=== Complexity Report ==="
+          );
 
-            // CHANGED: Build afterFacts from patch preview using analyzeFile
-            // on the optimized content instead of a full-file Tree-sitter scan.
-            // We reuse facts structure but scan the optimized file for after-metrics.
-            const optimizedDoc = await vscode.workspace.openTextDocument(originalUri);
-            const optimizedAnalyzer = new UniversalLspAnalyzer();
-            let afterFacts = facts; // fallback to before-facts if re-analysis fails
-
-            try {
-              const optimizedFactsList = await optimizedAnalyzer.analyzeFile(context);
-              const found = optimizedFactsList.find(m => m.methodName === facts.methodName);
-              if (found) afterFacts = found;
-            } catch {
-              // If re-analysis fails after apply, keep before facts — report will show no change
-            }
-
-            const report = buildOptimizationReport(facts, afterFacts);
-
-            sustainaDevOutput.appendLine(
-              report.metric === "space"
-                ? "=== Space Complexity Report ==="
-                : "=== Complexity Report ==="
-            );
-
-            if (report.metric === "space") {
-              sustainaDevOutput.appendLine(`Space Before: ${report.before}`);
-              sustainaDevOutput.appendLine(`Space After:  ${report.after}`);
-            } else {
-              sustainaDevOutput.appendLine(`Before: ${report.before}`);
-              sustainaDevOutput.appendLine(`After:  ${report.after}`);
-            }
-
-            sustainaDevOutput.appendLine(`Improvement: ${report.improvement}`);
-
-            let sustainabilityResult:
-              | {
-                  energyKwh: number;
-                  carbonGrams: number;
-                  beforeEnergyKwh: number;
-                  beforeCarbonGrams: number;
-                }
-              | undefined;
-
-            try {
-              sustainaDevOutput.appendLine("Running sustainability analysis...");
-
-              startCpuSampling();
-              const beforeStartTime = Date.now();
-              await new Promise((resolve) => setTimeout(resolve, 600));
-              const beforeResult = await analyzeSustainability(beforeStartTime);
-
-              startCpuSampling();
-              const afterStartTime = Date.now();
-              await new Promise((resolve) => setTimeout(resolve, 600));
-              const afterResult = await analyzeSustainability(afterStartTime);
-
-              sustainabilityResult = {
-                energyKwh: afterResult.energyKwh,
-                carbonGrams: afterResult.carbonGrams,
-                beforeEnergyKwh: beforeResult.energyKwh,
-                beforeCarbonGrams: beforeResult.carbonGrams,
-              };
-
-              sustainaDevOutput.appendLine("=== Sustainability Metrics — Before ===");
-              sustainaDevOutput.appendLine(`Energy:  ${beforeResult.energyKwh.toFixed(6)} kWh`);
-              sustainaDevOutput.appendLine(`Carbon:  ${beforeResult.carbonGrams.toFixed(4)} gCO₂`);
-              sustainaDevOutput.appendLine("=== Sustainability Metrics — After ===");
-              sustainaDevOutput.appendLine(`Energy:  ${afterResult.energyKwh.toFixed(6)} kWh`);
-              sustainaDevOutput.appendLine(`Carbon:  ${afterResult.carbonGrams.toFixed(4)} gCO₂`);
-              sustainaDevOutput.appendLine("=== Result ===");
-              sustainaDevOutput.appendLine(
-                `Energy saved:  ${(beforeResult.energyKwh - afterResult.energyKwh).toFixed(6)} kWh`
-              );
-              sustainaDevOutput.appendLine(
-                `Carbon saved:  ${(beforeResult.carbonGrams - afterResult.carbonGrams).toFixed(4)} gCO₂`
-              );
-            } catch (err) {
-              sustainaDevOutput.appendLine("Sustainability analysis failed:");
-              sustainaDevOutput.appendLine(String(err));
-            }
-
-            vscode.window.showInformationMessage(
-              report.metric === "space"
-                ? `Space improved: ${report.before} → ${report.after}`
-                : `Complexity improved: ${report.before} → ${report.after}`
-            );
-
-            const workspace =
-              vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
-
-            await logOptimizationFromReport(
-              workspace,
-              filePath,
-              report,
-              patch.reason,
-              sustainabilityResult,
-              decision.type
-            );
-          } else if (choice) {
-            vscode.window.showInformationMessage("❌ Optimization discarded.");
+          if (report.metric === "space") {
+            sustainaDevOutput.appendLine(`Space Before: ${report.before}`);
+            sustainaDevOutput.appendLine(`Space After:  ${report.after}`);
+          } else {
+            sustainaDevOutput.appendLine(`Before: ${report.before}`);
+            sustainaDevOutput.appendLine(`After:  ${report.after}`);
           }
-        });
-    } else {
-      vscode.window.showInformationMessage("No actionable refactor suggested.");
-    }
+
+          sustainaDevOutput.appendLine(`Improvement: ${report.improvement}`);
+
+          let sustainabilityResult:
+            | {
+              energyKwh: number;
+              carbonGrams: number;
+              beforeEnergyKwh: number;
+              beforeCarbonGrams: number;
+            }
+            | undefined;
+
+          try {
+            sustainaDevOutput.appendLine("Running sustainability analysis...");
+
+            startCpuSampling();
+            const beforeStartTime = Date.now();
+            await new Promise((resolve) => setTimeout(resolve, 600));
+            const beforeResult = await analyzeSustainability(beforeStartTime);
+
+            startCpuSampling();
+            const afterStartTime = Date.now();
+            await new Promise((resolve) => setTimeout(resolve, 600));
+            const afterResult = await analyzeSustainability(afterStartTime);
+
+            sustainabilityResult = {
+              energyKwh: afterResult.energyKwh,
+              carbonGrams: afterResult.carbonGrams,
+              beforeEnergyKwh: beforeResult.energyKwh,
+              beforeCarbonGrams: beforeResult.carbonGrams,
+            };
+
+            sustainaDevOutput.appendLine("=== Sustainability Metrics — Before ===");
+            sustainaDevOutput.appendLine(`Energy:  ${beforeResult.energyKwh.toFixed(6)} kWh`);
+            sustainaDevOutput.appendLine(`Carbon:  ${beforeResult.carbonGrams.toFixed(4)} gCO₂`);
+            sustainaDevOutput.appendLine("=== Sustainability Metrics — After ===");
+            sustainaDevOutput.appendLine(`Energy:  ${afterResult.energyKwh.toFixed(6)} kWh`);
+            sustainaDevOutput.appendLine(`Carbon:  ${afterResult.carbonGrams.toFixed(4)} gCO₂`);
+            sustainaDevOutput.appendLine("=== Result ===");
+            sustainaDevOutput.appendLine(
+              `Energy saved:  ${(beforeResult.energyKwh - afterResult.energyKwh).toFixed(6)} kWh`
+            );
+            sustainaDevOutput.appendLine(
+              `Carbon saved:  ${(beforeResult.carbonGrams - afterResult.carbonGrams).toFixed(4)} gCO₂`
+            );
+          } catch (err) {
+            sustainaDevOutput.appendLine("Sustainability analysis failed:");
+            sustainaDevOutput.appendLine(String(err));
+          }
+
+          vscode.window.showInformationMessage(
+            report.metric === "space"
+              ? `Space improved: ${report.before} → ${report.after}`
+              : `Complexity improved: ${report.before} → ${report.after}`
+          );
+
+          const workspace =
+            vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
+
+          await logOptimizationFromReport(
+            workspace,
+            filePath,
+            report,
+            patch.reason,
+            sustainabilityResult,
+            decision
+          );
+        } else if (choice) {
+          vscode.window.showInformationMessage("❌ Optimization discarded.");
+        }
+      });
+
   } catch (err: any) {
     if (err.message === "ALREADY_OPTIMIZED") {
       isRunning = false;
@@ -485,11 +465,10 @@ async function collectHardwareSpecsMarkdown(): Promise<string> {
     .join("\n");
 
   const batteryInfo = battery.hasBattery
-    ? `Health: ${
-        battery.designedCapacity && battery.maxCapacity
-          ? ((battery.maxCapacity / battery.designedCapacity) * 100).toFixed(0)
-          : "N/A"
-      }% • Charging: ${battery.isCharging} • Capacity: ${battery.percent}%`
+    ? `Health: ${battery.designedCapacity && battery.maxCapacity
+      ? ((battery.maxCapacity / battery.designedCapacity) * 100).toFixed(0)
+      : "N/A"
+    }% • Charging: ${battery.isCharging} • Capacity: ${battery.percent}%`
     : "No battery detected";
 
   return `💻 System Specifications\n\n🧠 CPU: ${cpu.manufacturer} ${cpu.brand} (${cpu.cores} cores)\n🎮 GPU: ${gpuModel}\n📦 RAM: ${(mem.total / 1024 / 1024 / 1024).toFixed(2)} GB\n🖥️ OS: ${os.distro} (${os.arch})\n\n💽 Disks:\n${diskInfo || "No disk info"}\n\n🔋 Battery:\n${batteryInfo}\n`;
