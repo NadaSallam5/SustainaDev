@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 
 import { detectByRules } from "../business/refactor/ruleEngine";
-
+import { analyzeAndOptimize } from "../business/analyzer/analyzeAndOptimize";
 import * as fsp from "fs/promises";
 import * as fs from "fs";
 
@@ -79,8 +79,8 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
     if (editor && editor.document.isDirty) {
       await editor.document.save();
     }
+
     if (!editor) {
-      isRunning = false;
       return;
     }
 
@@ -315,9 +315,15 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
         }
       });
 
+    //const fullCode = refreshedDoc.getText();
+
+    //await analyzeAndOptimize(context, fullCode, filePath, {
+      //from: editor.selection.start.line,
+      //to: editor.selection.end.line,
+    //});
+
   } catch (err: any) {
     if (err.message === "ALREADY_OPTIMIZED") {
-      isRunning = false;
       return;
     }
     if (err instanceof UnsupportedLanguageError) {

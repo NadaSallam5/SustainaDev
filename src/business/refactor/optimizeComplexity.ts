@@ -590,6 +590,46 @@ function parseAiResponse(
   return { newMethod, reason };
 }
 
+/**
+ * Extract just the target method body so we can estimate Big-O.
+ * This is a heuristic (NOT a formal proof) but it matches the simple reporting style you show in the console.
+ */
+function extractMethodBody(fullCode: string, methodName: string): string {
+  // Find the method signature line (very forgiving regex).
+  const sig = new RegExp(`\\b${methodName}\\s*\\(`);
+  const lines = fullCode.split(/\r?\n/);
+  let startLine = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (sig.test(lines[i])) {
+      startLine = i;
+      break;
+    }
+  }
+  if (startLine === -1) return fullCode;
+
+  // Walk forward and capture braces to isolate the method block.
+  let brace = 0;
+  let started = false;
+  const out: string[] = [];
+
+  for (let i = startLine; i < lines.length; i++) {
+    const line = lines[i];
+    out.push(line);
+    for (const ch of line) {
+      if (ch === "{") {
+        brace++;
+        started = true;
+      } else if (ch === "}") {
+        brace--;
+      }
+    }
+    if (started && brace === 0) break;
+  }
+
+  return out.join("\n");
+}
+
+
 
 function bigOToScore(bigO: string): number {
   const s = (bigO || "").replace(/\s+/g, "").toLowerCase();
