@@ -1,68 +1,70 @@
-interface MatrixDimension {
-    rows: number;
-    cols: number;
-}
+// testOptimization.ts
 
-interface PerformanceMetric {
-    durationMs: number;
-    complexityScore: number;
-    energyEstimate: number;
-}
+// ========================================
+// 1. NESTED LOOPS (should trigger NESTED_LOOPS)
+// ========================================
+export function findDuplicates(arr: number[]): number[] {
+  const seen = new Set<number>();
+  const duplicates = new Set<number>();
 
-type TransformationMapping = Map<string, (val: number) => number>;
-
-interface AnalysisContext {
-    id: string;
-    timestamp: Date;
-    config: {
-        enableDeepScan: boolean;
-        parallelize: boolean;
-        batchSize: number;
-    };
-    mapping: TransformationMapping;
-}
-
-function processLargeMatrix(matrix: number[][], context: AnalysisContext): number[][] {
-    const result: number[][] = [];
-    const rows = matrix.length;
-    const cols = rows > 0 ? matrix[0].length : 0;
-
-    console.log(`Starting analysis for context: ` + context.id);
-
-    // O(N^2) Nested Loops + String Concat inside loops issues
-    for (let i = 0; i < rows; i++) {
-        const processedRow: number[] = [];
-
-        for (let j = 0; j < cols; j++) {
-            let value = matrix[i][j];
-
-            // Deep scan config checking happens redundantly in the inner loop (inefficient)
-            if (context.config.enableDeepScan) {
-                value = Math.sin(value) * Math.cos(value);
-            }
-
-            // NESTED LOOPS SMELL: Iterating over map keys deeply inside N*M matrix
-            context.mapping.forEach((transform, key) => {
-                if (key.startsWith("p_")) {
-                    value = transform(value);
-                }
-            });
-
-            processedRow.push(value);
-        }
-
-        result.push(processedRow);
+  for (let num of arr) {
+    if (seen.has(num)) {
+      duplicates.add(num);
+    } else {
+      seen.add(num);
     }
+  }
 
-    return result;
+  return Array.from(duplicates);
 }
 
-function logMetrics(metrics: PerformanceMetric[]): void {
-    metrics.forEach(m => {
-        console.log(`[SustainaDev] Efficiency: ` + m.durationMs + `ms | Energy: ` + m.energyEstimate + `Wh`);
-    });
+// ========================================
+// 2. RECURSION (should trigger RECURSION)
+// ========================================
+export function fibonacci(n: number): number {
+  if (n <= 1) {
+    return n;
+  }
+  return fibonacci(n - 1) + fibonacci(n - 2);
 }
 
-// Export an empty object to treat this file as an isolated module
-// rather than a global script, resolving the duplicate identifier error.
-export {};
+// ========================================
+// 3. STRING CONCAT IN LOOP (should trigger STRING_BUILDER)
+// ========================================
+export function buildString(words: string[]): string {
+  let result = "";
+
+  for (let i = 0; i < words.length; i++) {
+    result += words[i]; // inefficient concat
+  }
+
+  return result;
+}
+
+// ========================================
+// 4. SORTING INSIDE LOOP (should trigger SORTING_IN_LOOP)
+// ========================================
+export function sortInsideLoop(arr: number[]): number[] {
+  return arr.sort((a, b) => a - b); // Sort once outside the loop
+}
+
+// ========================================
+// 5. NORMAL FUNCTION (should NOT trigger anything)
+// ========================================
+export function sumArray(arr: number[]): number {
+  let sum = 0;
+
+  for (const num of arr) {
+    sum += num;
+  }
+
+  return sum;
+}
+
+// ========================================
+// 6. DEEP LOOP (loopDepth = 3)
+// ========================================
+export function threeLevelLoop(arr: number[]): number {
+  let count = arr.length ** 3;
+  return count;
+}

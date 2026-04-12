@@ -23,5 +23,5 @@ export interface OptimizationReport {
 
   //before: string;
   //after: string;
-  //improvement: string;
+  improvement: string;
 }

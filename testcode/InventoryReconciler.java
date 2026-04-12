@@ -71,49 +71,27 @@ public class InventoryReconciler {
         }
     }
 
-    // ========================================================================
-    // TARGET METHOD FOR OPTIMIZATION
-    // ========================================================================
-
-    /**
-     * Compares the physical counts against the system records and generates
-     * a list of discrepancies.
-     * 
-     * ⚠️ WARNING: This currently uses an extremely inefficient O(N^2) approach
-     * containing a nested loop to demonstrate the plugin's capability.
-     */
     public List<DiscrepancyReport> calculateDiscrepancies(
             List<PhysicalCount> physicalCounts,
             List<SystemRecord> systemRecords) {
 
         LOGGER.info("Starting reconciliation for warehouse: " + warehouseId);
+        Map<String, SystemRecord> recordMap = new HashMap<>();
+        for (SystemRecord record : systemRecords) {
+            recordMap.put(record.sku, record);
+        }
+
         List<DiscrepancyReport> reports = new ArrayList<>();
 
-        // This outer loop scans through every single physical count submitted...
         for (PhysicalCount count : physicalCounts) {
-            boolean skuFoundInSystem = false;
+            SystemRecord record = recordMap.get(count.sku);
 
-            // ... and this inner loop scans the ENTIRE system record list to find the
-            // match.
-            // In a real WH with 100k SKUs, this nested loop runs 10 billion times! (O(N*M))
-            for (SystemRecord record : systemRecords) {
-
-                // When we finally find the matching SKU:
-                if (count.sku.equals(record.sku)) {
-                    skuFoundInSystem = true;
-                    int variance = count.quantity - record.expectedQuantity;
-
-                    if (variance != 0) {
-                        String status = autoCorrectVariances ? "AUTO_CORRECTED" : "REQUIRES_REVIEW";
-                        reports.add(new DiscrepancyReport(count.sku, variance, status));
-                        historicalVariances.put(count.sku, variance);
-                    }
-                }
-            }
-
-            // Handle edge case: physical item found that does not exist in the digital
-            // system at all
-            if (!skuFoundInSystem) {
+            if (record != null) {
+                int variance = count.quantity - record.expectedQuantity;
+                String status = autoCorrectVariances ? "AUTO_CORRECTED" : "REQUIRES_REVIEW";
+                reports.add(new DiscrepancyReport(count.sku, variance, status));
+                historicalVariances.put(count.sku, variance);
+            } else {
                 reports.add(new DiscrepancyReport(count.sku, count.quantity, "UNREGISTERED_SKU"));
             }
         }
@@ -121,10 +99,6 @@ public class InventoryReconciler {
         LOGGER.info("Reconciliation complete. Found " + reports.size() + " discrepancies.");
         return reports;
     }
-
-    // ========================================================================
-    // Other utility methods to add bulk to the file
-    // ========================================================================
 
     public void processPendingReports(List<DiscrepancyReport> reports) {
         // Dummy processing logic

@@ -2,10 +2,10 @@ import * as vscode from "vscode";
 import * as path from "path";
 
 import { detectByRules } from "../business/refactor/ruleEngine";
-import { analyzeAndOptimize } from "../business/analyzer/analyzeAndOptimize";
 import * as fsp from "fs/promises";
 import * as fs from "fs";
-
+import { estimateComplexityWithQwen } from "../business/complexity/qwenComplexity";
+import { AIComplexityResult } from "../business/complexity/types";
 import { buildOptimizationReport } from "../business/complexity/report";
 import { analyzeSustainability } from "../business/sustainability/sustainabilityEngine";
 import {
@@ -207,28 +207,44 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
           }
         }
 
-        if (choice === "✅ Accept Optimization") {
-          await applyPatchToDocument(originalUri, patch.preview);
+       if (choice === "✅ Accept Optimization") {
+  // ✅ Run Qwen BEFORE applying (on original code)
+  let beforeAI: AIComplexityResult;
+  try {
+    beforeAI = await estimateComplexityWithQwen(refreshedDoc.getText(), facts);
+    sustainaDevOutput.appendLine(`🤖 Qwen BEFORE: time=${beforeAI.timeComplexity} space=${beforeAI.spaceComplexity}`);
+  } catch (e: any) {
+    sustainaDevOutput.appendLine(`⚠️ Qwen BEFORE failed: ${e.message}`);
+    beforeAI = { timeComplexity: "Unknown", spaceComplexity: "Unknown", explanation: "" };
+  }
 
-          sustainaDevOutput.appendLine(
-            "✅ Optimization applied (Tree-sitter mode)"
-          );
+  await applyPatchToDocument(originalUri, patch.preview);
+  sustainaDevOutput.appendLine("✅ Optimization applied (Tree-sitter mode)");
 
-          // CHANGED: Build afterFacts from patch preview using analyzeFile
-          // on the optimized content instead of a full-file Tree-sitter scan.
-          // We reuse facts structure but scan the optimized file for after-metrics.
-          const optimizedAnalyzer = new UniversalLspAnalyzer();
-          let afterFacts = facts; // fallback to before-facts if re-analysis fails
+  const optimizedAnalyzer = new UniversalLspAnalyzer();
+  let afterFacts = facts;
 
-          try {
-            const optimizedFactsList = await optimizedAnalyzer.analyzeFile(context);
-            const found = optimizedFactsList.find(m => m.methodName === facts.methodName);
-            if (found) afterFacts = found;
-          } catch {
-            // If re-analysis fails after apply, keep before facts — report will show no change
-          }
+  try {
+    const optimizedFactsList = await optimizedAnalyzer.analyzeFile(context);
+    const found = optimizedFactsList.find(m => m.methodName === facts.methodName);
+    if (found) afterFacts = found;
+  } catch {
+    // fallback
+  }
 
-          const report = buildOptimizationReport(facts, afterFacts);
+  // ✅ Run Qwen AFTER applying (on optimized code)
+  const optimizedDoc = await vscode.workspace.openTextDocument(originalUri);
+  let afterAI: AIComplexityResult;
+  try {
+    afterAI = await estimateComplexityWithQwen(optimizedDoc.getText(), afterFacts);
+    sustainaDevOutput.appendLine(`🤖 Qwen AFTER: time=${afterAI.timeComplexity} space=${afterAI.spaceComplexity}`);
+  } catch (e: any) {
+    sustainaDevOutput.appendLine(`⚠️ Qwen AFTER failed: ${e.message}`);
+    afterAI = { timeComplexity: "Unknown", spaceComplexity: "Unknown", explanation: "" };
+  }
+
+const report = buildOptimizationReport(beforeAI, afterAI, facts, afterFacts, decision);
+sustainaDevOutput.appendLine(`🧪 Complexity source: ${decision} validated`);
 
           sustainaDevOutput.appendLine(
             report.metric === "space"

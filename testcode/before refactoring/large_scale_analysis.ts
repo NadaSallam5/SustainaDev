@@ -1,75 +1,84 @@
-interface MatrixDimension {
-    rows: number;
-    cols: number;
-}
+// testOptimization.ts
 
-interface PerformanceMetric {
-    durationMs: number;
-    complexityScore: number;
-    energyEstimate: number;
-}
+// ========================================
+// 1. NESTED LOOPS (should trigger NESTED_LOOPS)
+// ========================================
+export function findDuplicates(arr: number[]): number[] {
+  const duplicates: number[] = [];
 
-type TransformationMapping = Map<string, (val: number) => number>;
-
-interface AnalysisContext {
-    id: string;
-    timestamp: Date;
-    config: {
-        enableDeepScan: boolean;
-        parallelize: boolean;
-        batchSize: number;
-    };
-    mapping: TransformationMapping;
-}
-
-function processLargeMatrix(matrix: number[][], context: AnalysisContext): number[][] {
-    const result: number[][] = [];
-    const rows = matrix.length;
-    const cols = rows > 0 ? matrix[0].length : 0;
-
-    console.log(`Starting analysis for context: ` + context.id);
-
-    // Precompute deep scan transformation
-    const deepScanTransform = context.config.enableDeepScan ? (value: number) => Math.sin(value) * Math.cos(value) : (value: number) => value;
-
-    // Precompute mapping transformations
-    const prefixMap = new Map<string, (value: number) => number>();
-    for (const [key, transform] of context.mapping.entries()) {
-        if (key.startsWith("p_")) {
-            prefixMap.set(key, transform);
-        }
+  for (let i = 0; i < arr.length; i++) {
+    for (let j = i + 1; j < arr.length; j++) {
+      if (arr[i] === arr[j] && !duplicates.includes(arr[i])) {
+        duplicates.push(arr[i]);
+      }
     }
+  }
 
-    // Process each row in the matrix
-    for (let i = 0; i < rows; i++) {
-        const processedRow: number[] = [];
+  return duplicates;
+}
 
-        for (let j = 0; j < cols; j++) {
-            let value = matrix[i][j];
 
-            // Apply deep scan transformation if enabled
-            value = deepScanTransform(value);
+// ========================================
+// 2. RECURSION (should trigger RECURSION)
+// ========================================
+export function fibonacci(n: number): number {
+  if (n <= 1) return n;
+  return fibonacci(n - 1) + fibonacci(n - 2);
+}
 
-            // Apply prefix-based transformations
-            prefixMap.forEach((transform) => {
-                value = transform(value);
-            });
 
-            processedRow.push(value);
-        }
+// ========================================
+// 3. STRING CONCAT IN LOOP (should trigger STRING_BUILDER)
+// ========================================
+export function buildString(words: string[]): string {
+  let result = "";
 
-        result.push(processedRow);
+  for (let i = 0; i < words.length; i++) {
+    result += words[i]; // inefficient concat
+  }
+
+  return result;
+}
+
+
+// ========================================
+// 4. SORTING INSIDE LOOP (should trigger SORTING_IN_LOOP)
+// ========================================
+export function sortInsideLoop(arr: number[]): number[] {
+  for (let i = 0; i < arr.length; i++) {
+    arr.sort((a, b) => a - b); // bad practice inside loop
+  }
+  return arr;
+}
+
+
+// ========================================
+// 5. NORMAL FUNCTION (should NOT trigger anything)
+// ========================================
+export function sumArray(arr: number[]): number {
+  let sum = 0;
+
+  for (const num of arr) {
+    sum += num;
+  }
+
+  return sum;
+}
+
+
+// ========================================
+// 6. DEEP LOOP (loopDepth = 3)
+// ========================================
+export function threeLevelLoop(arr: number[]): number {
+  let count = 0;
+
+  for (let i = 0; i < arr.length; i++) {
+    for (let j = 0; j < arr.length; j++) {
+      for (let k = 0; k < arr.length; k++) {
+        count++;
+      }
     }
+  }
 
-    return result;
+  return count;
 }
-
-function logMetrics(metrics: PerformanceMetric[]): void {
-    metrics.forEach(m => {
-        console.log(`[SustainaDev] Efficiency: ` + m.durationMs + `ms | Energy: ` + m.energyEstimate + `Wh`);
-    });
-}
-
-// Export an empty object to treat this file as an isolated module
-// rather than a global script, resolving the duplicate identifier error.
-export { };

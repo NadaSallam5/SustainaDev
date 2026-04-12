@@ -1,39 +1,22 @@
 import { AIComplexityResult, OptimizationReport } from "./types";
+import { resolveComplexity } from "./complexityValidator";
 
 export function buildOptimizationReport(
   beforeAI: AIComplexityResult,
   afterAI: AIComplexityResult,
   beforeFacts?: any,
-  afterFacts?: any
+  afterFacts?: any,
+  smellType?: string
 ): OptimizationReport {
-  const isSingleRecursionCase =
-    beforeFacts?.callsSelf === true &&
-    beforeFacts?.isLinearRecursion === true &&
-    beforeFacts?.hasOverlappingSubproblems === false &&
-    afterFacts?.callsSelf === false;
 
-  const beforeSpace = estimateSpaceBigO(beforeFacts);
-  const afterSpace = estimateSpaceBigO(afterFacts);
+  const result = resolveComplexity(beforeAI, afterAI, beforeFacts, afterFacts, smellType);
 
-  const isFactorialCase =
-    beforeFacts.callsSelf &&
-    beforeFacts.isLinearRecursion &&
-    !beforeFacts.hasOverlappingSubproblems && // not Fibonacci
-    !afterFacts.callsSelf;                    // optimized becomes non-recursive
-
-  if (isFactorialCase) {
-    return {
-      metric: "space",
-      before: beforeAI.spaceComplexity,
-      after: afterAI.spaceComplexity,
-      improvement: `From ${beforeAI.spaceComplexity} → ${afterAI.spaceComplexity}`,
-    };
-  }
+    console.log(`🧪 Complexity source: ${result.source} | warnings: ${result.warnings.join("; ") || "none"}`);
 
   return {
-    metric: "time",
-    before: beforeAI.timeComplexity,
-    after: afterAI.timeComplexity,
-    improvement: `From ${beforeAI.timeComplexity} → ${afterAI.timeComplexity}`,
+    metric: result.metric,
+    before: result.before,
+    after: result.after,
+    improvement: `From ${result.before} → ${result.after}`,
   };
 }
