@@ -213,7 +213,7 @@ output.appendLine("=== Qwen Complexity Report ===");
 output.appendLine(`Before: ${report.before}`);
 output.appendLine(`After: ${report.after}`);
 output.appendLine(`Improvement: ${report.improvement}`);
-
+   
 vscode.window.showInformationMessage(
   report.metric === "space"
     ? `Space improved: ${report.before} → ${report.after}`
