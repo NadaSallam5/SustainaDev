@@ -76,13 +76,18 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
 
   try {
     const editor = vscode.window.activeTextEditor;
-    if (editor && editor.document.isDirty) {
-      await editor.document.save();
-    }
 
-    if (!editor) {
-      return;
-    }
+if (editor && editor.document.isDirty) {
+  await editor.document.save();
+}
+
+if (!editor) {
+  vscode.window.showErrorMessage(
+    "❌ No file is open. Please open a file to analyze."
+  );
+  isRunning = false;
+  return;
+}
 
     // Language gate
     const languageId = editor.document.languageId;
