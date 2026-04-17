@@ -1,9 +1,7 @@
 
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Logger;
 
 public class OrderFulfillmentService {
@@ -132,27 +130,23 @@ public class OrderFulfillmentService {
 
         LOGGER.info("[" + regionCode + "] Starting stock allocation for " + orders.size() + " orders.");
         List<FulfillmentResult> results = new ArrayList<>();
-        Map<String, WarehouseStock> stockMap = new HashMap<>();
-
-        // Build lookup map from stockSnapshot
-        for (WarehouseStock stock : stockSnapshot) {
-            stockMap.put(stock.productSku, stock);
-        }
 
         for (CustomerOrder order : orders) {
             boolean stockFound = false;
 
-            if (stockMap.containsKey(order.productSku)) {
-                WarehouseStock stock = stockMap.get(order.productSku);
-                stockFound = true;
+            for (WarehouseStock stock : stockSnapshot) {
+                if (order.productSku.equals(stock.productSku)) {
+                    stockFound = true;
 
-                if (stock.availableUnits >= order.quantityRequested) {
-                    results.add(new FulfillmentResult(
-                            order.orderId, "FULFILLED", stock.warehouseId, order.quantityRequested));
-                    fulfilledOrderIds.add(order.orderId);
-                } else if (stock.availableUnits > 0) {
-                    results.add(new FulfillmentResult(
-                            order.orderId, "PARTIALLY_FULFILLED", stock.warehouseId, stock.availableUnits));
+                    if (stock.availableUnits >= order.quantityRequested) {
+                        results.add(new FulfillmentResult(
+                                order.orderId, "FULFILLED", stock.warehouseId, order.quantityRequested));
+                        fulfilledOrderIds.add(order.orderId);
+                    } else if (stock.availableUnits > 0) {
+                        results.add(new FulfillmentResult(
+                                order.orderId, "PARTIALLY_FULFILLED", stock.warehouseId, stock.availableUnits));
+                    }
+                    break;
                 }
             }
 

@@ -92,13 +92,17 @@ export function inferKnownSmellComplexity(
   }
 
   // NESTED_LOOPS: nested loops flattened → O(n^2) → O(n)
-  if (
-    smellType === "NESTED_LOOPS" &&
-    (beforeFacts?.maxLoopDepth ?? 0) >= 2 &&
-    (afterFacts?.maxLoopDepth ?? 0) <= 1
-  ) {
-    return { metric: "time", before: "O(n^2)", after: "O(n)" };
-  }
+ if (
+  smellType === "NESTED_LOOPS" &&
+  (beforeFacts?.maxLoopDepth ?? 0) >= 2 &&
+  (afterFacts?.maxLoopDepth ?? 0) <= 1
+) {
+  return {
+    metric: "time",
+    before: heuristicTimeFromFacts(beforeFacts),
+    after: heuristicTimeFromFacts(afterFacts),
+  };
+}
 
   // ITERATIVE_REWRITE: linear recursion → iterative — space improvement
   if (

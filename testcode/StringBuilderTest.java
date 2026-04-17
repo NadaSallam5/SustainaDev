@@ -29,27 +29,37 @@ public class StringBuilderTest {
         public double discountAmount;
     }
 
+    /**
+     * Target: A complex HTML Invoice Email Generator
+     * 
+     * SUSTAINABILITY SMELL: Aggressive O(N^2) memory reallocation. Since Strings
+     * are immutable in Java,
+     * every `html +=` recreates the entire HTML string in memory.
+     * 
+     * EXPECTED: The AI must replace the `String html` mutation with a single
+     * `StringBuilder html = new StringBuilder();`
+     * and flawlessly map all nested loops, ternary operators, and logical blocks to
+     * `.append()` calls.
+     */
     public String generateInvoiceHtml(Invoice invoice) {
-        StringBuilder html = new StringBuilder();
-        html.append("<!DOCTYPE html>\n<html>\n<head>\n");
-        html.append("<style>\n");
-        html.append("  body { font-family: Arial, sans-serif; }\n");
-        html.append("  .table { width: 100%; border-collapse: collapse; }\n");
-        html.append("  .th, .td { padding: 8px; border-bottom: 1px solid #ddd; }\n");
-        html.append("  .discount { color: red; font-size: 0.9em; }\n");
-        html.append("</style>\n</head>\n<body>\n");
+        String html = "<!DOCTYPE html>\n<html>\n<head>\n";
+        html += "<style>\n";
+        html += "  body { font-family: Arial, sans-serif; }\n";
+        html += "  .table { width: 100%; border-collapse: collapse; }\n";
+        html += "  .th, .td { padding: 8px; border-bottom: 1px solid #ddd; }\n";
+        html += "  .discount { color: red; font-size: 0.9em; }\n";
+        html += "</style>\n</head>\n<body>\n";
 
-        html.append("<div class='header'>\n");
-        html.append("  <h1>Invoice #").append(invoice.invoiceId).append("</h1>\n");
-        html.append("  <p>Date: ").append(invoice.date.format(DateTimeFormatter.ISO_LOCAL_DATE)).append("</p>\n");
-        html.append("  <p>Customer: ").append(invoice.customerName).append("</p>\n");
-        html.append("  <p>Status: ")
-                .append(invoice.status.equals("PAID") ? "<strong>PAID</strong>" : "<em>PENDING</em>").append("</p>\n");
-        html.append("</div>\n");
+        html += "<div class='header'>\n";
+        html += "  <h1>Invoice #" + invoice.invoiceId + "</h1>\n";
+        html += "  <p>Date: " + invoice.date.format(DateTimeFormatter.ISO_LOCAL_DATE) + "</p>\n";
+        html += "  <p>Customer: " + invoice.customerName + "</p>\n";
+        html += "  <p>Status: " + (invoice.status.equals("PAID") ? "<strong>PAID</strong>" : "<em>PENDING</em>")
+                + "</p>\n";
+        html += "</div>\n";
 
-        html.append("<table class='table'>\n");
-        html.append(
-                "  <tr><th class='th'>Item</th><th class='th'>Qty</th><th class='th'>Price</th><th class='th'>Total</th></tr>\n");
+        html += "<table class='table'>\n";
+        html += "  <tr><th class='th'>Item</th><th class='th'>Qty</th><th class='th'>Price</th><th class='th'>Total</th></tr>\n";
 
         double invoiceTotal = 0.0;
 
@@ -58,51 +68,51 @@ public class StringBuilderTest {
                 LineItem item = invoice.lineItems.get(i);
 
                 String rowColor = (i % 2 == 0) ? "#ffffff" : "#f9f9f9";
-                html.append("  <tr style='background-color: ").append(rowColor).append(";'>\n");
+                html += "  <tr style='background-color: " + rowColor + ";'>\n";
 
-                html.append("    <td class='td'>");
-                html.append(item.description);
+                html += "    <td class='td'>";
+                html += item.description;
                 if (item.isDiscounted) {
-                    html.append("<br/><span class='discount'>(Discount Applied)</span>");
+                    html += "<br/><span class='discount'>(Discount Applied)</span>";
                 }
-                html.append("</td>\n");
+                html += "</td>\n";
 
-                html.append("    <td class='td'>").append(item.quantity).append("</td>\n");
+                html += "    <td class='td'>" + item.quantity + "</td>\n";
 
                 double rowTotal = item.quantity * item.unitPrice;
                 if (item.isDiscounted) {
-                    html.append("    <td class='td'><s>$").append(item.unitPrice).append("</s> $")
-                            .append(item.unitPrice - item.discountAmount).append("</td>\n");
+                    html += "    <td class='td'><s>$" + item.unitPrice + "</s> $"
+                            + (item.unitPrice - item.discountAmount) + "</td>\n";
                     rowTotal = item.quantity * (item.unitPrice - item.discountAmount);
                 } else {
-                    html.append("    <td class='td'>$").append(item.unitPrice).append("</td>\n");
+                    html += "    <td class='td'>$" + item.unitPrice + "</td>\n";
                 }
 
-                html.append("    <td class='td'>$").append(String.format("%.2f", rowTotal)).append("</td>\n");
-                html.append("  </tr>\n");
+                html += "    <td class='td'>$" + String.format("%.2f", rowTotal) + "</td>\n";
+                html += "  </tr>\n";
 
                 invoiceTotal += rowTotal;
             }
         } else {
-            html.append("  <tr><td class='td' colspan='4' style='text-align:center;'>No Items Found</td></tr>\n");
+            html += "  <tr><td class='td' colspan='4' style='text-align:center;'>No Items Found</td></tr>\n";
         }
 
-        html.append("</table>\n");
+        html += "</table>\n";
 
-        html.append("<div class='footer' style='margin-top: 20px; text-align: right;'>\n");
-        html.append("  <h3>Total Due: $").append(String.format("%.2f", invoiceTotal)).append("</h3>\n");
+        html += "<div class='footer' style='margin-top: 20px; text-align: right;'>\n";
+        html += "  <h3>Total Due: $" + String.format("%.2f", invoiceTotal) + "</h3>\n";
 
         if ("PAID".equals(invoice.status)) {
-            html.append("  <p>Thank you for your business!</p>\n");
+            html += "  <p>Thank you for your business!</p>\n";
         } else {
-            html.append("  <p>Please remit payment within 30 days.</p>\n");
-            html.append("  <p class='warning'>Late fees apply after ")
-                    .append(invoice.date.plusDays(30).format(DateTimeFormatter.ISO_LOCAL_DATE)).append(".</p>\n");
+            html += "  <p>Please remit payment within 30 days.</p>\n";
+            html += "  <p class='warning'>Late fees apply after "
+                    + invoice.date.plusDays(30).format(DateTimeFormatter.ISO_LOCAL_DATE) + ".</p>\n";
         }
-        html.append("</div>\n");
+        html += "</div>\n";
 
-        html.append("</body>\n</html>");
+        html += "</body>\n</html>";
 
-        return html.toString();
+        return html;
     }
 }
