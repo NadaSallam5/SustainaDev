@@ -175,16 +175,7 @@ export async function buildOptimizationPatch(
     `(${Math.round((1 - skeletonTokenEstimate / fullCodeTokenEstimate) * 100)}% savings)`
   );
 
-  const strategySmellMap: Partial<Record<OptimizationStrategy, string>> = {
-    [OptimizationStrategy.ITERATIVE_REWRITE]: "ITERATIVE_REWRITE",
-    [OptimizationStrategy.STRING_BUILDER]: "STRING_BUILDER",
-    [OptimizationStrategy.NESTED_LOOPS]: "NESTED_LOOPS",
-    [OptimizationStrategy.SORTING_IN_LOOP]: "SORTING_IN_LOOP",
-    [OptimizationStrategy.SORTING]: "SORTING",
-  };
-
-  const mappedSmell = strategySmellMap[strategy]!;
-  const rawAiResponse = await callOptimizationAI(skeleton, mappedSmell);
+  const rawAiResponse = await callOptimizationAI(skeleton, strategy);
 
   if (!rawAiResponse || rawAiResponse.trim().length < 10) {
     throw new Error(`AI returned empty response for strategy: ${strategy}`);

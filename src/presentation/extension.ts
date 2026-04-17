@@ -126,6 +126,9 @@ if (!editor) {
 
     // STEP 2 — Pick the most problematic method, in the same priority order as ruleEngine.ts
     // Priority: sorting-in-loop > nested loops > string concat > sorting > recursion > first method
+    // Sort descending by loop depth so that .find() naturally grabs the worst one
+    factsList.sort((a, b) => b.maxLoopDepth - a.maxLoopDepth);
+
     const facts =
       factsList.find(m => m.sortInsideLoop === true) ||
       factsList.find(m => m.maxLoopDepth >= 2) ||
