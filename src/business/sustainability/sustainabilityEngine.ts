@@ -1,4 +1,3 @@
-// ─── REPLACE your entire sustainabilityEngine.ts with this ───
 import { getHardwareSpecs, estimateHardwarePower } from "./powerEstimator";
 import { measureExecution } from "../codeCarbon";
 import { calculateEnergy } from "./energyCalculator";

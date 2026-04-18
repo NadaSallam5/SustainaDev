@@ -1,4 +1,3 @@
-// codeCarbon.ts - FULL UPDATED VERSION
 // Handles:
 // 1. CCN-based energy estimation via Python
 // 2. Runtime + CPU utilization measurement for sustainability metrics
@@ -30,11 +29,9 @@ export function initPaths(context: vscode.ExtensionContext) {
   );
 }
 
-// ─── ADD these two new declarations at the top of the file, after the imports ───
 let cpuSamples: number[] = [];
 let samplingInterval: NodeJS.Timeout | undefined;
 
-// ─── ADD this new exported function ───
 export function startCpuSampling() {
   cpuSamples = [];
   if (samplingInterval) {
@@ -50,7 +47,6 @@ export function startCpuSampling() {
   }, 500);
 }
 
-// ─── REPLACE your existing measureExecution with this ───
 export async function measureExecution(startTime: number) {
   if (samplingInterval) {
     clearInterval(samplingInterval);

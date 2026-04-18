@@ -89,7 +89,6 @@ export function inferKnownSmellComplexity(
   }
 
   // NESTED_LOOPS: nested loops flattened → O(n^2) → O(n)
-  // ✅ FIX: Removed the afterFacts?.maxLoopDepth <= 1 guard.
   // After a HashMap optimization, two sequential loops remain (depth=2),
   // but they are no longer nested. We always trust the structural improvement
   // for this smell type and hardcode O(n) as the after complexity.

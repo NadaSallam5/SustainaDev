@@ -39,7 +39,6 @@ export async function getHardwareSpecs(): Promise<HardwareSpecs> {
   }
 }
 
-// ─── REPLACE your existing estimateHardwarePower with this ───
 export function estimateHardwarePower(
   specs: HardwareSpecs,
   cpuUtilization: number

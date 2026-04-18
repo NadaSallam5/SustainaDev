@@ -17,9 +17,6 @@ import { UniversalLspAnalyzer } from "../business/analyzer/universalLspAnalyzer"
 import { UnsupportedLanguageError } from "../business/analyzer/analyzerTypes";
 import si from "systeminformation";
 
-// CHANGED: Removed parseCode and extractFeatures imports — no longer doing
-// full-file Tree-sitter scans in extension.ts. Feature extraction is now
-// done per-method inside universalLspAnalyzer.analyzeFile().
 
 let isRunning = false;
 export let sustainaDevOutput: vscode.OutputChannel;
@@ -166,7 +163,6 @@ if (!editor) {
 
 
     // STEP 4 — Log selected method's facts (already computed per-method in analyzeFile)
-    // CHANGED: Removed full-file parseCode + extractFeatures scan. Use facts directly.
     sustainaDevOutput.appendLine("=== FEATURES ===");
     sustainaDevOutput.appendLine(JSON.stringify({
       loopDepth: facts.maxLoopDepth,

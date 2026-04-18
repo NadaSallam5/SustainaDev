@@ -1,4 +1,3 @@
-// ─── REPLACE your entire energyCalculator.ts with this ───
 export function calculateEnergy(
   powerWatts: number,
   runtimeSeconds: number

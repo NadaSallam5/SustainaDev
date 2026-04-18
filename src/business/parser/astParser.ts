@@ -28,7 +28,7 @@ export function parseCode(code: string, filePath: string) {
     } else if (ext === "ts") {
       parser.setLanguage(TypeScript.typescript);
     } else if (ext === "tsx") {
-      // FIX 4: TSX needs its own grammar, not the TypeScript one
+      // TSX needs its own grammar, not the TypeScript one
       parser.setLanguage(TypeScript.tsx);
     } else {
       throw new Error(`Unsupported file extension: ${ext}`);
