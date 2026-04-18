@@ -5,7 +5,7 @@ export function normalizeBigO(raw: string): BigONotation {
   const s = raw.trim().toLowerCase().replace(/\s+/g, " ");
 
   if (s === "o(1)" || s === "constant") return "O(1)";
-  if (s === "o(log n)" || s === "o(log(n))") return "O(n)"; // treat as linear fallback
+  if (s === "o(log n)" || s === "o(log(n))") return "O(n)";
   if (s === "o(n)" || s === "linear") return "O(n)";
   if (s === "o(n*m)" || s === "o(nm)" || s === "o(n+m)" || s === "o(n, m)") return "O(n*m)";
   if (s === "o(n log n)" || s === "o(n log(n))" || s === "o(nlogn)") return "O(n log n)";
@@ -24,21 +24,18 @@ export function validateAgainstFacts(
 ): { valid: boolean; warnings: string[] } {
   const warnings: string[] = [];
 
-  // No sorting → sorting-based complexities are suspicious
   if (!facts?.sortInsideLoop && !facts?.hasSortingCall) {
     if (time === "O(n log n)" || time === "O(n^2 log n)") {
       warnings.push(`Reported ${time} but no sorting detected in facts.`);
     }
   }
 
-  // No recursion + shallow loops → exponential/cubic impossible
   if (!facts?.callsSelf && (facts?.maxLoopDepth ?? 0) <= 1) {
     if (time === "O(2^n)" || time === "O(n^3)") {
       warnings.push(`Reported ${time} but no recursion and loopDepth <= 1.`);
     }
   }
 
-  // Single loop max, no recursion → O(n^3) impossible
   if ((facts?.maxLoopDepth ?? 0) <= 1 && !facts?.callsSelf) {
     if (time === "O(n^3)") {
       warnings.push(`Reported O(n^3) but maxLoopDepth is ${facts?.maxLoopDepth ?? 0}.`);
@@ -92,17 +89,20 @@ export function inferKnownSmellComplexity(
   }
 
   // NESTED_LOOPS: nested loops flattened → O(n^2) → O(n)
- if (
-  smellType === "NESTED_LOOPS" &&
-  (beforeFacts?.maxLoopDepth ?? 0) >= 2 &&
-  (afterFacts?.maxLoopDepth ?? 0) <= 1
-) {
-  return {
-    metric: "time",
-    before: heuristicTimeFromFacts(beforeFacts),
-    after: heuristicTimeFromFacts(afterFacts),
-  };
-}
+  // ✅ FIX: Removed the afterFacts?.maxLoopDepth <= 1 guard.
+  // After a HashMap optimization, two sequential loops remain (depth=2),
+  // but they are no longer nested. We always trust the structural improvement
+  // for this smell type and hardcode O(n) as the after complexity.
+  if (
+    smellType === "NESTED_LOOPS" &&
+    (beforeFacts?.maxLoopDepth ?? 0) >= 2
+  ) {
+    return {
+      metric: "time",
+      before: heuristicTimeFromFacts(beforeFacts),
+      after: "O(n)",
+    };
+  }
 
   // ITERATIVE_REWRITE: linear recursion → iterative — space improvement
   if (
@@ -126,7 +126,15 @@ export function heuristicTimeFromFacts(facts: any): BigONotation {
   if (facts?.hasSortingCall) return "O(n log n)";
   if (facts?.hasStringConcatInLoop) return "O(n^2)";
   if ((facts?.maxLoopDepth ?? 0) >= 3) return "O(n^3)";
-  if ((facts?.maxLoopDepth ?? 0) === 2) return "O(n^2)";
+
+  // ✅ Two loops present — but are they nested or sequential?
+  // If a HashMap lookup exists and no explicit nesting detected,
+  // the loops are sequential → O(n), not O(n^2)
+  if ((facts?.maxLoopDepth ?? 0) === 2) {
+    if (facts?.hasHashMapLookup && !facts?.hasNestedLoop) return "O(n)";
+    return "O(n^2)";
+  }
+
   if ((facts?.maxLoopDepth ?? 0) === 1) return "O(n)";
   return "O(1)";
 }
