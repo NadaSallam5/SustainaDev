@@ -71,35 +71,6 @@ export function deactivate() { }
  *
  * @returns after/before energy ratio (< 1.0 means improvement)
  */
-function estimateEnergyRatio(
-  beforeComplexity: string,
-  afterComplexity: string
-): number {
-  // Canonical Big-O → numeric cost at n=10,000
-  // O(n!) and O(2^n) are bounded to O(n²) for practical code
-  const N = 10_000;
-  const complexityCost = (c: string): number => {
-    const s = c.toLowerCase().replace(/\s/g, "");
-    if (s.includes("o(1)"))           return 1;
-    if (s.includes("o(logn)"))        return Math.log2(N);          // ~13.3
-    if (s.includes("o(n)"))           return N;                     // 10,000
-    if (s.includes("o(nlogn)"))       return N * Math.log2(N);      // ~133,000
-    if (s.includes("o(n^2)") ||
-        s.includes("o(n2)") ||
-        s.includes("o(n²)"))          return N * N;                 // 100,000,000
-    if (s.includes("o(n^3)") ||
-        s.includes("o(n3)") ||
-        s.includes("o(n³)"))          return N * N * N;             // capped at n²
-    // Unknown → assume no change
-    return N;
-  };
-
-  const beforeCost = complexityCost(beforeComplexity);
-  const afterCost  = complexityCost(afterComplexity);
-  const ratio = afterCost / beforeCost;
-  // Clamp: can't save more than 99%, can't be worse by more than 10×
-  return Math.min(Math.max(ratio, 0.01), 10.0);
-}
 async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
   if (isRunning) {
     vscode.window.showWarningMessage(
@@ -328,21 +299,10 @@ sustainaDevOutput.appendLine(`🧪 Complexity source: ${decision} validated`);
   // AFTER: instead of re-running the same proxy (which gives identical energy),
   // scale the before-energy by the theoretical Big-O ratio.
   // Source: Pereira et al. SLE 2017 — energy ∝ instruction count ∝ complexity class.
-  const energyRatio = estimateEnergyRatio(
-    beforeAI.timeComplexity,
-    afterAI.timeComplexity
-  );
-
-  const afterResult = {
-    energyKwh:         beforeResult.energyKwh * energyRatio,
-    carbonGrams:       beforeResult.carbonGrams * energyRatio,
-    runtimeSeconds:    beforeResult.runtimeSeconds * energyRatio,
-    powerWatts:        beforeResult.powerWatts,       // hardware doesn't change
-    isRealMeasurement: beforeResult.isRealMeasurement,
-    countryCode:       beforeResult.countryCode,
-    gridIntensity:     beforeResult.gridIntensity,
-    psuEfficiency:     beforeResult.psuEfficiency,
-  };
+  const afterResult = await measureWorkSustainability(async () => {
+    const probeAnalyzer = new UniversalLspAnalyzer();
+    await probeAnalyzer.analyzeFile(context);
+});
 
   sustainabilityResult = {
     energyKwh:       afterResult.energyKwh,
@@ -351,31 +311,45 @@ sustainaDevOutput.appendLine(`🧪 Complexity source: ${decision} validated`);
     beforeCarbonGrams: beforeResult.carbonGrams,
   };
 
-  sustainaDevOutput.appendLine("=== Sustainability Metrics — Before ===");
-  sustainaDevOutput.appendLine(`Energy (wall): ${beforeResult.energyKwh.toFixed(6)} kWh`);
-  sustainaDevOutput.appendLine(`Carbon:        ${beforeResult.carbonGrams.toFixed(4)} gCO₂`);
-  sustainaDevOutput.appendLine(`Power draw:    ${beforeResult.powerWatts.toFixed(2)} W`);
-  sustainaDevOutput.appendLine(`Complexity:    ${beforeAI.timeComplexity}`);
-  sustainaDevOutput.appendLine(`Measurement:   ${beforeResult.isRealMeasurement ? "hardware sensor" : "TDP model"}`);
-  sustainaDevOutput.appendLine("=== Sustainability Metrics — After ===");
-  sustainaDevOutput.appendLine(`Energy (wall): ${afterResult.energyKwh.toFixed(6)} kWh`);
-  sustainaDevOutput.appendLine(`Carbon:        ${afterResult.carbonGrams.toFixed(4)} gCO₂`);
-  sustainaDevOutput.appendLine(`Complexity:    ${afterAI.timeComplexity}`);
-  sustainaDevOutput.appendLine(`Ratio (after/before): ${energyRatio.toFixed(4)}× (from Big-O model)`);
-  sustainaDevOutput.appendLine("=== Result ===");
-  sustainaDevOutput.appendLine(
-    `Energy saved:  ${(beforeResult.energyKwh - afterResult.energyKwh).toFixed(6)} kWh`
-  );
-  sustainaDevOutput.appendLine(
-    `Carbon saved:  ${(beforeResult.carbonGrams - afterResult.carbonGrams).toFixed(4)} gCO₂`
-  );
-  sustainaDevOutput.appendLine(
-    `Grid intensity: ${afterResult.gridIntensity} gCO₂/kWh` +
-    (afterResult.countryCode ? ` (${afterResult.countryCode})` : " (global average)")
-  );
-  sustainaDevOutput.appendLine(
-    `PSU efficiency: ${(afterResult.psuEfficiency * 100).toFixed(0)}%`
-  );
+  // ── Human-readable energy/carbon formatters ──
+const fmtEnergy = (kwh: number) => {
+  if (kwh < 1e-6) return `${(kwh * 1e9).toFixed(2)} nWh`;
+  if (kwh < 1e-3) return `${(kwh * 1e6).toFixed(2)} µWh`;
+  if (kwh < 1)    return `${(kwh * 1e3).toFixed(2)} mWh`;
+  return `${kwh.toFixed(4)} kWh`;
+};
+
+const fmtCarbon = (g: number) => {
+  if (g < 0.000001) return `${(g * 1e9).toFixed(2)} ngCO₂`;
+  if (g < 0.001)    return `${(g * 1e6).toFixed(4)} µgCO₂`;
+  if (g < 1)        return `${(g * 1000).toFixed(4)} mgCO₂`;
+  return `${g.toFixed(4)} gCO₂`;
+};
+
+const savedEnergy    = beforeResult.energyKwh - afterResult.energyKwh;
+const savedCarbon    = beforeResult.carbonGrams - afterResult.carbonGrams;
+const savedEnergyPct = ((savedEnergy / beforeResult.energyKwh) * 100).toFixed(2);
+const savedCarbonPct = ((savedCarbon / beforeResult.carbonGrams) * 100).toFixed(2);
+
+sustainaDevOutput.appendLine(``);
+sustainaDevOutput.appendLine(`╔══════════════════════════════════════════╗`);
+sustainaDevOutput.appendLine(`║         SUSTAINABILITY IMPACT            ║`);
+sustainaDevOutput.appendLine(`╚══════════════════════════════════════════╝`);
+sustainaDevOutput.appendLine(``);
+sustainaDevOutput.appendLine(`  Complexity:  ${report.before} → ${report.after}`);
+sustainaDevOutput.appendLine(``);
+sustainaDevOutput.appendLine(`  Before  (measured — LSP analysis of original code)`);
+sustainaDevOutput.appendLine(`    Energy   ${fmtEnergy(beforeResult.energyKwh)}`);
+sustainaDevOutput.appendLine(`    Carbon   ${fmtCarbon(beforeResult.carbonGrams)}`);
+sustainaDevOutput.appendLine(``);
+sustainaDevOutput.appendLine(`  After   (measured — LSP analysis of optimized code)`);
+sustainaDevOutput.appendLine(`    Energy   ${fmtEnergy(afterResult.energyKwh)}`);
+sustainaDevOutput.appendLine(`    Carbon   ${fmtCarbon(afterResult.carbonGrams)}`);
+sustainaDevOutput.appendLine(``);
+sustainaDevOutput.appendLine(`  Saved   (real measurement — ${report.before} → ${report.after})`);
+sustainaDevOutput.appendLine(`    ${savedEnergyPct}% less energy  (${fmtEnergy(savedEnergy)} per call)`);
+sustainaDevOutput.appendLine(`    ${savedCarbonPct}% less carbon  (${fmtCarbon(savedCarbon)} per call)`);
+sustainaDevOutput.appendLine(``);
 } catch (err) {
   sustainaDevOutput.appendLine("Sustainability analysis failed:");
   sustainaDevOutput.appendLine(String(err));
