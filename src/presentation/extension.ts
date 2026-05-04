@@ -17,7 +17,8 @@ import { UniversalLspAnalyzer } from "../business/analyzer/universalLspAnalyzer"
 import { UnsupportedLanguageError } from "../business/analyzer/analyzerTypes";
 import si from "systeminformation";
 import { measureWorkSustainability } from "../business/sustainability/sustainabilityEngine";
-
+import { generateHardwareRecommendations } from "../business/sustainability/hardwareAdvisor";
+import { getHardwareSpecs } from "../business/sustainability/powerEstimator";
 
 let isRunning = false;
 export let sustainaDevOutput: vscode.OutputChannel;
@@ -441,13 +442,21 @@ async function executeOpenDashboard(context: vscode.ExtensionContext) {
       } else if (message?.type === "readHardware") {
         await handleReadHardware(panel);
       } else if (message?.type === "getSpecs") {
-        try {
-          const content = await collectHardwareSpecsMarkdown();
-          panel.webview.postMessage({ type: "specsContent", content });
-        } catch (e: any) {
-          panel.webview.postMessage({ type: "specsError", error: e?.message ?? String(e) });
-        }
-      }
+  try {
+    const content = await collectHardwareSpecsMarkdown();
+    panel.webview.postMessage({ type: "specsContent", content });
+  } catch (e: any) {
+    panel.webview.postMessage({ type: "specsError", error: e?.message ?? String(e) });
+  }
+} else if (message?.type === "getHardwareRecommendations") {
+  try {
+    const specs = await getHardwareSpecs();
+    const recommendations = await generateHardwareRecommendations(specs);
+    panel.webview.postMessage({ type: "hardwareRecommendations", recommendations });
+  } catch (e: any) {
+    panel.webview.postMessage({ type: "hardwareRecommendationsError", error: e?.message ?? String(e) });
+  }
+}
     },
     undefined,
     context.subscriptions

@@ -245,8 +245,9 @@
       <button class="tab" data-tab="sustainability">🌱 Sustainability</button>
       <button class="tab" data-tab="insights">💡 Insights</button>
       <button class="tab" data-tab="individual">🔍 Individual Logs</button>
-      <button class="tab" data-tab="hardware">🖥️ Hardware</button>
-    </div>
+<button class="tab" data-tab="hardware">🖥️ Hardware</button>
+<button class="tab" data-tab="recommendations">💡 Upgrade Tips</button>   
+ </div>
 
     <!-- Overview -->
     <div id="tab-overview" class="tab-content active">
@@ -404,7 +405,22 @@
         </div>
       </div>
     </div>
-
+<!-- Hardware Recommendations -->
+    <div id="tab-recommendations" class="tab-content">
+      <div class="card">
+        <div class="card-title-row">
+          <h3>💡 Hardware Upgrade Recommendations</h3>
+          <div style="display:flex;align-items:center;gap:10px">
+            <button class="btn-secondary" id="load-recommendations">Analyze My Hardware</button>
+            <span class="muted" id="rec-status" style="font-size:12px">Not loaded</span>
+          </div>
+        </div>
+        <div id="rec-summary" style="display:none;margin-bottom:16px;padding:14px;background:var(--chip);border-radius:12px;font-size:13px;color:var(--muted)">
+          Based on your detected hardware — recommendations are sorted by priority and estimated energy saving.
+        </div>
+        <div id="rec-list"><div class="muted">Click "Analyze My Hardware" to get personalized upgrade recommendations</div></div>
+      </div>
+    </div>
     <script>
     const vscode=typeof acquireVsCodeApi==='function'?acquireVsCodeApi():null;
     const $=id=>document.getElementById(id);
@@ -421,7 +437,8 @@
         document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
         tab.classList.add('active');
         $('tab-'+tab.dataset.tab).classList.add('active');
-        if(tab.dataset.tab==='hardware')requestHardware();
+if(tab.dataset.tab==='hardware')requestHardware();
+if(tab.dataset.tab==='recommendations'){}
         if(tab.dataset.tab==='insights')setTimeout(drawDailyChart,80);
         if(tab.dataset.tab==='overview')setTimeout(()=>{animPct=0;drawMainChart();},50);
         setTimeout(drawAllCharts,50);
@@ -432,7 +449,7 @@
     $('filter').addEventListener('input',e=>{applyFilter(e.target.value);renderAll();});
     $('export-png').addEventListener('click',()=>{const a=document.createElement('a');a.download='sustainadev.png';a.href=$('chart-main').toDataURL();a.click();});
     $('load-hardware').addEventListener('click',requestHardware);
-
+$('load-recommendations').addEventListener('click',loadRecommendations);
     function requestHardware(){$('hw-status').textContent='Loading…';$('load-hardware').disabled=true;vscode&&vscode.postMessage({type:'readHardware'});}
 
     window.addEventListener('message',ev=>{
@@ -448,7 +465,44 @@
         $('hw-status').textContent='Loaded ✓';$('load-hardware').disabled=false;$('load-hardware').textContent='Reload';
       }
       if(msg.type==='hardwareError'){$('hw-status').textContent='Error: '+(msg.error||'unknown');$('load-hardware').disabled=false;$('load-hardware').textContent='Retry';}
-    });
+      if(msg.type==='hardwareRecommendations'){
+        const recs=msg.recommendations||[];
+        $('rec-status').textContent=`${recs.length} recommendation${recs.length!==1?'s':''} found`;
+        $('load-recommendations').disabled=false;
+        $('load-recommendations').textContent='Refresh';
+        if(!recs.length){
+          $('rec-list').innerHTML='<div style="color:var(--accent);font-weight:700;padding:20px 0">✅ Your hardware looks good — no urgent upgrades needed</div>';
+          return;
+        }
+        $('rec-summary').style.display='block';
+        const priorityColors={high:'badge-danger',medium:'badge-warn',low:'badge-info'};
+        const priorityIcons={high:'🔴',medium:'🟡',low:'🟢'};
+        let html='';
+        recs.forEach(rec=>{
+          html+=`<div class="ilog-card" style="margin-bottom:12px">
+            <div class="ilog-header">
+              <div class="ilog-title">${priorityIcons[rec.priority]} ${esc(rec.component)}</div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span class="badge ${priorityColors[rec.priority]}">${rec.priority} priority</span>
+                ${rec.estimatedSavingWatts>0?`<span class="badge badge-success">~${rec.estimatedSavingWatts.toFixed(1)}W saving</span>`:''}
+              </div>
+            </div>
+            <div style="margin-bottom:10px;padding:10px 14px;background:rgba(255,90,90,0.06);border:1px solid rgba(255,90,90,0.15);border-radius:8px;font-size:13px;color:var(--muted)">
+              <strong style="color:var(--text)">Issue:</strong> ${esc(rec.issue)}
+            </div>
+            <div style="padding:10px 14px;background:rgba(0,229,160,0.06);border:1px solid rgba(0,229,160,0.15);border-radius:8px;font-size:13px;color:var(--muted)">
+              <strong style="color:var(--accent)">Recommendation:</strong> ${esc(rec.recommendation)}
+            </div>
+          </div>`;
+        });
+        $('rec-list').innerHTML=html;
+      }
+      if(msg.type==='hardwareRecommendationsError'){
+        $('rec-status').textContent='Error: '+(msg.error||'unknown');
+        $('load-recommendations').disabled=false;
+        $('rec-list').innerHTML=`<div style="color:var(--danger)">Failed to load recommendations: ${esc(msg.error||'unknown error')}</div>`;
+      }
+});
 
     function applyFilter(q){
       viewRows=q?allRows.filter(r=>(r.file||'').toLowerCase().includes(q.toLowerCase())||(r.refactor||'').toLowerCase().includes(q.toLowerCase())):[...allRows];
@@ -952,6 +1006,12 @@
       drawDonutChart(Object.entries(freqMap).sort((a,b)=>b[1]-a[1]));
       drawDailyChart();
     }
+    function loadRecommendations(){
+  $('rec-status').textContent='Analyzing…';
+  $('load-recommendations').disabled=true;
+  $('rec-list').innerHTML='<div class="muted">Scanning hardware…</div>';
+  vscode&&vscode.postMessage({type:'getHardwareRecommendations'});
+}
     drawAllCharts();
     </script>
   </body>
