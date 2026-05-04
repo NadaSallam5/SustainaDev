@@ -1,30 +1,22 @@
 import { AIComplexityResult, OptimizationReport } from "./types";
+import { resolveComplexity } from "./complexityValidator";
 
 export function buildOptimizationReport(
   beforeAI: AIComplexityResult,
   afterAI: AIComplexityResult,
   beforeFacts?: any,
-  afterFacts?: any
+  afterFacts?: any,
+  smellType?: string
 ): OptimizationReport {
-  const isSingleRecursionCase =
-    beforeFacts?.callsSelf === true &&
-    beforeFacts?.isLinearRecursion === true &&
-    beforeFacts?.hasOverlappingSubproblems === false &&
-    afterFacts?.callsSelf === false;
 
-  if (isSingleRecursionCase) {
-    return {
-      metric: "space",
-      before: beforeAI.spaceComplexity,
-      after: afterAI.spaceComplexity,
-      improvement: `From ${beforeAI.spaceComplexity} → ${afterAI.spaceComplexity}`,
-    };
-  }
+  const result = resolveComplexity(beforeAI, afterAI, beforeFacts, afterFacts, smellType);
+
+    console.log(`🧪 Complexity source: ${result.source} | warnings: ${result.warnings.join("; ") || "none"}`);
 
   return {
-    metric: "time",
-    before: beforeAI.timeComplexity,
-    after: afterAI.timeComplexity,
-    improvement: `From ${beforeAI.timeComplexity} → ${afterAI.timeComplexity}`,
+    metric: result.metric,
+    before: result.before,
+    after: result.after,
+    improvement: `From ${result.before} → ${result.after}`,
   };
 }

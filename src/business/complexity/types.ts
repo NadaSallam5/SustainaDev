@@ -16,8 +16,12 @@ export interface AIComplexityResult {
 }
 
 export interface OptimizationReport {
-  metric: "time" | "space";
-  before: string;
-  after: string;
+  metric: "time" | "space";   // ✅ NEW
+  before: BigONotation;
+  after: BigONotation;
+
+
+  //before: string;
+  //after: string;
   improvement: string;
 }
