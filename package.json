@@ -4,7 +4,7 @@
   "displayName": "SustainaDev - AI-Powered Sustainable Software Analysis",
   "description": "AI-powered VS Code extension for sustainable software analysis, complexity detection, and optimization insights.",
   "license": "MIT",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "engines": {
     "vscode": "1.104.0"
   },
