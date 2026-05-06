@@ -2,14 +2,32 @@
   "publisher": "sustainadev",
   "name": "sustainadev",
   "displayName": "SustainaDev Analyzer",
-  "description": "My first VS Code extension",
-  "version": "0.0.1",
+  "description": "AI-powered VS Code extension for sustainable software analysis, complexity detection, and optimization insights.",
+  "license": "MIT",
+  "version": "0.0.2",
   "engines": {
-    "vscode": "^1.104.0"
+    "vscode": "1.104.0"
   },
   "categories": [
     "Other"
   ],
+  "keywords": [
+    "sustainability",
+    "ai",
+    "code-analysis",
+    "refactoring",
+    "complexity",
+    "software-engineering"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NadaSallam5/SustainaDev.git"
+  },
+  "homepage": "https://github.com/NadaSallam5/SustainaDev",
+  "bugs": {
+    "url": "https://github.com/NadaSallam5/SustainaDev/issues"
+  },
+  "icon": "media/Extension Logo.jpeg",
   "activationEvents": [
     "onCommand:sustainadev.runAnalyzer",
     "onCommand:sustainadev.analyzeActiveFile",
@@ -47,7 +65,7 @@
         "sustainadev.refactoringMinerJar": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Optional absolute path to a RefactoringMiner JAR (e.g. `C:\\\\Tools\\\\RefactoringMiner-2.6.jar`). If empty and enabled, the extension will try the `RefactoringMiner` command on PATH or `REFMINER` env var."
+          "markdownDescription": "Optional absolute path to a RefactoringMiner JAR. If empty and enabled, the extension will try the RefactoringMiner command on PATH or REFMINER environment variable."
         }
       }
     }
@@ -68,7 +86,7 @@
     "@types/mocha": "^10.0.10",
     "@types/node": "^22.19.15",
     "@types/systeminformation": "^3.54.1",
-    "@types/vscode": "^1.83.0",
+    "@types/vscode": "1.104.0",
     "@typescript-eslint/eslint-plugin": "^8.42.0",
     "@typescript-eslint/parser": "^8.42.0",
     "@vscode/test-cli": "^0.0.11",
@@ -88,7 +106,6 @@
     "tree-sitter-java": "^0.21.0",
     "tree-sitter-javascript": "^0.21.4",
     "tree-sitter-python": "^0.21.0",
-    "tree-sitter-typescript": "^0.23.2",
-    "vscode": "^1.1.37"
+    "tree-sitter-typescript": "^0.23.2"
   }
 }
