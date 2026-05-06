@@ -4,7 +4,7 @@
   "displayName": "SustainaDev Analyzer",
   "description": "AI-powered VS Code extension for sustainable software analysis, complexity detection, and optimization insights.",
   "license": "MIT",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "engines": {
     "vscode": "1.104.0"
   },
@@ -27,7 +27,7 @@
   "bugs": {
     "url": "https://github.com/NadaSallam5/SustainaDev/issues"
   },
-  "icon": "media/Extension Logo.jpeg",
+  "icon": "media/logo.jpeg",
   "activationEvents": [
     "onCommand:sustainadev.runAnalyzer",
     "onCommand:sustainadev.analyzeActiveFile",
