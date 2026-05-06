@@ -4,7 +4,7 @@
   "displayName": "SustainaDev - AI-Powered Sustainable Software Analysis",
   "description": "AI-powered VS Code extension for sustainable software analysis, complexity detection, and optimization insights.",
   "license": "MIT",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "engines": {
     "vscode": "^1.104.0"
   },
@@ -106,6 +106,7 @@
     "tree-sitter-java": "^0.21.0",
     "tree-sitter-javascript": "^0.21.4",
     "tree-sitter-python": "^0.21.0",
-    "tree-sitter-typescript": "^0.23.2"
+    "tree-sitter-typescript": "^0.23.2",
+    "node-gyp-build": "^4.8.4"
   }
 }
