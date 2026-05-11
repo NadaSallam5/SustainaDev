@@ -4,18 +4,17 @@
 // 1. NESTED LOOPS (should trigger NESTED_LOOPS)
 // ========================================
 export function findDuplicates(arr: number[]): number[] {
-  const seen = new Set<number>();
-  const duplicates = new Set<number>();
+  const duplicates: number[] = [];
 
-  for (let num of arr) {
-    if (seen.has(num)) {
-      duplicates.add(num);
-    } else {
-      seen.add(num);
+  for (let i = 0; i < arr.length; i++) {
+    for (let j = i + 1; j < arr.length; j++) {
+      if (arr[i] === arr[j] && !duplicates.includes(arr[i])) {
+        duplicates.push(arr[i]);
+      }
     }
   }
 
-  return Array.from(duplicates);
+  return duplicates;
 }
 
 
@@ -46,7 +45,7 @@ export function buildString(words: string[]): string {
 // 4. SORTING INSIDE LOOP (should trigger SORTING_IN_LOOP)
 // ========================================
 export function sortInsideLoop(arr: number[]): number[] {
-  arr.sort((a, b) => a - b); // Sort once outside the loop
+  arr.sort((a, b) => a - b); // sort once outside the loop
   return arr;
 }
 

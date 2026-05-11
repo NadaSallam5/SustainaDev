@@ -52,7 +52,7 @@ Return ONLY valid JSON in this exact format:
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "qwen2.5-coder:3b",
+      model: "qwen2.5-coder:7b",
       prompt,
       stream: false,
     }),

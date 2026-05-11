@@ -1,0 +1,14 @@
+{
+  "totalTasks": 41,
+  "correctCount": 39,
+  "correctnessRate": 95.12,
+  "complexityImprovedCount": 6,
+  "complexityImprovementRate": 14.63,
+  "successCount": 6,
+  "successRate": 14.63,
+  "avgSpeedImprovement": 14.49,
+  "avgEnergyReduction": 14.63,
+  "avgCarbonReduction": 7.02,
+  "avgSpeedCorrectOnly": 15.23,
+  "generatedAt": "2026-05-08T06:23:47.711249"
+}
