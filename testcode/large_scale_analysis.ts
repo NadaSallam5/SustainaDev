@@ -4,18 +4,17 @@
 // 1. NESTED LOOPS (should trigger NESTED_LOOPS)
 // ========================================
 export function findDuplicates(arr: number[]): number[] {
-  const seen = new Set<number>();
-  const duplicates = new Set<number>();
+  const duplicates: number[] = [];
 
-  for (let num of arr) {
-    if (seen.has(num)) {
-      duplicates.add(num);
-    } else {
-      seen.add(num);
+  for (let i = 0; i < arr.length; i++) {
+    for (let j = i + 1; j < arr.length; j++) {
+      if (arr[i] === arr[j] && !duplicates.includes(arr[i])) {
+        duplicates.push(arr[i]);
+      }
     }
   }
 
-  return Array.from(duplicates);
+  return duplicates;
 }
 
 
@@ -69,6 +68,15 @@ export function sumArray(arr: number[]): number {
 // 6. DEEP LOOP (loopDepth = 3)
 // ========================================
 export function threeLevelLoop(arr: number[]): number {
-  let count = arr.length ** 3;
+  let count = 0;
+
+  for (let i = 0; i < arr.length; i++) {
+    for (let j = 0; j < arr.length; j++) {
+      for (let k = 0; k < arr.length; k++) {
+        count++;
+      }
+    }
+  }
+
   return count;
 }

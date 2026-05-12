@@ -6,30 +6,24 @@ import { extractFeatures } from "./featureExtractor";
 
 export class UniversalLspAnalyzer implements ICodeAnalyzer {
   // ─── analyzeFile ────────────────────────────────────────────────────────────
-  // Uses LSP to discover all methods in the file, then runs Tree-sitter
-  // featureExtractor on each one to build a MethodFacts list.
-  // Tree-sitter handles smell detection. LSP only provides method names + ranges.
   async analyzeFile(context: vscode.ExtensionContext): Promise<MethodFacts[]> {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
       throw new Error("No active editor.");
     }
 
-    // Use document directly to prevent mismatch if editor reference changes
     const document = editor.document;
 
-    // Step 1: Get all symbols from LSP
-    const symbols = await vscode.commands.executeCommand<
-      vscode.DocumentSymbol[]
-    >("vscode.executeDocumentSymbolProvider", document.uri);
-
+   const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+  "vscode.executeDocumentSymbolProvider",
+  document.uri
+);
     if (!symbols || symbols.length === 0) {
       throw new Error(
         "No symbols found by LSP. Make sure a language server is active.",
       );
     }
 
-    // Step 2: Collect only real methods and functions — no constructors
     const methodSymbols: vscode.DocumentSymbol[] = [];
 
     const collectMethods = (syms: vscode.DocumentSymbol[]) => {
@@ -51,9 +45,6 @@ export class UniversalLspAnalyzer implements ICodeAnalyzer {
       throw new Error("No methods found in file.");
     }
 
-    // Step 3: Run Tree-sitter featureExtractor on each method individually.
-    // FIX 2: Changed from .map() to async for-loop with UI yield between iterations.
-    // The sync .map() was blocking the VS Code extension thread causing UI glitches.
     const filePath = document.uri.fsPath;
     const fileExt = filePath.split(".").pop()?.toLowerCase() ?? "java";
 
@@ -61,24 +52,14 @@ export class UniversalLspAnalyzer implements ICodeAnalyzer {
 
     for (const sym of methodSymbols) {
       const methodName = sym.name.replace(/\(.*\)/, "").trim();
-
-      // Use document.getText (not editor.document.getText) to prevent
-      // mismatch if editor state changes during async processing
       const methodText = document.getText(sym.range);
 
-      // Language-aware wrapping for Tree-sitter parsing:
-      // - Java: ALWAYS wrap — tree-sitter-java can't parse a method outside a class.
-      // - Python: NEVER wrap — standalone def/class methods parse fine.
-      // - JS/TS: wrap ONLY class methods (SymbolKind.Method), NOT standalone functions.
-      //   Wrapping a `function foo() {}` in a class is invalid JS syntax because
-      //   class methods don't use the `function` keyword.
       let wrappedCode: string;
       if (fileExt === "java") {
         wrappedCode = `class __Wrapper__ {\n${methodText}\n}`;
       } else if (fileExt === "py") {
         wrappedCode = methodText;
       } else {
-        // JS/TS: class methods need a wrapper, standalone functions don't
         wrappedCode =
           sym.kind === vscode.SymbolKind.Method
             ? `class __Wrapper__ {\n${methodText}\n}`
@@ -87,22 +68,26 @@ export class UniversalLspAnalyzer implements ICodeAnalyzer {
 
       const methodTree = parseCode(wrappedCode, filePath);
       const features = extractFeatures(methodTree.rootNode, methodName);
+// Count how many List parameters the method has
+const listParamCount = (methodText.match(/List</g) || []).length;
 
       factsList.push({
         methodName,
         callsSelf: features.recursion,
-        isLinearRecursion: features.recursiveCallCount === 1, // ✅ factorial
-        hasOverlappingSubproblems: features.recursiveCallCount > 1, // ✅ fibonacci
+        isLinearRecursion: features.recursiveCallCount === 1,
+        hasOverlappingSubproblems: features.recursiveCallCount > 1,
         maxLoopDepth: features.loopDepth,
         cyclomaticComplexity: 1,
         isPureAccumulation: false,
         hasStringConcatInLoop: features.stringConcatInLoop,
         hasSortingCall: features.sortingCalls > 0,
         sortInsideLoop: features.sortingInsideLoop,
+        hasNestedLoop: features.hasNestedLoop,
+        hasHashMapLookup: features.hasHashMapLookup,
+        usesStringBuilder: features.usesStringBuilder, 
+        listParamCount, // ✅ NEW
       });
 
-      // FIX 2: Yield to UI thread between each method parse to prevent
-      // blocking the extension host and causing rendering glitches
       await new Promise((r) => setTimeout(r, 0));
     }
 
@@ -146,7 +131,10 @@ export class UniversalLspAnalyzer implements ICodeAnalyzer {
         }
       }
     };
-    findTarget(symbols);
+
+    if (symbols) {
+      findTarget(symbols);
+    }
 
     if (!targetMethodSymbol) {
       throw new Error(`Method ${methodName} not found by LSP.`);

@@ -1,5 +1,5 @@
-import java.util.List;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 /**
  * A highly complex test class demonstrating the STRING_BUILDER sustainability

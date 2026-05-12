@@ -5,6 +5,7 @@ export type BigONotation =
   | "O(n log n)"
   | "O(n^2)"
   | "O(n^2 log n)"
+   | "O(log n)" 
   | "O(n^3)"
   | "O(2^n)"
   | "Unknown";
@@ -20,7 +21,7 @@ export interface OptimizationReport {
   before: BigONotation;
   after: BigONotation;
 
-
+ source: "ai" | "rules" | "hybrid-fallback";
   //before: string;
   //after: string;
   improvement: string;

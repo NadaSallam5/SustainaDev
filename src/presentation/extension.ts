@@ -123,7 +123,13 @@ if (!editor) {
     // STEP 2 — Pick the most problematic method, in the same priority order as ruleEngine.ts
     // Priority: sorting-in-loop > nested loops > string concat > sorting > recursion > first method
     // Sort descending by loop depth so that .find() naturally grabs the worst one
-    factsList.sort((a, b) => b.maxLoopDepth - a.maxLoopDepth);
+    factsList.sort((a, b) => {
+  if (b.maxLoopDepth !== a.maxLoopDepth) {
+    return b.maxLoopDepth - a.maxLoopDepth;
+  }
+  // Tiebreaker: more List parameters = worse complexity
+  return b.listParamCount - a.listParamCount;
+});
 
     const facts =
       factsList.find(m => m.sortInsideLoop === true) ||
@@ -139,16 +145,18 @@ if (!editor) {
 
     // STEP 3 — Rule Engine with AI fallback
     const featuresForRules = {
-      loops: facts.maxLoopDepth,
-      loopDepth: facts.maxLoopDepth,
-      recursion: facts.callsSelf,
-      recursiveCallCount: 0,           // ✅ add this
-      stringConcatInLoop: facts.hasStringConcatInLoop,
-      sortingCalls: facts.hasSortingCall ? 1 : 0,
-      sortingInsideLoop: facts.sortInsideLoop,
-      methodLength: 0,
-    };
-
+  loops: facts.maxLoopDepth,
+  loopDepth: facts.maxLoopDepth,
+  recursion: facts.callsSelf,
+  recursiveCallCount: 0,
+  stringConcatInLoop: facts.hasStringConcatInLoop,
+  sortingCalls: facts.hasSortingCall ? 1 : 0,
+  sortingInsideLoop: facts.sortInsideLoop,
+  methodLength: 0,
+  hasNestedLoop: facts.hasNestedLoop,       // 👈 ADD HERE
+  hasHashMapLookup: facts.hasHashMapLookup, 
+   usesStringBuilder: facts.usesStringBuilder,// 👈 ADD HERE
+};
     const decision = detectByRules(featuresForRules);
 
     if (!decision) {
@@ -170,6 +178,7 @@ if (!editor) {
       stringConcatInLoop: facts.hasStringConcatInLoop,
       sortingCalls: facts.hasSortingCall,
       sortingInsideLoop: facts.sortInsideLoop,
+       usesStringBuilder: facts.usesStringBuilder,
     }, null, 2));
 
     // STEP 5 — Build patch and show diff
@@ -214,7 +223,7 @@ if (!editor) {
   // ✅ Run Qwen BEFORE applying (on original code)
   let beforeAI: AIComplexityResult;
   try {
-    beforeAI = await estimateComplexityWithQwen(refreshedDoc.getText(), facts);
+   beforeAI = await estimateComplexityWithQwen(refreshedDoc.getText(), facts, facts.methodName);
     sustainaDevOutput.appendLine(`🤖 Qwen BEFORE: time=${beforeAI.timeComplexity} space=${beforeAI.spaceComplexity}`);
   } catch (e: any) {
     sustainaDevOutput.appendLine(`⚠️ Qwen BEFORE failed: ${e.message}`);
@@ -239,7 +248,7 @@ if (!editor) {
   const optimizedDoc = await vscode.workspace.openTextDocument(originalUri);
   let afterAI: AIComplexityResult;
   try {
-    afterAI = await estimateComplexityWithQwen(optimizedDoc.getText(), afterFacts);
+   afterAI = await estimateComplexityWithQwen(optimizedDoc.getText(), afterFacts, facts.methodName);
     sustainaDevOutput.appendLine(`🤖 Qwen AFTER: time=${afterAI.timeComplexity} space=${afterAI.spaceComplexity}`);
   } catch (e: any) {
     sustainaDevOutput.appendLine(`⚠️ Qwen AFTER failed: ${e.message}`);
@@ -247,8 +256,7 @@ if (!editor) {
   }
 
 const report = buildOptimizationReport(beforeAI, afterAI, facts, afterFacts, decision);
-sustainaDevOutput.appendLine(`🧪 Complexity source: ${decision} validated`);
-
+sustainaDevOutput.appendLine(`🧪 Complexity source: ${report.source}`); // ✅ now shows real source
           sustainaDevOutput.appendLine(
             report.metric === "space"
               ? "=== Space Complexity Report ==="
@@ -256,15 +264,14 @@ sustainaDevOutput.appendLine(`🧪 Complexity source: ${decision} validated`);
           );
 
           if (report.metric === "space") {
-            sustainaDevOutput.appendLine(`Space Before: ${report.before}`);
-            sustainaDevOutput.appendLine(`Space After:  ${report.after}`);
-          } else {
-            sustainaDevOutput.appendLine(`Before: ${report.before}`);
-            sustainaDevOutput.appendLine(`After:  ${report.after}`);
-          }
+  sustainaDevOutput.appendLine(`Space Before: ${beforeAI.spaceComplexity}`);
+  sustainaDevOutput.appendLine(`Space After:  ${afterAI.spaceComplexity}`);
+} else {
+  sustainaDevOutput.appendLine(`Before: ${beforeAI.timeComplexity}`);
+  sustainaDevOutput.appendLine(`After:  ${afterAI.timeComplexity}`);
+}
 
-          sustainaDevOutput.appendLine(`Improvement: ${report.improvement}`);
-
+sustainaDevOutput.appendLine(`Improvement: From ${beforeAI.timeComplexity} → ${afterAI.timeComplexity}`);
           let sustainabilityResult:
             | {
               energyKwh: number;
