@@ -73,17 +73,17 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
   try {
     const editor = vscode.window.activeTextEditor;
 
-if (editor && editor.document.isDirty) {
-  await editor.document.save();
-}
+    if (editor && editor.document.isDirty) {
+      await editor.document.save();
+    }
 
-if (!editor) {
-  vscode.window.showErrorMessage(
-    "❌ No file is open. Please open a file to analyze."
-  );
-  isRunning = false;
-  return;
-}
+    if (!editor) {
+      vscode.window.showErrorMessage(
+        "❌ No file is open. Please open a file to analyze."
+      );
+      isRunning = false;
+      return;
+    }
 
     // Language gate
     const languageId = editor.document.languageId;
@@ -105,7 +105,6 @@ if (!editor) {
     await refreshedDoc.save();
 
     // STEP 1 — Scan ALL methods in the file via LSP + Tree-sitter (per-method)
-    // analyzeFile uses LSP to find methods, Tree-sitter per method for smell detection.
     const factsList = await analyzer.analyzeFile(context);
 
     if (!factsList || factsList.length === 0) {
@@ -120,16 +119,13 @@ if (!editor) {
       `📋 Methods found: ${factsList.map(m => m.methodName).join(', ')}`
     );
 
-    // STEP 2 — Pick the most problematic method, in the same priority order as ruleEngine.ts
-    // Priority: sorting-in-loop > nested loops > string concat > sorting > recursion > first method
-    // Sort descending by loop depth so that .find() naturally grabs the worst one
+    // STEP 2 — Pick the most problematic method
     factsList.sort((a, b) => {
-  if (b.maxLoopDepth !== a.maxLoopDepth) {
-    return b.maxLoopDepth - a.maxLoopDepth;
-  }
-  // Tiebreaker: more List parameters = worse complexity
-  return b.listParamCount - a.listParamCount;
-});
+      if (b.maxLoopDepth !== a.maxLoopDepth) {
+        return b.maxLoopDepth - a.maxLoopDepth;
+      }
+      return b.listParamCount - a.listParamCount;
+    });
 
     const facts =
       factsList.find(m => m.sortInsideLoop === true) ||
@@ -143,20 +139,21 @@ if (!editor) {
       `🎯 Selected method for optimization: ${facts.methodName}`
     );
 
-    // STEP 3 — Rule Engine with AI fallback
+    // STEP 3 — Rule Engine
     const featuresForRules = {
-  loops: facts.maxLoopDepth,
-  loopDepth: facts.maxLoopDepth,
-  recursion: facts.callsSelf,
-  recursiveCallCount: 0,
-  stringConcatInLoop: facts.hasStringConcatInLoop,
-  sortingCalls: facts.hasSortingCall ? 1 : 0,
-  sortingInsideLoop: facts.sortInsideLoop,
-  methodLength: 0,
-  hasNestedLoop: facts.hasNestedLoop,       // 👈 ADD HERE
-  hasHashMapLookup: facts.hasHashMapLookup, 
-   usesStringBuilder: facts.usesStringBuilder,// 👈 ADD HERE
-};
+      loops: facts.maxLoopDepth,
+      loopDepth: facts.maxLoopDepth,
+      recursion: facts.callsSelf,
+      recursiveCallCount: 0,
+      stringConcatInLoop: facts.hasStringConcatInLoop,
+      sortingCalls: facts.hasSortingCall ? 1 : 0,
+      sortingInsideLoop: facts.sortInsideLoop,
+      methodLength: 0,
+      hasNestedLoop: facts.hasNestedLoop,
+      hasHashMapLookup: facts.hasHashMapLookup,
+      usesStringBuilder: facts.usesStringBuilder,
+    };
+
     const decision = detectByRules(featuresForRules);
 
     if (!decision) {
@@ -168,9 +165,7 @@ if (!editor) {
 
     sustainaDevOutput.appendLine(`⚡ Strategy: ${decision}`);
 
-
-
-    // STEP 4 — Log selected method's facts (already computed per-method in analyzeFile)
+    // STEP 4 — Log selected method's facts
     sustainaDevOutput.appendLine("=== FEATURES ===");
     sustainaDevOutput.appendLine(JSON.stringify({
       loopDepth: facts.maxLoopDepth,
@@ -178,7 +173,7 @@ if (!editor) {
       stringConcatInLoop: facts.hasStringConcatInLoop,
       sortingCalls: facts.hasSortingCall,
       sortingInsideLoop: facts.sortInsideLoop,
-       usesStringBuilder: facts.usesStringBuilder,
+      usesStringBuilder: facts.usesStringBuilder,
     }, null, 2));
 
     // STEP 5 — Build patch and show diff
@@ -219,59 +214,64 @@ if (!editor) {
           }
         }
 
-       if (choice === "✅ Accept Optimization") {
-  // ✅ Run Qwen BEFORE applying (on original code)
-  let beforeAI: AIComplexityResult;
-  try {
-   beforeAI = await estimateComplexityWithQwen(refreshedDoc.getText(), facts, facts.methodName);
-    sustainaDevOutput.appendLine(`🤖 Qwen BEFORE: time=${beforeAI.timeComplexity} space=${beforeAI.spaceComplexity}`);
-  } catch (e: any) {
-    sustainaDevOutput.appendLine(`⚠️ Qwen BEFORE failed: ${e.message}`);
-    beforeAI = { timeComplexity: "Unknown", spaceComplexity: "Unknown", explanation: "" };
-  }
+        if (choice === "✅ Accept Optimization") {
+          // ✅ Run Qwen BEFORE — extract only target method, not whole file
+          let beforeAI: AIComplexityResult;
+          try {
+            const beforeSkeleton = await analyzer.extractSkeleton(refreshedDoc, facts.methodName); // ✅ NEW
+            beforeAI = await estimateComplexityWithQwen(beforeSkeleton.targetMethod, facts);        // ✅ only method
+            sustainaDevOutput.appendLine(`🤖 Qwen BEFORE: time=${beforeAI.timeComplexity} space=${beforeAI.spaceComplexity}`);
+          } catch (e: any) {
+            sustainaDevOutput.appendLine(`⚠️ Qwen BEFORE failed: ${e.message}`);
+            beforeAI = { timeComplexity: "Unknown", spaceComplexity: "Unknown", explanation: "" };
+          }
 
-  await applyPatchToDocument(originalUri, patch.preview);
-  sustainaDevOutput.appendLine("✅ Optimization applied (Tree-sitter mode)");
+          await applyPatchToDocument(originalUri, patch.preview);
+          sustainaDevOutput.appendLine("✅ Optimization applied (Tree-sitter mode)");
 
-  const optimizedAnalyzer = new UniversalLspAnalyzer();
-  let afterFacts = facts;
+          const optimizedAnalyzer = new UniversalLspAnalyzer();
+          let afterFacts = facts;
 
-  try {
-    const optimizedFactsList = await optimizedAnalyzer.analyzeFile(context);
-    const found = optimizedFactsList.find(m => m.methodName === facts.methodName);
-    if (found) afterFacts = found;
-  } catch {
-    // fallback
-  }
+          try {
+            const optimizedFactsList = await optimizedAnalyzer.analyzeFile(context);
+            const found = optimizedFactsList.find(m => m.methodName === facts.methodName);
+            if (found) afterFacts = found;
+          } catch {
+            // fallback
+          }
+sustainaDevOutput.appendLine(`🔍 afterFacts: hasNestedLoop=${afterFacts.hasNestedLoop}, hasHashMapLookup=${afterFacts.hasHashMapLookup}, maxLoopDepth=${afterFacts.maxLoopDepth}`);
+          // ✅ Run Qwen AFTER — extract only target method from optimized doc
+          const optimizedDoc = await vscode.workspace.openTextDocument(originalUri);
+          let afterAI: AIComplexityResult;
+          try {
+            const afterSkeleton = await optimizedAnalyzer.extractSkeleton(optimizedDoc, facts.methodName); // ✅ NEW
+            afterAI = await estimateComplexityWithQwen(afterSkeleton.targetMethod, afterFacts);             // ✅ only method
+            sustainaDevOutput.appendLine(`🤖 Qwen AFTER: time=${afterAI.timeComplexity} space=${afterAI.spaceComplexity}`);
+          } catch (e: any) {
+            sustainaDevOutput.appendLine(`⚠️ Qwen AFTER failed: ${e.message}`);
+            afterAI = { timeComplexity: "Unknown", spaceComplexity: "Unknown", explanation: "" };
+          }
 
-  // ✅ Run Qwen AFTER applying (on optimized code)
-  const optimizedDoc = await vscode.workspace.openTextDocument(originalUri);
-  let afterAI: AIComplexityResult;
-  try {
-   afterAI = await estimateComplexityWithQwen(optimizedDoc.getText(), afterFacts, facts.methodName);
-    sustainaDevOutput.appendLine(`🤖 Qwen AFTER: time=${afterAI.timeComplexity} space=${afterAI.spaceComplexity}`);
-  } catch (e: any) {
-    sustainaDevOutput.appendLine(`⚠️ Qwen AFTER failed: ${e.message}`);
-    afterAI = { timeComplexity: "Unknown", spaceComplexity: "Unknown", explanation: "" };
-  }
+          const report = buildOptimizationReport(beforeAI, afterAI, facts, afterFacts, decision);
+          sustainaDevOutput.appendLine(`🧪 Complexity source: ${report.source}`);
 
-const report = buildOptimizationReport(beforeAI, afterAI, facts, afterFacts, decision);
-sustainaDevOutput.appendLine(`🧪 Complexity source: ${report.source}`); // ✅ now shows real source
           sustainaDevOutput.appendLine(
             report.metric === "space"
               ? "=== Space Complexity Report ==="
               : "=== Complexity Report ==="
           );
 
-          if (report.metric === "space") {
-  sustainaDevOutput.appendLine(`Space Before: ${beforeAI.spaceComplexity}`);
-  sustainaDevOutput.appendLine(`Space After:  ${afterAI.spaceComplexity}`);
-} else {
-  sustainaDevOutput.appendLine(`Before: ${beforeAI.timeComplexity}`);
-  sustainaDevOutput.appendLine(`After:  ${afterAI.timeComplexity}`);
-}
 
-sustainaDevOutput.appendLine(`Improvement: From ${beforeAI.timeComplexity} → ${afterAI.timeComplexity}`);
+
+// ✅ AFTER (showing normalized report values)
+if (report.metric === "space") {
+  sustainaDevOutput.appendLine(`Space Before: ${report.before}`);
+  sustainaDevOutput.appendLine(`Space After:  ${report.after}`);
+} else {
+  sustainaDevOutput.appendLine(`Before: ${report.before}`);
+  sustainaDevOutput.appendLine(`After:  ${report.after}`);
+}
+sustainaDevOutput.appendLine(`Improvement: ${report.improvement}`);
           let sustainabilityResult:
             | {
               energyKwh: number;
@@ -340,13 +340,6 @@ sustainaDevOutput.appendLine(`Improvement: From ${beforeAI.timeComplexity} → $
           vscode.window.showInformationMessage("❌ Optimization discarded.");
         }
       });
-
-    //const fullCode = refreshedDoc.getText();
-
-    //await analyzeAndOptimize(context, fullCode, filePath, {
-      //from: editor.selection.start.line,
-      //to: editor.selection.end.line,
-    //});
 
   } catch (err: any) {
     if (err.message === "ALREADY_OPTIMIZED") {

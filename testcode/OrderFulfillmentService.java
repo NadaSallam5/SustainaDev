@@ -21,9 +21,6 @@ public class OrderFulfillmentService {
         this.priorityFulfillmentEnabled = priorityFulfillmentEnabled;
     }
 
-    // =========================================================================
-    // DTOs
-    // =========================================================================
 
     public static class CustomerOrder {
         public String orderId;
@@ -209,7 +206,6 @@ public class OrderFulfillmentService {
             } else {
                 shipments.add(new OrderShipment(fulfillment.orderId, null, 0.0, "NO_CARRIER"));
             }
-        }
 
         LOGGER.info("Carrier assignment complete. " + shipments.size() + " shipments created.");
         return shipments;
@@ -220,9 +216,6 @@ public class OrderFulfillmentService {
             List<CustomerProfile> customerProfiles) {
 
         LOGGER.info("Enriching " + orders.size() + " orders with loyalty data.");
-        List<OrderEnrichment> enrichments = new ArrayList<>();
-
-        for (CustomerOrder order : orders) {
             boolean profileFound = false;
 
             for (CustomerProfile profile : customerProfiles) {

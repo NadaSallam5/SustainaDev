@@ -2,22 +2,30 @@ import { BigONotation, AIComplexityResult } from "./types";
 
 // ─── Layer 1: Normalize AI output to valid BigONotation ──────────────────────
 export function normalizeBigO(raw: string): BigONotation {
-  const s = raw.trim().toLowerCase().replace(/\s+/g, ""); // ← remove ALL spaces
-if (s === "o(n+m+k)") return "O(n)";
-if (/^o\(([a-z]\+)*[a-z]\)$/.test(s)) return "O(n)";
+  const s = raw.trim().toLowerCase().replace(/\s+/g, "");
 
+  // ─── Extract dominant term from complex expressions first ─────────────────
+  // e.g. O(n^2 + n*m), O(n^2 + n), O(n*m + n) → pick dominant
+  if (s.includes("n^3") || s.includes("n³")) return "O(n^3)";
+  if (s.includes("2^n")) return "O(2^n)";
+  if (s.includes("n^2")) return "O(n^2)";
+  if (s.includes("n*m") || s.includes("nm") || s.includes("n×m")) return "O(n^2)";
+  if (s.includes("nlogn") || s.includes("nlog")) return "O(n log n)";
+
+  // ─── Multi-variable linear → O(n) ────────────────────────────────────────
+  if (s === "o(n+m+k)") return "O(n)";
+  if (/^o\(([a-z]\+)*[a-z]\)$/.test(s)) return "O(n)";
+  if (s === "o(n+m)" || s === "o(m+n)") return "O(n)";
+
+  // ─── Standard cases ───────────────────────────────────────────────────────
   if (s === "o(1)" || s === "constant") return "O(1)";
   if (s === "o(logn)" || s === "o(log(n))") return "O(log n)";
   if (s === "o(n)" || s === "linear") return "O(n)";
-  if (s === "o(n+m)" || s === "o(m+n)") return "O(n)";
-  if (s === "o(n*m)" || s === "o(nm)" || s === "o(n,m)") return "O(n*m)";
-  if (s === "o(nlogn)" || s === "o(nlog(n))") return "O(n log n)";
-  if (s === "o(n^2)" || s === "o(n²)" || s === "o(n2)" || s === "quadratic") return "O(n^2)";
+  if (s === "o(n,m)") return "O(n*m)";
   if (s === "o(n^2logn)" || s === "o(n²logn)" || s === "o(n^2log(n))") return "O(n^2 log n)";
-  if (s === "o(n^3)" || s === "o(n³)" || s === "o(n3)") return "O(n^3)";
-  if (s === "o(2^n)" || s === "o(2n)" || s === "exponential") return "O(2^n)";
+  if (s === "o(2n)" || s === "exponential") return "O(2^n)";
 
-  // ─── Smart fallback: if no quadratic/exponential terms → treat as O(n) ───
+  // ─── Smart fallback: no quadratic/exponential terms → treat as O(n) ───────
   if (
     !s.includes("^2") &&
     !s.includes("^3") &&
