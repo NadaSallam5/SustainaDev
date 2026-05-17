@@ -515,12 +515,22 @@ $('load-recommendations').addEventListener('click',loadRecommendations);
     }
     function getSustain(row){
       const s=row?.sustainability;if(!s)return null;
-      if(s.after!==undefined)return{energyKwh:s.after.energyKwh,carbonGrams:s.after.carbonGrams,sustainabilityScore:s.sustainabilityScore,beforeEnergyKwh:s.before?.energyKwh,beforeCarbonGrams:s.before?.carbonGrams,savedEnergyKwh:s.saved?.energyKwh,savedCarbonGrams:s.saved?.carbonGrams};
+      if(s.after!==undefined)return{
+        energyKwh:s.after.energyKwh,carbonGrams:s.after.carbonGrams,
+        energyFormatted:s.after.energyFormatted,carbonFormatted:s.after.carbonFormatted,
+        beforeEnergyKwh:s.before?.energyKwh,beforeCarbonGrams:s.before?.carbonGrams,
+        beforeEnergyFormatted:s.before?.energyFormatted,beforeCarbonFormatted:s.before?.carbonFormatted,
+        savedEnergyKwh:s.saved?.energyKwh,savedCarbonGrams:s.saved?.carbonGrams,
+        savedEnergyFormatted:s.saved?.energyFormatted,savedCarbonFormatted:s.saved?.carbonFormatted,
+      };
       return s;
     }
     function getSavedEnergy(row){const s=row?.sustainability;if(s?.saved?.energyKwh!=null)return Number(s.saved.energyKwh);return Number(row?.energy?.estimated_kwh_saved??0);}
     function getSavedCO2grams(row){const s=row?.sustainability;if(s?.saved?.carbonGrams!=null)return Number(s.saved.carbonGrams);return Number(row?.energy?.estimated_co2_saved_kg??row?.energy?.emissions_kg??0)*1000;}
-
+function fmtVal(formatted,raw,decimals){
+      if(formatted)return formatted;
+      return nf(Number(raw||0),decimals||6);
+    }
     function renderAll(){updateKPIs();renderTable();renderFrequency();renderSustainabilityTab();renderInsights();renderIndividualLogs();renderQuickStats();drawAllCharts();}
 
     function updateKPIs(){
@@ -550,8 +560,8 @@ $('load-recommendations').addEventListener('click',loadRecommendations);
           <td><span class="badge badge-info">${esc(row.refactor||'')}</span></td>
           <td style="font-family:var(--mono);color:var(--danger)">${bigO.before?esc(bigO.before):'—'}</td>
           <td style="font-family:var(--mono);color:var(--accent)">${bigO.after?esc(bigO.after):'—'}</td>
-          <td style="font-family:var(--mono)">${nf(energy,6)} kWh</td>
-          <td style="font-family:var(--mono)">${nf(co2g,4)} g</td>
+          <td style="font-family:var(--mono)">${fmtVal(row?.sustainability?.saved?.energyFormatted,energy,6)}</td>
+          <td style="font-family:var(--mono)">${fmtVal(row?.sustainability?.saved?.carbonFormatted,co2g,4)}</td>
           <td><button class="btn-ghost" style="padding:5px 10px;font-size:11px" onclick="selectRow(${i})">View</button></td>`;
         tbody.appendChild(tr);
       });
@@ -601,16 +611,14 @@ $('load-recommendations').addEventListener('click',loadRecommendations);
       let html='';
       entries.forEach((row,i)=>{
         const fn=(row.file||'').split('\\').pop()||'—';
-        const savedE=getSavedEnergy(row);
-        const savedC=getSavedCO2grams(row);
         const s=getSustain(row);
         html+=`<div class="sustain-run-card">
           <div class="src-header"><span class="src-num">Run #${i+1}</span><span class="src-file">${esc(fn)}</span></div>
           <div class="src-grid">
-            <div class="src-item"><div class="src-l">⚡ Before Energy</div><div class="src-v red">${nf(s.beforeEnergyKwh,6)}</div><div class="src-u">kWh</div></div>
-            <div class="src-item"><div class="src-l">⚡ After Energy</div><div class="src-v">${nf(s.energyKwh,6)}</div><div class="src-u">kWh</div></div>
-            <div class="src-item"><div class="src-l">💚 Energy Saved</div><div class="src-v">${nf(savedE,6)}</div><div class="src-u">kWh</div></div>
-            <div class="src-item"><div class="src-l">💚 Carbon Saved</div><div class="src-v">${nf(savedC,4)}</div><div class="src-u">gCO₂</div></div>
+            <div class="src-item"><div class="src-l">⚡ Before Energy</div><div class="src-v red">${fmtVal(s.beforeEnergyFormatted,s.beforeEnergyKwh,6)}</div></div>
+            <div class="src-item"><div class="src-l">⚡ After Energy</div><div class="src-v">${fmtVal(s.energyFormatted,s.energyKwh,6)}</div></div>
+            <div class="src-item"><div class="src-l">💚 Energy Saved</div><div class="src-v">${fmtVal(s.savedEnergyFormatted,s.savedEnergyKwh,6)}</div></div>
+            <div class="src-item"><div class="src-l">💚 Carbon Saved</div><div class="src-v">${fmtVal(s.savedCarbonFormatted,s.savedCarbonGrams,4)}</div></div>
           </div>
           <div class="src-time">${row.timestamp?new Date(row.timestamp).toLocaleString():''}</div>
         </div>`;
@@ -663,12 +671,12 @@ $('load-recommendations').addEventListener('click',loadRecommendations);
           </div>
           ${bigO.before&&bigO.after?`<div class="comparison" style="margin:10px 0"><div class="cmp-side cmp-before"><div class="cmp-label">Before</div><div class="cmp-value">${esc(bigO.before)}</div></div><div class="cmp-arrow">→</div><div class="cmp-side cmp-after"><div class="cmp-label">After</div><div class="cmp-value">${esc(bigO.after)}</div></div></div>`:''}
           ${sustain?`<div class="sustain-highlight"><h4>🌱 Sustainability Metrics</h4><div class="sh-grid">
-            <div class="sh-item"><div class="sh-l">⚡ Before Energy</div><div class="sh-v" style="color:var(--danger)">${nf(sustain.beforeEnergyKwh,6)}</div><div class="sh-s">kWh</div></div>
-            <div class="sh-item"><div class="sh-l">⚡ After Energy</div><div class="sh-v">${nf(sustain.energyKwh,6)}</div><div class="sh-s">kWh</div></div>
-            <div class="sh-item"><div class="sh-l">💚 Energy Saved</div><div class="sh-v" style="color:var(--accent)">${nf(sustain.savedEnergyKwh,6)}</div><div class="sh-s">kWh</div></div>
-            <div class="sh-item"><div class="sh-l">💨 Before Carbon</div><div class="sh-v" style="color:var(--danger)">${nf(sustain.beforeCarbonGrams,4)}</div><div class="sh-s">gCO₂</div></div>
-            <div class="sh-item"><div class="sh-l">💨 After Carbon</div><div class="sh-v">${nf(sustain.carbonGrams,4)}</div><div class="sh-s">gCO₂</div></div>
-            <div class="sh-item"><div class="sh-l">💚 Carbon Saved</div><div class="sh-v" style="color:var(--accent)">${nf(sustain.savedCarbonGrams,4)}</div><div class="sh-s">gCO₂</div></div>
+            <div class="sh-item"><div class="sh-l">⚡ Before Energy</div><div class="sh-v" style="color:var(--danger)">${fmtVal(sustain.beforeEnergyFormatted,sustain.beforeEnergyKwh,6)}</div></div>
+            <div class="sh-item"><div class="sh-l">⚡ After Energy</div><div class="sh-v">${fmtVal(sustain.energyFormatted,sustain.energyKwh,6)}</div></div>
+            <div class="sh-item"><div class="sh-l">💚 Energy Saved</div><div class="sh-v" style="color:var(--accent)">${fmtVal(sustain.savedEnergyFormatted,sustain.savedEnergyKwh,6)}</div></div>
+            <div class="sh-item"><div class="sh-l">💨 Before Carbon</div><div class="sh-v" style="color:var(--danger)">${fmtVal(sustain.beforeCarbonFormatted,sustain.beforeCarbonGrams,4)}</div></div>
+            <div class="sh-item"><div class="sh-l">💨 After Carbon</div><div class="sh-v">${fmtVal(sustain.carbonFormatted,sustain.carbonGrams,4)}</div></div>
+            <div class="sh-item"><div class="sh-l">💚 Carbon Saved</div><div class="sh-v" style="color:var(--accent)">${fmtVal(sustain.savedCarbonFormatted,sustain.savedCarbonGrams,4)}</div></div>
           </div></div>`:`<div style="margin-top:10px;padding:10px 14px;background:var(--chip);border-radius:8px;font-size:12px;color:var(--muted)">⚠ No sustainability data for this entry</div>`}
           <div style="margin-top:14px"><div class="muted" style="font-size:10px;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:6px">Reason</div><div class="reason-box">${esc(row.reason||'No explanation available.')}</div></div>
         </div>`;

@@ -12,7 +12,6 @@ import {
   buildOptimizationPatch,
   logOptimizationFromReport,
 } from "../business/refactor/optimizeComplexity";
-import { initPaths, startCpuSampling } from "../business/codeCarbon";
 import { UniversalLspAnalyzer } from "../business/analyzer/universalLspAnalyzer";
 import { UnsupportedLanguageError } from "../business/analyzer/analyzerTypes";
 import si from "systeminformation";
@@ -81,7 +80,6 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
   }
 
   isRunning = true;
-  initPaths(context);
   vscode.window.showInformationMessage("🚀 SustainaDev pipeline started...");
 
   try {
@@ -348,8 +346,8 @@ sustainaDevOutput.appendLine(`    Energy   ${fmtEnergy(afterResult.energyKwh)}`)
 sustainaDevOutput.appendLine(`    Carbon   ${fmtCarbon(afterResult.carbonGrams)}`);
 sustainaDevOutput.appendLine(``);
 sustainaDevOutput.appendLine(`  Saved   (real measurement — ${report.before} → ${report.after})`);
-sustainaDevOutput.appendLine(`    ${savedEnergyPct}% less energy  (${fmtEnergy(savedEnergy)} per call)`);
-sustainaDevOutput.appendLine(`    ${savedCarbonPct}% less carbon  (${fmtCarbon(savedCarbon)} per call)`);
+sustainaDevOutput.appendLine(`    Energy   ${fmtEnergy(savedEnergy)} saved  (${savedEnergyPct}%)`);
+sustainaDevOutput.appendLine(`    Carbon   ${fmtCarbon(savedCarbon)} saved  (${savedCarbonPct}%)`);
 sustainaDevOutput.appendLine(``);
 } catch (err) {
   sustainaDevOutput.appendLine("Sustainability analysis failed:");
