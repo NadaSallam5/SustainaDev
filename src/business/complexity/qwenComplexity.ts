@@ -1,5 +1,38 @@
 import { AIComplexityResult } from "./types";
 
+// ─── Helper: normalize multi-variable linear expressions → O(n) ──────────────
+function normalizeMultiVar(expr: string): string {
+  const s = expr.trim().toLowerCase().replace(/\s+/g, "");
+  // Matches: O(n+m), O(n+m+k), O(a+b+c+d), etc.
+  if (/^o\(([a-z]\+)*[a-z]\)$/.test(s)) return "O(n)";
+  return expr;
+}
+
+// ─── Helper: extract dominant Big-O term from complex expressions ─────────────
+function extractDominantTerm(expr: string): string {
+  const s = expr.trim().toLowerCase().replace(/\s+/g, "");
+
+  // O(n^2 + anything) → O(n^2)
+  if (s.includes("n^2") || s.includes("n²") || s.includes("n2")) return "O(n^2)";
+
+  // O(n^3 + anything) → O(n^3)
+  if (s.includes("n^3") || s.includes("n³")) return "O(n^3)";
+
+  // O(2^n + anything) → O(2^n)
+  if (s.includes("2^n")) return "O(2^n)";
+
+  // O(n log n + anything) → O(n log n)
+  if (s.includes("nlogn") || s.includes("nlog")) return "O(n log n)";
+
+  // O(n*m) or O(n×m) → O(n^2)
+  if (s.includes("n*m") || s.includes("n×m") || s.includes("nm")) return "O(n^2)";
+
+  // O(n + anything linear) → O(n)
+  if (s.includes("n")) return "O(n)";
+
+  return expr;
+}
+
 // ─── Sanity check: catch obvious Qwen mistakes ───────────────────────────────
 function sanitizeWithFacts(
   time: string,
@@ -8,7 +41,31 @@ function sanitizeWithFacts(
 ): { time: string; space: string; corrected: boolean } {
   let corrected = false;
 
+  // ✅ Step 1: Normalize multi-variable linear expressions
+  const normalizedTime = normalizeMultiVar(time);
+  const normalizedSpace = normalizeMultiVar(space);
+  if (normalizedTime !== time) { time = normalizedTime; corrected = true; }
+  if (normalizedSpace !== space) { space = normalizedSpace; corrected = true; }
+
+  // ✅ Step 2: Extract dominant term from complex expressions like O(n^2 + n*m)
+  const dominantTime = extractDominantTerm(time);
+  const dominantSpace = extractDominantTerm(space);
+  if (dominantTime !== time) { time = dominantTime; corrected = true; }
+  if (dominantSpace !== space) { space = dominantSpace; corrected = true; }
+
   // ─── TIME: Only correct truly impossible answers ──────────────────────────
+
+  // ✅ FIX: HashMap optimization — nested loop + HashMap lookup = O(n)
+  // The inner loop was replaced by O(1) HashMap lookups, so overall is O(n).
+  // This must come FIRST before other nested loop checks.
+  if (
+  time === "O(n^2)" &&
+  facts.hasHashMapLookup &&
+  (facts.maxLoopDepth ?? 0) <= 2
+) {
+  time = "O(n)";
+  corrected = true;
+}
 
   // Qwen said O(1) but there are loops → physically impossible
   if (time === "O(1)" && (facts.maxLoopDepth ?? 0) >= 1) {
@@ -34,50 +91,42 @@ function sanitizeWithFacts(
     corrected = true;
   }
 
-  // ✅ NEW: Qwen said O(n^2) but StringBuilder detected → string concat optimized
-  if (time === "O(n^2)" && facts.hasStringBuilder && !facts.hasNestedLoop) {
+  // ✅ Qwen said O(n^2) but StringBuilder detected → string concat optimized
+  if (time === "O(n^2)" && facts.usesStringBuilder && !facts.hasNestedLoop) {
     time = "O(n)";
     corrected = true;
   }
 
-  // ✅ NEW: Qwen said O(n^2) but no nested loops and no string concat → wrong
+  // ✅ Qwen said O(n^2) but no nested loops and no string concat → wrong
   if (
     time === "O(n^2)" &&
     !facts.hasNestedLoop &&
     !facts.hasStringConcatInLoop &&
-    !facts.hasStringBuilder === false
+    !facts.usesStringBuilder
   ) {
     time = "O(n)";
     corrected = true;
   }
 
-  // ✅ NEW: Qwen returned O(n + m + k) or any multi-variable linear expression
-  // e.g. O(n + m), O(n + m + k), O(a + b + c + d) → collapse to O(n)
-  // Qwen is technically correct but we normalize to a single variable for reporting
-
-
   // ─── SPACE: Only correct truly impossible answers ─────────────────────────
 
-  // Qwen said O(1) space but HashMap exists → impossible, HashMap costs O(n)
+  // Qwen said O(1) space but HashMap exists → impossible
   if (space === "O(1)" && facts.hasHashMapLookup) {
     space = "O(n)";
     corrected = true;
   }
 
-  // Qwen said O(1) space but recursion exists → impossible, call stack costs O(n)
+  // Qwen said O(1) space but recursion exists → impossible
   if (space === "O(1)" && facts.callsSelf) {
     space = "O(n)";
     corrected = true;
   }
 
-  // ✅ NEW: StringBuilder uses O(n) space
-  if (space === "O(1)" && facts.hasStringBuilder) {
+  // ✅ StringBuilder uses O(n) space
+  if (space === "O(1)" && facts.usesStringBuilder) {
     space = "O(n)";
     corrected = true;
   }
-
-  // ✅ NEW: Normalize multi-variable linear space expressions → O(n)
- 
 
   return { time, space, corrected };
 }
@@ -124,14 +173,14 @@ export async function estimateComplexityWithQwen(
   const prompt = `
 You are an expert algorithm analyst specialized in Big-O complexity analysis.
 
-Analyze this code carefully. Focus ONLY on the method named "${methodName}". Ignore all other methods completely.
+Analyze this code carefully:
 
 \`\`\`
 ${code}
 \`\`\`
 
-Think step by step about "${methodName}" ONLY:
-1. Find all loops inside "${methodName}" — are they NESTED inside each other, or SEQUENTIAL?
+Think step by step:
+1. Find all loops — are they NESTED inside each other, or SEQUENTIAL (one after another)?
 2. Find any recursion
 3. Find any sorting calls (like .sort(), Collections.sort())
 4. Find any HashMap or HashSet usage
@@ -152,13 +201,15 @@ Critical rules you MUST follow:
 - No extra data structures = O(1) space
 - NEVER return "Unknown" or ranges — always pick ONE exact value
 - Sequential loops = O(n), NOT O(n^2)
-- String += inside a loop = O(n^2) because each concatenation copies the entire accumulated string (strings are immutable)
-- StringBuilder.append() inside a loop = O(n) because appending is amortized O(1) — even if there is a loop, it is NOT O(n^2)
+- NEVER return O(n + m), O(n + m + k), or any multi-variable form — always simplify to O(n)
+- NEVER return complex expressions like O(n^2 + n*m) — always return ONLY the dominant term
+- If complexity has multiple terms, return only the largest: O(n^2 + n) = O(n^2)
+- O(n * m) where n and m are different lists = O(n^2) for reporting
+- String += inside a loop = O(n^2) because each concatenation copies the entire accumulated string
+- StringBuilder.append() inside a loop = O(n) because appending is amortized O(1)
 - StringBuffer.append() inside a loop = O(n) same as StringBuilder
-- StringBuilder or StringBuffer usage = O(n) space because it grows with input
-- O(n + m + k) where all variables represent different list sizes = O(n) — always collapse multi-variable linear expressions into O(n)
-- Sequential loops over different lists (one after another, not nested) = O(n) total, NOT O(n + m + k)
-- HashMap pre-built before main loop + O(1) lookups inside main loop = O(n) overall, not O(n^2)
+- StringBuilder or StringBuffer usage = O(n) space
+- HashMap pre-built before main loop + O(1) lookups inside = O(n) overall
 
 Return ONLY this JSON, no extra text, no markdown:
 {
@@ -183,12 +234,12 @@ Return ONLY this JSON, no extra text, no markdown:
       if (attempts >= maxAttempts) {
         console.error("❌ Qwen failed all attempts, using facts-based fallback");
         return {
-          timeComplexity: facts.hasStringBuilder ? "O(n)" :
+          timeComplexity: facts.usesStringBuilder ? "O(n)" :
                           facts.hasNestedLoop ? "O(n^2)" :
                           facts.hasHashMapLookup ? "O(n)" :
                           facts.hasStringConcatInLoop ? "O(n^2)" :
                           (facts.maxLoopDepth ?? 0) >= 1 ? "O(n)" : "O(1)",
-          spaceComplexity: facts.hasStringBuilder ? "O(n)" :
+          spaceComplexity: facts.usesStringBuilder ? "O(n)" :
                            facts.hasHashMapLookup ? "O(n)" :
                            facts.callsSelf ? "O(n)" : "O(1)",
           explanation: "Fallback: Qwen unavailable, estimated from structural facts.",

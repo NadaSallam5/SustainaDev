@@ -169,19 +169,21 @@ public class OrderFulfillmentService {
 
         LOGGER.info("Assigning carriers to " + fulfillments.size() + " fulfillments.");
         List<OrderShipment> shipments = new ArrayList<>();
-
-        // Step 1: Build a map of warehouseId to shippingZone
         Map<String, String> warehouseToShippingZoneMap = new HashMap<>();
+
+        // Build lookup map for warehouseId to shippingZone
         for (WarehouseStock stock : stockSnapshot) {
-            warehouseToShippingZoneMap.put(stock.warehouseId, stock.shippingZone);
+            if (!warehouseToShippingZoneMap.containsKey(stock.warehouseId)) {
+                warehouseToShippingZoneMap.put(stock.warehouseId, stock.shippingZone);
+            }
         }
 
-        // Step 2: Build a map of coverageZone to cheapest carrier
-        Map<String, ShippingCarrier> zoneToBestCarrierMap = new HashMap<>();
+        Map<String, ShippingCarrier> carrierByCoverageZone = new HashMap<>();
+
+        // Build lookup map for coverageZone to best carrier
         for (ShippingCarrier carrier : availableCarriers) {
-            if (!zoneToBestCarrierMap.containsKey(carrier.coverageZone) ||
-                    carrier.costPerUnit < zoneToBestCarrierMap.get(carrier.coverageZone).costPerUnit) {
-                zoneToBestCarrierMap.put(carrier.coverageZone, carrier);
+            if (!carrierByCoverageZone.containsKey(carrier.coverageZone)) {
+                carrierByCoverageZone.put(carrier.coverageZone, carrier);
             }
         }
 
@@ -197,7 +199,7 @@ public class OrderFulfillmentService {
                 continue;
             }
 
-            ShippingCarrier bestCarrier = zoneToBestCarrierMap.get(shippingZone);
+            ShippingCarrier bestCarrier = carrierByCoverageZone.get(shippingZone);
             if (bestCarrier != null) {
                 double totalCost = bestCarrier.costPerUnit * fulfillment.allocatedQuantity;
                 shipments.add(new OrderShipment(fulfillment.orderId, bestCarrier.carrierId, totalCost, "ASSIGNED"));
