@@ -45,7 +45,6 @@ async function pollForLspErrors(uri: vscode.Uri, initialErrorCount: number): Pro
 const NATIVE_IMPORT_LANGUAGES = new Set([
   "typescript",
   "javascript",
-
 ]);
 
 async function applyMissingImports(
@@ -76,40 +75,51 @@ async function applyMissingImports(
   );
   const seenTitles = new Set<string>();
 
-  for (const diag of errorDiags) {
-    try {
-      const actions = await vscode.commands.executeCommand<vscode.CodeAction[]>(
-        "vscode.executeCodeActionProvider",
-        uri,
-        diag.range,
-        undefined,
-        5
-      );
-      const fix = actions?.find(
-        (a) =>
-          !seenTitles.has(a.title) &&
-          (a.edit || a.command) &&
-          IMPORT_TERMS.some((term) => a.title.toLowerCase().includes(term))
-      );
-      if (fix) {
-        seenTitles.add(fix.title);
-        if (fix.edit) {
-          await vscode.workspace.applyEdit(fix.edit);
+  // ── TIMEOUT FIX: never hang forever waiting for LSP import resolution ──────
+  const importWork = async () => {
+    for (const diag of errorDiags) {
+      try {
+        const actions = await vscode.commands.executeCommand<vscode.CodeAction[]>(
+          "vscode.executeCodeActionProvider",
+          uri,
+          diag.range,
+          undefined,
+          5
+        );
+        const fix = actions?.find(
+          (a) =>
+            !seenTitles.has(a.title) &&
+            (a.edit || a.command) &&
+            IMPORT_TERMS.some((term) => a.title.toLowerCase().includes(term))
+        );
+        if (fix) {
+          seenTitles.add(fix.title);
+          if (fix.edit) {
+            await vscode.workspace.applyEdit(fix.edit);
+          }
+          if (fix.command) {
+            await vscode.commands.executeCommand(
+              fix.command.command,
+              ...(fix.command.arguments || [])
+            );
+          }
+          console.log(`  ✅ Applied: "${fix.title}"`);
+        } else {
+          console.log(`  ⏭️ No import/include fix found for: "${diag.message}"`);
         }
-        if (fix.command) {
-          await vscode.commands.executeCommand(
-            fix.command.command,
-            ...(fix.command.arguments || [])
-          );
-        }
-        console.log(`  ✅ Applied: "${fix.title}"`);
-      } else {
-        console.log(`  ⏭️ No import/include fix found for: "${diag.message}"`);
+      } catch (e) {
+        console.warn(`  ⚠️ Could not resolve quick fix for: ${diag.message}`, e);
       }
-    } catch (e) {
-      console.warn(`  ⚠️ Could not resolve quick fix for: ${diag.message}`, e);
     }
-  }
+  };
+
+  // Give LSP 5 seconds max — then move on regardless
+  await Promise.race([
+    importWork(),
+    new Promise<void>((resolve) => setTimeout(resolve, 5000)),
+  ]);
+  console.log("✅ Import resolution done or timed out.");
+  // ── END TIMEOUT FIX ────────────────────────────────────────────────────────
 
   await new Promise((r) => setTimeout(r, 50));
 }
@@ -368,12 +378,17 @@ function getTaskInstructions(smellType: string): string {
       "If it's a state formula:\n" +
       "while(val > 0) { val = update(val); } return val;\n",
 
-    NESTED_LOOPS:
-      "Optimize O(N^2) complexity to O(N) by eliminating ALL inner loops. For EACH inner loop, build a lookup HashMap from that loop's collection BEFORE the main loop begins. Use the join condition as the key.\n" +
-      "Example:\n" +
-      "Map<String, User> userMap = new HashMap<>();\n" +
-      "for (User u : users) { userMap.put(u.id, u); }\n" +
-      "// Then in the main loop: User u = userMap.get(order.userId);\n",
+   NESTED_LOOPS:
+  "Optimize O(N^2) or O(N^3) complexity to O(N) by eliminating ALL inner loops.\n" +
+  "CASE 1 — Data lookup loops: For EACH inner loop that searches a collection, build a lookup HashMap BEFORE the main loop. Use the join condition as the key.\n" +
+  "Example:\n" +
+  "Map<String, User> userMap = new HashMap<>();\n" +
+  "for (User u : users) { userMap.put(u.id, u); }\n" +
+  "// Then in the main loop: User u = userMap.get(order.userId);\n" +
+  "CASE 2 — Counter/accumulator loops: If the nested loops only increment a counter, keep ONE outer loop and replace the inner loops with a mathematical multiplication.\n" +
+"NEVER use Math.pow() or ** operator. NEVER remove all loops completely.\n" +
+"Example: for i { for j { for k { count++ } } } → const length = arr.length; for (let i = 0; i < length; i++) { count += length * length; }\n" +
+"CRITICAL: Pick CASE 1 or CASE 2 based on what the inner loops actually do.\n",
 
     STRING_BUILDER:
       "Replace all String concatenation inside loops with a StringBuilder (Java), an array + join (JS/TS/Python), or equivalent. " +
@@ -585,7 +600,7 @@ function parseAiResponse(
  * Extract just the target method body so we can estimate Big-O.
  * This is a heuristic (NOT a formal proof) but it matches the simple reporting style you show in the console.
  */
-function extractMethodBody(fullCode: string, methodName: string): string {
+export function extractMethodBody(fullCode: string, methodName: string): string {
   // Find the method signature line (very forgiving regex).
   const sig = new RegExp(`\\b${methodName}\\s*\\(`);
   const lines = fullCode.split(/\r?\n/);
@@ -619,8 +634,6 @@ function extractMethodBody(fullCode: string, methodName: string): string {
 
   return out.join("\n");
 }
-
-
 
 function bigOToScore(bigO: string): number {
   const s = (bigO || "").replace(/\s+/g, "").toLowerCase();

@@ -12,4 +12,8 @@ export interface MethodFacts {
 
   hasSortingCall: boolean;
   sortInsideLoop: boolean;
+listParamCount: number;
+  hasNestedLoop: boolean;      // ✅ NEW
+hasHashMapLookup: boolean;  
+usesStringBuilder: boolean; // ✅ NEW
 }

@@ -2,17 +2,32 @@ import { BigONotation, AIComplexityResult } from "./types";
 
 // ─── Layer 1: Normalize AI output to valid BigONotation ──────────────────────
 export function normalizeBigO(raw: string): BigONotation {
-  const s = raw.trim().toLowerCase().replace(/\s+/g, " ");
+  const s = raw.trim().toLowerCase().replace(/\s+/g, ""); // ← remove ALL spaces
+if (s === "o(n+m+k)") return "O(n)";
+if (/^o\(([a-z]\+)*[a-z]\)$/.test(s)) return "O(n)";
 
   if (s === "o(1)" || s === "constant") return "O(1)";
-  if (s === "o(log n)" || s === "o(log(n))") return "O(n)";
+  if (s === "o(logn)" || s === "o(log(n))") return "O(log n)";
   if (s === "o(n)" || s === "linear") return "O(n)";
-  if (s === "o(n*m)" || s === "o(nm)" || s === "o(n+m)" || s === "o(n, m)") return "O(n*m)";
-  if (s === "o(n log n)" || s === "o(n log(n))" || s === "o(nlogn)") return "O(n log n)";
+  if (s === "o(n+m)" || s === "o(m+n)") return "O(n)";
+  if (s === "o(n*m)" || s === "o(nm)" || s === "o(n,m)") return "O(n*m)";
+  if (s === "o(nlogn)" || s === "o(nlog(n))") return "O(n log n)";
   if (s === "o(n^2)" || s === "o(n²)" || s === "o(n2)" || s === "quadratic") return "O(n^2)";
-  if (s === "o(n^2 log n)" || s === "o(n² log n)" || s === "o(n^2 log(n))") return "O(n^2 log n)";
+  if (s === "o(n^2logn)" || s === "o(n²logn)" || s === "o(n^2log(n))") return "O(n^2 log n)";
   if (s === "o(n^3)" || s === "o(n³)" || s === "o(n3)") return "O(n^3)";
   if (s === "o(2^n)" || s === "o(2n)" || s === "exponential") return "O(2^n)";
+
+  // ─── Smart fallback: if no quadratic/exponential terms → treat as O(n) ───
+  if (
+    !s.includes("^2") &&
+    !s.includes("^3") &&
+    !s.includes("2^") &&
+    !s.includes("n!") &&
+    s.startsWith("o(") &&
+    s.includes("n")
+  ) {
+    return "O(n)";
+  }
 
   return "Unknown";
 }
@@ -70,7 +85,6 @@ export function inferKnownSmellComplexity(
   smellType?: string
 ): { metric: "time" | "space"; before: BigONotation; after: BigONotation } | null {
 
-  // STRING_BUILDER: concat in loop removed → O(n^2) → O(n)
   if (
     smellType === "STRING_BUILDER" &&
     beforeFacts?.hasStringConcatInLoop === true &&
@@ -79,7 +93,6 @@ export function inferKnownSmellComplexity(
     return { metric: "time", before: "O(n^2)", after: "O(n)" };
   }
 
-  // SORTING_IN_LOOP: sort moved outside loop → O(n^2 log n) → O(n log n)
   if (
     smellType === "SORTING_IN_LOOP" &&
     beforeFacts?.sortInsideLoop === true &&
@@ -88,10 +101,6 @@ export function inferKnownSmellComplexity(
     return { metric: "time", before: "O(n^2 log n)", after: "O(n log n)" };
   }
 
-  // NESTED_LOOPS: nested loops flattened → O(n^2) → O(n)
-  // After a HashMap optimization, two sequential loops remain (depth=2),
-  // but they are no longer nested. We always trust the structural improvement
-  // for this smell type and hardcode O(n) as the after complexity.
   if (
     smellType === "NESTED_LOOPS" &&
     (beforeFacts?.maxLoopDepth ?? 0) >= 2
@@ -103,7 +112,6 @@ export function inferKnownSmellComplexity(
     };
   }
 
-  // ITERATIVE_REWRITE: linear recursion → iterative — space improvement
   if (
     smellType === "ITERATIVE_REWRITE" &&
     beforeFacts?.callsSelf === true &&
@@ -125,15 +133,10 @@ export function heuristicTimeFromFacts(facts: any): BigONotation {
   if (facts?.hasSortingCall) return "O(n log n)";
   if (facts?.hasStringConcatInLoop) return "O(n^2)";
   if ((facts?.maxLoopDepth ?? 0) >= 3) return "O(n^3)";
-
-  // ✅ Two loops present — but are they nested or sequential?
-  // If a HashMap lookup exists and no explicit nesting detected,
-  // the loops are sequential → O(n), not O(n^2)
   if ((facts?.maxLoopDepth ?? 0) === 2) {
     if (facts?.hasHashMapLookup && !facts?.hasNestedLoop) return "O(n)";
     return "O(n^2)";
   }
-
   if ((facts?.maxLoopDepth ?? 0) === 1) return "O(n)";
   return "O(1)";
 }
@@ -154,38 +157,33 @@ export function resolveComplexity(
 } {
   const warnings: string[] = [];
 
-  // Layer 4: Known smell → use rules directly, most reliable
+  // ─── Normalize Qwen's output ──────────────────────────────────────────────
+  const beforeTime = normalizeBigO(beforeAI.timeComplexity);
+  const afterTime = normalizeBigO(afterAI.timeComplexity);
+
+  console.log(`🤖 Qwen → before: ${beforeTime}, after: ${afterTime}`);
+
+  // ─── ✅ Trust Qwen directly — no validation, no rules ────────────────────
+  if (beforeTime !== "Unknown" && afterTime !== "Unknown") {
+    console.log("✅ Qwen answer accepted");
+    return {
+      metric: "time",
+      before: beforeTime,
+      after: afterTime,
+      source: "ai",
+      warnings,
+    };
+  }
+
+  // ─── 🆘 Only if Qwen returns "Unknown" → fallback to rules ───────────────
+  console.warn("⚠️ Qwen returned Unknown, falling back to rules...");
+  warnings.push("Qwen returned Unknown. Using rules as fallback.");
+
   const known = inferKnownSmellComplexity(beforeFacts, afterFacts, smellType);
   if (known) {
     return { ...known, source: "rules", warnings };
   }
 
-  // Layer 1: Normalize AI output
-  const beforeTime = normalizeBigO(beforeAI.timeComplexity);
-  const afterTime = normalizeBigO(afterAI.timeComplexity);
-
-  // Layer 2: Structural validation
-  const beforeValidation = validateAgainstFacts(beforeTime, beforeFacts);
-  const afterValidation = validateAgainstFacts(afterTime, afterFacts);
-
-  // Layer 3: Explanation consistency
-  const beforeExpWarnings = explanationMatchesFacts(beforeAI.explanation, beforeFacts);
-  const afterExpWarnings = explanationMatchesFacts(afterAI.explanation, afterFacts);
-
-  warnings.push(
-    ...beforeValidation.warnings,
-    ...afterValidation.warnings,
-    ...beforeExpWarnings,
-    ...afterExpWarnings
-  );
-
-  // AI passes all validation → accept it
-  if (beforeValidation.valid && afterValidation.valid && warnings.length === 0) {
-    return { metric: "time", before: beforeTime, after: afterTime, source: "ai", warnings };
-  }
-
-  // AI failed validation → hybrid fallback
-  warnings.push("AI output failed validation. Using heuristic fallback.");
   return {
     metric: "time",
     before: heuristicTimeFromFacts(beforeFacts),

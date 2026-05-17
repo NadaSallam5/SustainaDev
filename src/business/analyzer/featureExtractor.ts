@@ -13,10 +13,12 @@ export function extractFeatures(
     sortingCalls: 0,
     sortingInsideLoop: false,
     methodLength: 0,
+    hasNestedLoop: false,
+    hasHashMapLookup: false,
+    usesStringBuilder: false, // ✅ NEW
   };
 
   let depth = 0;
-
   const stringVars = new Set<string>();
 
   function collectStringVars(node: any) {
@@ -117,6 +119,10 @@ export function extractFeatures(
       features.loops++;
       depth++;
       features.loopDepth = Math.max(features.loopDepth, depth);
+
+      if (depth >= 2) {
+        features.hasNestedLoop = true;
+      }
     }
 
     if (
@@ -124,14 +130,30 @@ export function extractFeatures(
       node.type === "call_expression" ||
       node.type === "call"
     ) {
-      const text = node.text;
+      const text = node.text ?? "";
 
       if (text.includes("sort")) {
         features.sortingCalls++;
         if (depth > 0) features.sortingInsideLoop = true;
       }
 
-      // ✅ AST-based recursion detection (most reliable)
+      // ✅ Detect HashMap/HashSet method calls
+      if (
+        text.includes(".get(") ||
+        text.includes(".put(") ||
+        text.includes(".containsKey(") ||
+        text.includes(".getOrDefault(") ||
+        text.includes(".add(")
+      ) {
+        features.hasHashMapLookup = true;
+      }
+
+      // ✅ Detect StringBuilder .append() usage
+      if (text.includes(".append(")) {
+        features.usesStringBuilder = true;
+      }
+
+      // ✅ AST-based recursion detection
       if (methodName) {
         const nameNode = node.children?.find(
           (c: any) => c.type === "identifier",
@@ -140,6 +162,29 @@ export function extractFeatures(
           features.recursion = true;
           features.recursiveCallCount++;
         }
+      }
+    }
+
+    // ✅ Detect HashMap from variable declarations
+    if (
+      node.type === "local_variable_declaration" ||
+      node.type === "field_declaration"
+    ) {
+      const text = node.text ?? "";
+      if (
+        text.includes("HashMap") ||
+        text.includes("HashSet") ||
+        text.includes("LinkedHashMap")
+      ) {
+        features.hasHashMapLookup = true;
+      }
+    }
+
+    // ✅ Detect: new StringBuilder() from object creation
+    if (node.type === "object_creation_expression") {
+      const text = node.text ?? "";
+      if (text.includes("StringBuilder")) {
+        features.usesStringBuilder = true;
       }
     }
 

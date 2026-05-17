@@ -68,6 +68,15 @@ export function sumArray(arr: number[]): number {
 // 6. DEEP LOOP (loopDepth = 3)
 // ========================================
 export function threeLevelLoop(arr: number[]): number {
-  let count = arr.length ** 3;
+  let count = 0;
+
+  for (let i = 0; i < arr.length; i++) {
+    for (let j = 0; j < arr.length; j++) {
+      for (let k = 0; k < arr.length; k++) {
+        count++;
+      }
+    }
+  }
+
   return count;
 }

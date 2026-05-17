@@ -9,7 +9,8 @@ export enum OptimizationStrategy {
   STRING_BUILDER    = "STRING_BUILDER",    // String concat in loop → builder
   NESTED_LOOPS      = "NESTED_LOOPS",      // O(N^2) loops → HashMap lookup
   SORTING_IN_LOOP   = "SORTING_IN_LOOP",   // Sort inside loop → hoist outside
-  SORTING           = "SORTING",           // Sort → linear scan if possible
+  SORTING           = "SORTING",    
+         // Sort → linear scan if possible
 }
 
 /**
