@@ -1,9 +1,7 @@
 
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Logger;
 
 public class OrderFulfillmentService {
@@ -169,37 +167,36 @@ public class OrderFulfillmentService {
 
         LOGGER.info("Assigning carriers to " + fulfillments.size() + " fulfillments.");
         List<OrderShipment> shipments = new ArrayList<>();
-        Map<String, String> warehouseToShippingZoneMap = new HashMap<>();
-
-        // Build lookup map for warehouseId to shippingZone
-        for (WarehouseStock stock : stockSnapshot) {
-            if (!warehouseToShippingZoneMap.containsKey(stock.warehouseId)) {
-                warehouseToShippingZoneMap.put(stock.warehouseId, stock.shippingZone);
-            }
-        }
-
-        Map<String, ShippingCarrier> carrierByCoverageZone = new HashMap<>();
-
-        // Build lookup map for coverageZone to best carrier
-        for (ShippingCarrier carrier : availableCarriers) {
-            if (!carrierByCoverageZone.containsKey(carrier.coverageZone)) {
-                carrierByCoverageZone.put(carrier.coverageZone, carrier);
-            }
-        }
 
         for (FulfillmentResult fulfillment : fulfillments) {
             if (!"FULFILLED".equals(fulfillment.status)) {
                 continue;
             }
 
-            String shippingZone = warehouseToShippingZoneMap.get(fulfillment.warehouseId);
+            String shippingZone = null;
+            for (WarehouseStock stock : stockSnapshot) {
+                if (fulfillment.warehouseId != null && fulfillment.warehouseId.equals(stock.warehouseId)) {
+                    shippingZone = stock.shippingZone;
+                    break;
+                }
+            }
+
             if (shippingZone == null) {
                 LOGGER.warning("Could not determine shipping zone for warehouse: " + fulfillment.warehouseId);
                 shipments.add(new OrderShipment(fulfillment.orderId, null, 0.0, "NO_CARRIER"));
                 continue;
             }
 
-            ShippingCarrier bestCarrier = carrierByCoverageZone.get(shippingZone);
+            // Step 2: Find the cheapest carrier for that zone
+            ShippingCarrier bestCarrier = null;
+            for (ShippingCarrier carrier : availableCarriers) {
+                if (shippingZone.equals(carrier.coverageZone)) {
+                    if (bestCarrier == null || carrier.costPerUnit < bestCarrier.costPerUnit) {
+                        bestCarrier = carrier;
+                    }
+                }
+            }
+
             if (bestCarrier != null) {
                 double totalCost = bestCarrier.costPerUnit * fulfillment.allocatedQuantity;
                 shipments.add(new OrderShipment(fulfillment.orderId, bestCarrier.carrierId, totalCost, "ASSIGNED"));

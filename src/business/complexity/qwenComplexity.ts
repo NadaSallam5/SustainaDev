@@ -3,7 +3,6 @@ import { AIComplexityResult } from "./types";
 // ─── Helper: normalize multi-variable linear expressions → O(n) ──────────────
 function normalizeMultiVar(expr: string): string {
   const s = expr.trim().toLowerCase().replace(/\s+/g, "");
-  // Matches: O(n+m), O(n+m+k), O(a+b+c+d), etc.
   if (/^o\(([a-z]\+)*[a-z]\)$/.test(s)) return "O(n)";
   return expr;
 }
@@ -11,25 +10,12 @@ function normalizeMultiVar(expr: string): string {
 // ─── Helper: extract dominant Big-O term from complex expressions ─────────────
 function extractDominantTerm(expr: string): string {
   const s = expr.trim().toLowerCase().replace(/\s+/g, "");
-
-  // O(n^2 + anything) → O(n^2)
   if (s.includes("n^2") || s.includes("n²") || s.includes("n2")) return "O(n^2)";
-
-  // O(n^3 + anything) → O(n^3)
   if (s.includes("n^3") || s.includes("n³")) return "O(n^3)";
-
-  // O(2^n + anything) → O(2^n)
   if (s.includes("2^n")) return "O(2^n)";
-
-  // O(n log n + anything) → O(n log n)
   if (s.includes("nlogn") || s.includes("nlog")) return "O(n log n)";
-
-  // O(n*m) or O(n×m) → O(n^2)
   if (s.includes("n*m") || s.includes("n×m") || s.includes("nm")) return "O(n^2)";
-
-  // O(n + anything linear) → O(n)
   if (s.includes("n")) return "O(n)";
-
   return expr;
 }
 
@@ -40,6 +26,14 @@ function sanitizeWithFacts(
   facts: any
 ): { time: string; space: string; corrected: boolean } {
   let corrected = false;
+
+  // ✅ Debug logs
+  console.log("🔬 sanitizeWithFacts INPUT time:", time);
+  console.log("🔬 facts.hasHashMapLookup:", facts.hasHashMapLookup);
+  console.log("🔬 facts.hasNestedLoop:", facts.hasNestedLoop);
+  console.log("🔬 facts.maxLoopDepth:", facts.maxLoopDepth);
+  console.log("🔬 facts.hasStringConcatInLoop:", facts.hasStringConcatInLoop);
+  console.log("🔬 facts.usesStringBuilder:", facts.usesStringBuilder);
 
   // ✅ Step 1: Normalize multi-variable linear expressions
   const normalizedTime = normalizeMultiVar(time);
@@ -53,19 +47,14 @@ function sanitizeWithFacts(
   if (dominantTime !== time) { time = dominantTime; corrected = true; }
   if (dominantSpace !== space) { space = dominantSpace; corrected = true; }
 
-  // ─── TIME: Only correct truly impossible answers ──────────────────────────
+  // ─── TIME: Correct downward (Qwen overestimates) ─────────────────────────
 
-  // ✅ FIX: HashMap optimization — nested loop + HashMap lookup = O(n)
-  // The inner loop was replaced by O(1) HashMap lookups, so overall is O(n).
-  // This must come FIRST before other nested loop checks.
-  if (
-  time === "O(n^2)" &&
-  facts.hasHashMapLookup &&
-  (facts.maxLoopDepth ?? 0) <= 2
-) {
-  time = "O(n)";
-  corrected = true;
-}
+  // ✅ HashMap exists + no nested loops → O(n) — MUST be first
+  if (time === "O(n^2)" && facts.hasHashMapLookup && !facts.hasNestedLoop) {
+    console.log("✅ Correcting O(n^2) → O(n) because HashMap + no nested loop");
+    time = "O(n)";
+    corrected = true;
+  }
 
   // Qwen said O(1) but there are loops → physically impossible
   if (time === "O(1)" && (facts.maxLoopDepth ?? 0) >= 1) {
@@ -91,13 +80,13 @@ function sanitizeWithFacts(
     corrected = true;
   }
 
-  // ✅ Qwen said O(n^2) but StringBuilder detected → string concat optimized
+  // ✅ StringBuilder detected → O(n)
   if (time === "O(n^2)" && facts.usesStringBuilder && !facts.hasNestedLoop) {
     time = "O(n)";
     corrected = true;
   }
 
-  // ✅ Qwen said O(n^2) but no nested loops and no string concat → wrong
+  // ✅ No nested loops, no string concat, no StringBuilder → O(n)
   if (
     time === "O(n^2)" &&
     !facts.hasNestedLoop &&
@@ -108,26 +97,48 @@ function sanitizeWithFacts(
     corrected = true;
   }
 
-  // ─── SPACE: Only correct truly impossible answers ─────────────────────────
+  // ─── TIME: Correct upward (Qwen underestimates) ──────────────────────────
 
-  // Qwen said O(1) space but HashMap exists → impossible
+  // ✅ String concat in loop with no StringBuilder → O(n^2)
+ if (
+  time === "O(n)" &&
+  facts.hasStringConcatInLoop &&
+  !facts.usesStringBuilder &&
+  !facts.hasHashMapLookup  // ✅ NEW
+) {
+  time = "O(n^2)";
+  corrected = true;
+}
+
+  // ✅ Truly nested loops with no HashMap → O(n^2)
+  if (
+    time === "O(n)" &&
+    facts.hasNestedLoop &&
+    !facts.hasHashMapLookup &&
+    (facts.maxLoopDepth ?? 0) >= 2
+  ) {
+    time = "O(n^2)";
+    corrected = true;
+  }
+
+  // ─── SPACE ────────────────────────────────────────────────────────────────
+
   if (space === "O(1)" && facts.hasHashMapLookup) {
     space = "O(n)";
     corrected = true;
   }
 
-  // Qwen said O(1) space but recursion exists → impossible
   if (space === "O(1)" && facts.callsSelf) {
     space = "O(n)";
     corrected = true;
   }
 
-  // ✅ StringBuilder uses O(n) space
   if (space === "O(1)" && facts.usesStringBuilder) {
     space = "O(n)";
     corrected = true;
   }
 
+  console.log("🔬 sanitizeWithFacts OUTPUT time:", time);
   return { time, space, corrected };
 }
 
@@ -248,12 +259,10 @@ Return ONLY this JSON, no extra text, no markdown:
     }
   }
 
-  // ─── Extract Qwen's answer ────────────────────────────────────────────────
   const rawTime = (parsed.timeComplexity ?? "").trim();
   const rawSpace = (parsed.spaceComplexity ?? "").trim();
   const explanation = parsed.explanation ?? "No explanation returned";
 
-  // ─── Sanity check: only fix truly impossible answers ─────────────────────
   const { time, space, corrected } = sanitizeWithFacts(rawTime, rawSpace, facts);
 
   if (corrected) {
