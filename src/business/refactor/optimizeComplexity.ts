@@ -693,6 +693,20 @@ export async function logOptimizationFromReport(
       energy = await estimateEnergy(scoreDelta * 5);
     }
 
+    const fmtEnergy = (kwh: number): string => {
+      if (kwh < 1e-6) return `${(kwh * 1e9).toFixed(2)} nWh`;
+      if (kwh < 1e-3) return `${(kwh * 1e6).toFixed(2)} µWh`;
+      if (kwh < 1)    return `${(kwh * 1e3).toFixed(2)} mWh`;
+      return `${kwh.toFixed(4)} kWh`;
+    };
+
+    const fmtCarbon = (g: number): string => {
+      if (g < 0.000001) return `${(g * 1e9).toFixed(2)} ngCO₂`;
+      if (g < 0.001)    return `${(g * 1e6).toFixed(4)} µgCO₂`;
+      if (g < 1)        return `${(g * 1000).toFixed(4)} mgCO₂`;
+      return `${g.toFixed(4)} gCO₂`;
+    };
+
     const logEntry = {
       timestamp: new Date().toISOString(),
       file: fileName ? path.basename(fileName) : "unknown",
@@ -708,18 +722,24 @@ export async function logOptimizationFromReport(
           before: {
             energyKwh: sustainability.beforeEnergyKwh,
             carbonGrams: sustainability.beforeCarbonGrams,
+            energyFormatted: fmtEnergy(sustainability.beforeEnergyKwh),
+            carbonFormatted: fmtCarbon(sustainability.beforeCarbonGrams),
           },
           after: {
             energyKwh: sustainability.energyKwh,
             carbonGrams: sustainability.carbonGrams,
+            energyFormatted: fmtEnergy(sustainability.energyKwh),
+            carbonFormatted: fmtCarbon(sustainability.carbonGrams),
           },
           saved: {
             energyKwh: sustainability.beforeEnergyKwh - sustainability.energyKwh,
             carbonGrams: sustainability.beforeCarbonGrams - sustainability.carbonGrams,
+            energyFormatted: fmtEnergy(sustainability.beforeEnergyKwh - sustainability.energyKwh),
+            carbonFormatted: fmtCarbon(sustainability.beforeCarbonGrams - sustainability.carbonGrams),
           },
         }
         : null,
-      energy: energy ?? null,
+      ...(sustainability ? {} : { energy: energy ?? null }),
       reason,
     };
 
