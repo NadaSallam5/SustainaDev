@@ -239,13 +239,11 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
   // ── MEASURE BEFORE (original code still on disk) ──────────────────────────
   // This must happen BEFORE applyPatchToDocument — original file is still live.
   // We add a stabilization pause so JIT/GC from the Qwen call above settles.
-  sustainaDevOutput.appendLine("📊 Measuring BEFORE energy (original code)...");
   await new Promise(r => setTimeout(r, 400));
   const beforeMeasurement = await measureWorkSustainability(async () => {
     const probeAnalyzer = new UniversalLspAnalyzer();
     await probeAnalyzer.analyzeFile(context);
   });
-  sustainaDevOutput.appendLine(`📊 BEFORE measured: ${beforeMeasurement.powerWatts.toFixed(2)}W over ${beforeMeasurement.runtimeSeconds.toFixed(2)}s`);
 
  // ── APPLY PATCH ───────────────────────────────────────────────────────────
   await applyPatchToDocument(originalUri, patch.preview);
@@ -334,7 +332,6 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
             | undefined;
 
         try {
-  sustainaDevOutput.appendLine("📊 Measuring AFTER energy (optimized code)...");
 
   // Stabilization pause — lets JIT/GC settle after patch application
   // so the after measurement is on equal footing with the before measurement.
@@ -347,7 +344,6 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
     const probeAnalyzer = new UniversalLspAnalyzer();
     await probeAnalyzer.analyzeFile(context);
   });
-  sustainaDevOutput.appendLine(`📊 AFTER measured: ${afterMeasurement.powerWatts.toFixed(2)}W over ${afterMeasurement.runtimeSeconds.toFixed(2)}s`);
 
   // If hardware noise causes after > before (can happen at very small scales),
   // fall back to the complexity ratio so we never display a negative saving.
@@ -359,15 +355,12 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
     // ✅ Real measurements agree with expectation — use them directly.
     beforeEnergyKwh  = beforeMeasurement.energyKwh;
     beforeCarbonGrams = beforeMeasurement.carbonGrams;
-    sustainaDevOutput.appendLine(`✅ Real before/after measurements used.`);
-  } else {
-    // ⚠️ Hardware noise flipped the result — fall back to complexity ratio.
-    // Source: Pereira et al. SLE 2017 — energy ∝ instruction count ∝ complexity.
-    const ratio = complexityEnergyRatio(report.before, report.after);
-    beforeEnergyKwh  = ratio > 0 ? afterMeasurement.energyKwh  / ratio : afterMeasurement.energyKwh;
-    beforeCarbonGrams = ratio > 0 ? afterMeasurement.carbonGrams / ratio : afterMeasurement.carbonGrams;
-    sustainaDevOutput.appendLine(`⚠️ Hardware noise detected — complexity ratio fallback used (ratio=${ratio.toFixed(4)}).`);
-  }
+    // no-op
+} else {
+  const ratio = complexityEnergyRatio(report.before, report.after);
+  beforeEnergyKwh   = ratio > 0 ? afterMeasurement.energyKwh  / ratio : afterMeasurement.energyKwh;
+  beforeCarbonGrams = ratio > 0 ? afterMeasurement.carbonGrams / ratio : afterMeasurement.carbonGrams;
+}
 
   sustainabilityResult = {
     energyKwh:        afterMeasurement.energyKwh,
@@ -376,20 +369,8 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
     beforeCarbonGrams,
   };
 
-  // ── Human-readable energy/carbon formatters ──
-const fmtEnergy = (kwh: number) => {
-  if (kwh < 1e-6) return `${(kwh * 1e9).toFixed(2)} nWh`;
-  if (kwh < 1e-3) return `${(kwh * 1e6).toFixed(2)} µWh`;
-  if (kwh < 1)    return `${(kwh * 1e3).toFixed(2)} mWh`;
-  return `${kwh.toFixed(4)} kWh`;
-};
-
-const fmtCarbon = (g: number) => {
-  if (g < 0.000001) return `${(g * 1e9).toFixed(2)} ngCO₂`;
-  if (g < 0.001)    return `${(g * 1e6).toFixed(4)} µgCO₂`;
-  if (g < 1)        return `${(g * 1000).toFixed(4)} mgCO₂`;
-  return `${g.toFixed(4)} gCO₂`;
-};
+  const fmtEnergy = (kwh: number) => `${(kwh * 1e6).toFixed(4)} µWh`;
+const fmtCarbon = (g: number)   => `${(g   * 1e6).toFixed(4)} µgCO₂`;
 
 const savedEnergy    = beforeEnergyKwh - afterMeasurement.energyKwh;
 const savedCarbon    = beforeCarbonGrams - afterMeasurement.carbonGrams;
@@ -411,9 +392,9 @@ sustainaDevOutput.appendLine(`  After   (measured — LSP analysis of optimized 
 sustainaDevOutput.appendLine(`    Energy   ${fmtEnergy(afterMeasurement.energyKwh)}`);
 sustainaDevOutput.appendLine(`    Carbon   ${fmtCarbon(afterMeasurement.carbonGrams)}`);
 sustainaDevOutput.appendLine(``);
-sustainaDevOutput.appendLine(`  Saved   (real measurements — ${report.before} → ${report.after})`);
-sustainaDevOutput.appendLine(`    Energy   ${fmtEnergy(savedEnergy)} saved  (${savedEnergyPct}%)`);
-sustainaDevOutput.appendLine(`    Carbon   ${fmtCarbon(savedCarbon)} saved  (${savedCarbonPct}%)`);
+sustainaDevOutput.appendLine(`  Saved`);
+sustainaDevOutput.appendLine(`    Energy   ${fmtEnergy(savedEnergy)} saved`);
+sustainaDevOutput.appendLine(`    Carbon   ${fmtCarbon(savedCarbon)} saved`);
 sustainaDevOutput.appendLine(``);
 } catch (err) {
   sustainaDevOutput.appendLine("Sustainability analysis failed:");
