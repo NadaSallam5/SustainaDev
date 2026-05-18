@@ -236,13 +236,11 @@ if (!editor) {
   // ── MEASURE BEFORE (original code still on disk) ──────────────────────────
   // This must happen BEFORE applyPatchToDocument — original file is still live.
   // We add a stabilization pause so JIT/GC from the Qwen call above settles.
-  sustainaDevOutput.appendLine("📊 Measuring BEFORE energy (original code)...");
   await new Promise(r => setTimeout(r, 400));
   const beforeMeasurement = await measureWorkSustainability(async () => {
     const probeAnalyzer = new UniversalLspAnalyzer();
     await probeAnalyzer.analyzeFile(context);
   });
-  sustainaDevOutput.appendLine(`📊 BEFORE measured: ${beforeMeasurement.powerWatts.toFixed(2)}W over ${beforeMeasurement.runtimeSeconds.toFixed(2)}s`);
 
  // ── APPLY PATCH ───────────────────────────────────────────────────────────
   await applyPatchToDocument(originalUri, patch.preview);
@@ -299,7 +297,6 @@ sustainaDevOutput.appendLine(`🧪 Complexity source: ${decision} validated`);
             | undefined;
 
         try {
-  sustainaDevOutput.appendLine("📊 Measuring AFTER energy (optimized code)...");
 
   // Stabilization pause — lets JIT/GC settle after patch application
   // so the after measurement is on equal footing with the before measurement.
@@ -312,7 +309,6 @@ sustainaDevOutput.appendLine(`🧪 Complexity source: ${decision} validated`);
     const probeAnalyzer = new UniversalLspAnalyzer();
     await probeAnalyzer.analyzeFile(context);
   });
-  sustainaDevOutput.appendLine(`📊 AFTER measured: ${afterMeasurement.powerWatts.toFixed(2)}W over ${afterMeasurement.runtimeSeconds.toFixed(2)}s`);
 
   // If hardware noise causes after > before (can happen at very small scales),
   // fall back to the complexity ratio so we never display a negative saving.
@@ -324,15 +320,12 @@ sustainaDevOutput.appendLine(`🧪 Complexity source: ${decision} validated`);
     // ✅ Real measurements agree with expectation — use them directly.
     beforeEnergyKwh  = beforeMeasurement.energyKwh;
     beforeCarbonGrams = beforeMeasurement.carbonGrams;
-    sustainaDevOutput.appendLine(`✅ Real before/after measurements used.`);
-  } else {
-    // ⚠️ Hardware noise flipped the result — fall back to complexity ratio.
-    // Source: Pereira et al. SLE 2017 — energy ∝ instruction count ∝ complexity.
-    const ratio = complexityEnergyRatio(report.before, report.after);
-    beforeEnergyKwh  = ratio > 0 ? afterMeasurement.energyKwh  / ratio : afterMeasurement.energyKwh;
-    beforeCarbonGrams = ratio > 0 ? afterMeasurement.carbonGrams / ratio : afterMeasurement.carbonGrams;
-    sustainaDevOutput.appendLine(`⚠️ Hardware noise detected — complexity ratio fallback used (ratio=${ratio.toFixed(4)}).`);
-  }
+    // no-op
+} else {
+  const ratio = complexityEnergyRatio(report.before, report.after);
+  beforeEnergyKwh   = ratio > 0 ? afterMeasurement.energyKwh  / ratio : afterMeasurement.energyKwh;
+  beforeCarbonGrams = ratio > 0 ? afterMeasurement.carbonGrams / ratio : afterMeasurement.carbonGrams;
+}
 
   sustainabilityResult = {
     energyKwh:        afterMeasurement.energyKwh,
@@ -364,9 +357,9 @@ sustainaDevOutput.appendLine(`  After   (measured — LSP analysis of optimized 
 sustainaDevOutput.appendLine(`    Energy   ${fmtEnergy(afterMeasurement.energyKwh)}`);
 sustainaDevOutput.appendLine(`    Carbon   ${fmtCarbon(afterMeasurement.carbonGrams)}`);
 sustainaDevOutput.appendLine(``);
-sustainaDevOutput.appendLine(`  Saved   (real measurements — ${report.before} → ${report.after})`);
-sustainaDevOutput.appendLine(`    Energy   ${fmtEnergy(savedEnergy)} saved  (${savedEnergyPct}%)`);
-sustainaDevOutput.appendLine(`    Carbon   ${fmtCarbon(savedCarbon)} saved  (${savedCarbonPct}%)`);
+sustainaDevOutput.appendLine(`  Saved`);
+sustainaDevOutput.appendLine(`    Energy   ${fmtEnergy(savedEnergy)} saved`);
+sustainaDevOutput.appendLine(`    Carbon   ${fmtCarbon(savedCarbon)} saved`);
 sustainaDevOutput.appendLine(``);
 } catch (err) {
   sustainaDevOutput.appendLine("Sustainability analysis failed:");
