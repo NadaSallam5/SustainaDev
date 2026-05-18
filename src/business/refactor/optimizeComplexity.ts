@@ -3,6 +3,7 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { OptimizationReport } from "../complexity/types";
 import { estimateEnergy } from "../codeCarbon";
 import { OptimizationStrategy } from "./ruleEngine";
 import { MethodFacts } from "../types";
@@ -378,18 +379,29 @@ function getTaskInstructions(smellType: string): string {
       "If it's a state formula:\n" +
       "while(val > 0) { val = update(val); } return val;\n",
 
-   NESTED_LOOPS:
+ NESTED_LOOPS:
   "Optimize O(N^2) or O(N^3) complexity to O(N) by eliminating ALL inner loops.\n" +
-  "CASE 1 — Data lookup loops: For EACH inner loop that searches a collection, build a lookup HashMap BEFORE the main loop. Use the join condition as the key.\n" +
-  "Example:\n" +
-  "Map<String, User> userMap = new HashMap<>();\n" +
-  "for (User u : users) { userMap.put(u.id, u); }\n" +
-  "// Then in the main loop: User u = userMap.get(order.userId);\n" +
-  "CASE 2 — Counter/accumulator loops: If the nested loops only increment a counter, keep ONE outer loop and replace the inner loops with a mathematical multiplication.\n" +
-"NEVER use Math.pow() or ** operator. NEVER remove all loops completely.\n" +
-"Example: for i { for j { for k { count++ } } } → const length = arr.length; for (let i = 0; i < length; i++) { count += length * length; }\n" +
-"CRITICAL: Pick CASE 1 or CASE 2 based on what the inner loops actually do.\n",
-
+  "CRITICAL: You MUST convert EVERY inner loop to a HashMap lookup. If there are 2 inner loops, build 2 HashMaps. If there are 3 inner loops, build 3 HashMaps.\n" +
+  "STEP 1: Identify ALL inner loops in the method.\n" +
+  "STEP 2: For EACH inner loop, build a separate HashMap BEFORE the outer loop.\n" +
+  "STEP 3: Replace EACH inner loop with a single HashMap.get() call.\n" +
+  "STEP 4: The final code must have ZERO nested loops — only sequential loops.\n" +
+  "// EXAMPLE with 2 inner loops:\n" +
+  "// BEFORE:\n" +
+  "// for (o of orders) {\n" +
+  "//   for (u of users) { if (u.id === o.userId) ... }  ← inner loop 1\n" +
+  "//   for (p of products) { if (p.id === o.productId) ... }  ← inner loop 2\n" +
+  "// }\n" +
+  "// AFTER:\n" +
+  "// Map<String, User> userMap = new HashMap<>();\n" +
+  "// for (u of users) { userMap.put(u.id, u); }  ← sequential loop 1\n" +
+  "// Map<String, Product> productMap = new HashMap<>();\n" +
+  "// for (p of products) { productMap.put(p.id, p); }  ← sequential loop 2\n" +
+  "// for (o of orders) {\n" +
+  "//   User u = userMap.get(o.userId);  ← O(1) lookup\n" +
+  "//   Product p = productMap.get(o.productId);  ← O(1) lookup\n" +
+  "// }  ← ONE outer loop only\n" +
+  "NEVER use Math.pow() or ** operator. NEVER remove all loops completely.\n",
     STRING_BUILDER:
       "Replace all String concatenation inside loops with a StringBuilder (Java), an array + join (JS/TS/Python), or equivalent. " +
       "Avoid using '+' or '+=' on Strings inside any loop. " +
@@ -648,12 +660,7 @@ function bigOToScore(bigO: string): number {
   return 0;
 }
 
-export type OptimizationReport = {
-  metric: "time" | "space";
-  before: string;
-  after: string;
-  improvement: string;
-};
+
 
 /**
  * Logs an optimization result to .sustainadev/log.jsonl

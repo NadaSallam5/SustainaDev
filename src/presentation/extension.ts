@@ -4,7 +4,7 @@ import { PSU_EFFICIENCY, PSU_EFFICIENCY_DESKTOP, complexityEnergyRatio } from ".
 import { detectByRules } from "../business/refactor/ruleEngine";
 import * as fsp from "fs/promises";
 import * as fs from "fs";
-import { estimateComplexityWithQwen } from "../business/complexity/qwenComplexity";
+import { estimateComplexityPairWithQwen } from "../business/complexity/qwenComplexity";
 import { AIComplexityResult } from "../business/complexity/types";
 import { buildOptimizationReport } from "../business/complexity/report";
 import { analyzeSustainability } from "../business/sustainability/sustainabilityEngine";
@@ -227,15 +227,13 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
         }
 
         if (choice === "✅ Accept Optimization") {
-          // ✅ Run Qwen BEFORE — extract only target method, not whole file
-          let beforeAI: AIComplexityResult;
+
+          // ✅ Extract BEFORE skeleton before applying patch
+          let beforeSkeleton: any;
           try {
-            const beforeSkeleton = await analyzer.extractSkeleton(refreshedDoc, facts.methodName); // ✅ NEW
-            beforeAI = await estimateComplexityWithQwen(beforeSkeleton.targetMethod, facts);        // ✅ only method
-            sustainaDevOutput.appendLine(`🤖 Qwen BEFORE: time=${beforeAI.timeComplexity} space=${beforeAI.spaceComplexity}`);
+            beforeSkeleton = await analyzer.extractSkeleton(refreshedDoc, facts.methodName);
           } catch (e: any) {
-            sustainaDevOutput.appendLine(`⚠️ Qwen BEFORE failed: ${e.message}`);
-            beforeAI = { timeComplexity: "Unknown", spaceComplexity: "Unknown", explanation: "" };
+            sustainaDevOutput.appendLine(`⚠️ Failed to extract BEFORE skeleton: ${e.message}`);
           }
 
   // ── MEASURE BEFORE (original code still on disk) ──────────────────────────
@@ -253,6 +251,7 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
   await applyPatchToDocument(originalUri, patch.preview);
   sustainaDevOutput.appendLine("✅ Optimization applied (Tree-sitter mode)");
 
+          // ✅ Re-analyze facts on the optimized file
           const optimizedAnalyzer = new UniversalLspAnalyzer();
           let afterFacts = facts;
 
@@ -261,21 +260,52 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
             const found = optimizedFactsList.find(m => m.methodName === facts.methodName);
             if (found) afterFacts = found;
           } catch {
-            // fallback
-          }
-sustainaDevOutput.appendLine(`🔍 afterFacts: hasNestedLoop=${afterFacts.hasNestedLoop}, hasHashMapLookup=${afterFacts.hasHashMapLookup}, maxLoopDepth=${afterFacts.maxLoopDepth}`);
-          // ✅ Run Qwen AFTER — extract only target method from optimized doc
-          const optimizedDoc = await vscode.workspace.openTextDocument(originalUri);
-          let afterAI: AIComplexityResult;
-          try {
-            const afterSkeleton = await optimizedAnalyzer.extractSkeleton(optimizedDoc, facts.methodName); // ✅ NEW
-            afterAI = await estimateComplexityWithQwen(afterSkeleton.targetMethod, afterFacts);             // ✅ only method
-            sustainaDevOutput.appendLine(`🤖 Qwen AFTER: time=${afterAI.timeComplexity} space=${afterAI.spaceComplexity}`);
-          } catch (e: any) {
-            sustainaDevOutput.appendLine(`⚠️ Qwen AFTER failed: ${e.message}`);
-            afterAI = { timeComplexity: "Unknown", spaceComplexity: "Unknown", explanation: "" };
+            // fallback to original facts
           }
 
+          sustainaDevOutput.appendLine(
+            `🔍 afterFacts: hasNestedLoop=${afterFacts.hasNestedLoop}, hasHashMapLookup=${afterFacts.hasHashMapLookup}, maxLoopDepth=${afterFacts.maxLoopDepth}`
+          );
+
+          // ✅ Extract AFTER skeleton from optimized doc
+          const optimizedDoc = await vscode.workspace.openTextDocument(originalUri);
+          let afterSkeleton: any;
+          try {
+            afterSkeleton = await optimizedAnalyzer.extractSkeleton(optimizedDoc, facts.methodName);
+          } catch (e: any) {
+            sustainaDevOutput.appendLine(`⚠️ Failed to extract AFTER skeleton: ${e.message}`);
+          }
+
+          // ─── STEP: Qwen analyzes BEFORE and AFTER together in one call ────
+          let beforeAI: AIComplexityResult;
+          let afterAI: AIComplexityResult;
+
+          try {
+            if (!beforeSkeleton || !afterSkeleton) {
+              throw new Error("Missing skeleton — cannot run pair estimation");
+            }
+
+            const pair = await estimateComplexityPairWithQwen(
+              beforeSkeleton.targetMethod,
+              afterSkeleton.targetMethod,
+              facts,
+              afterFacts,
+              decision  
+            );
+
+            beforeAI = pair.before;
+            afterAI = pair.after;
+
+            sustainaDevOutput.appendLine(`🤖 Qwen BEFORE: time=${beforeAI.timeComplexity} space=${beforeAI.spaceComplexity}`);
+            sustainaDevOutput.appendLine(`🤖 Qwen AFTER:  time=${afterAI.timeComplexity} space=${afterAI.spaceComplexity}`);
+
+          } catch (e: any) {
+            sustainaDevOutput.appendLine(`⚠️ Qwen pair call failed: ${e.message}`);
+            beforeAI = { timeComplexity: "Unknown", spaceComplexity: "Unknown", explanation: "" };
+            afterAI  = { timeComplexity: "Unknown", spaceComplexity: "Unknown", explanation: "" };
+          }
+
+          // ─── Build report ──────────────────────────────────────────────────
           const report = buildOptimizationReport(beforeAI, afterAI, facts, afterFacts, decision);
           sustainaDevOutput.appendLine(`🧪 Complexity source: ${report.source}`);
 
@@ -285,17 +315,15 @@ sustainaDevOutput.appendLine(`🔍 afterFacts: hasNestedLoop=${afterFacts.hasNes
               : "=== Complexity Report ==="
           );
 
+          if (report.metric === "space") {
+            sustainaDevOutput.appendLine(`Space Before: ${report.before}`);
+            sustainaDevOutput.appendLine(`Space After:  ${report.after}`);
+          } else {
+            sustainaDevOutput.appendLine(`Before: ${report.before}`);
+            sustainaDevOutput.appendLine(`After:  ${report.after}`);
+          }
+          sustainaDevOutput.appendLine(`Improvement: ${report.improvement}`);
 
-
-// ✅ AFTER (showing normalized report values)
-if (report.metric === "space") {
-  sustainaDevOutput.appendLine(`Space Before: ${report.before}`);
-  sustainaDevOutput.appendLine(`Space After:  ${report.after}`);
-} else {
-  sustainaDevOutput.appendLine(`Before: ${report.before}`);
-  sustainaDevOutput.appendLine(`After:  ${report.after}`);
-}
-sustainaDevOutput.appendLine(`Improvement: ${report.improvement}`);
           let sustainabilityResult:
             | {
               energyKwh: number;
