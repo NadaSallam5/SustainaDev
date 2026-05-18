@@ -3,6 +3,7 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { OptimizationReport } from "../complexity/types";
 import { estimateEnergy } from "../codeCarbon";
 import { OptimizationStrategy } from "./ruleEngine";
 import { MethodFacts } from "../types";
@@ -659,12 +660,7 @@ function bigOToScore(bigO: string): number {
   return 0;
 }
 
-export type OptimizationReport = {
-  metric: "time" | "space";
-  before: string;
-  after: string;
-  improvement: string;
-};
+
 
 /**
  * Logs an optimization result to .sustainadev/log.jsonl
