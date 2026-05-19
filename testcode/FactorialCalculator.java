@@ -5,11 +5,10 @@ public class FactorialCalculator {
         if (n <= 1) {
             return 1;
         }
-
-        long result = 1;
-        for (int i = 2; i <= n; i++) {
-            result *= i;
-        }
-        return result;
+        
+        // TRIGGER: Recursive call
+        // This creates a new stack frame for every integer, 
+        // leading to high memory overhead.
+        return n * calculateFactorial(n - 1);
     }
 }

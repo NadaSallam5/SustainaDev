@@ -190,7 +190,6 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
       stringConcatInLoop: facts.hasStringConcatInLoop,
       sortingCalls: facts.hasSortingCall,
       sortingInsideLoop: facts.sortInsideLoop,
-      usesStringBuilder: facts.usesStringBuilder,
     }, null, 2));
 
     // STEP 5 — Build patch and show diff
@@ -265,10 +264,6 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
           } catch {
             // fallback to original facts
           }
-
-          sustainaDevOutput.appendLine(
-            `🔍 afterFacts: hasNestedLoop=${afterFacts.hasNestedLoop}, hasHashMapLookup=${afterFacts.hasHashMapLookup}, maxLoopDepth=${afterFacts.maxLoopDepth}`
-          );
 
           // ✅ Extract AFTER skeleton from optimized doc
           const optimizedDoc = await vscode.workspace.openTextDocument(originalUri);
