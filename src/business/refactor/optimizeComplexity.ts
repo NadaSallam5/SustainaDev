@@ -680,19 +680,8 @@ export async function logOptimizationFromReport(
       energy = await estimateEnergy(scoreDelta * 5);
     }
 
-    const fmtEnergy = (kwh: number): string => {
-      if (kwh < 1e-6) return `${(kwh * 1e9).toFixed(2)} nWh`;
-      if (kwh < 1e-3) return `${(kwh * 1e6).toFixed(2)} µWh`;
-      if (kwh < 1)    return `${(kwh * 1e3).toFixed(2)} mWh`;
-      return `${kwh.toFixed(4)} kWh`;
-    };
-
-    const fmtCarbon = (g: number): string => {
-      if (g < 0.000001) return `${(g * 1e9).toFixed(2)} ngCO₂`;
-      if (g < 0.001)    return `${(g * 1e6).toFixed(4)} µgCO₂`;
-      if (g < 1)        return `${(g * 1000).toFixed(4)} mgCO₂`;
-      return `${g.toFixed(4)} gCO₂`;
-    };
+    const fmtEnergy = (kwh: number): string => `${(kwh * 1e6).toFixed(4)} µWh`;
+    const fmtCarbon = (g: number): string   => `${(g   * 1e6).toFixed(4)} µgCO₂`;
 
     const logEntry = {
       timestamp: new Date().toISOString(),
