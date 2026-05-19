@@ -3,6 +3,7 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { OptimizationReport } from "../complexity/types";
 import { estimateEnergy } from "../codeCarbon";
 import { OptimizationStrategy } from "./ruleEngine";
 import { MethodFacts } from "../types";
@@ -45,7 +46,6 @@ async function pollForLspErrors(uri: vscode.Uri, initialErrorCount: number): Pro
 const NATIVE_IMPORT_LANGUAGES = new Set([
   "typescript",
   "javascript",
-
 ]);
 
 async function applyMissingImports(
@@ -76,40 +76,51 @@ async function applyMissingImports(
   );
   const seenTitles = new Set<string>();
 
-  for (const diag of errorDiags) {
-    try {
-      const actions = await vscode.commands.executeCommand<vscode.CodeAction[]>(
-        "vscode.executeCodeActionProvider",
-        uri,
-        diag.range,
-        undefined,
-        5
-      );
-      const fix = actions?.find(
-        (a) =>
-          !seenTitles.has(a.title) &&
-          (a.edit || a.command) &&
-          IMPORT_TERMS.some((term) => a.title.toLowerCase().includes(term))
-      );
-      if (fix) {
-        seenTitles.add(fix.title);
-        if (fix.edit) {
-          await vscode.workspace.applyEdit(fix.edit);
+  // ── TIMEOUT FIX: never hang forever waiting for LSP import resolution ──────
+  const importWork = async () => {
+    for (const diag of errorDiags) {
+      try {
+        const actions = await vscode.commands.executeCommand<vscode.CodeAction[]>(
+          "vscode.executeCodeActionProvider",
+          uri,
+          diag.range,
+          undefined,
+          5
+        );
+        const fix = actions?.find(
+          (a) =>
+            !seenTitles.has(a.title) &&
+            (a.edit || a.command) &&
+            IMPORT_TERMS.some((term) => a.title.toLowerCase().includes(term))
+        );
+        if (fix) {
+          seenTitles.add(fix.title);
+          if (fix.edit) {
+            await vscode.workspace.applyEdit(fix.edit);
+          }
+          if (fix.command) {
+            await vscode.commands.executeCommand(
+              fix.command.command,
+              ...(fix.command.arguments || [])
+            );
+          }
+          console.log(`  ✅ Applied: "${fix.title}"`);
+        } else {
+          console.log(`  ⏭️ No import/include fix found for: "${diag.message}"`);
         }
-        if (fix.command) {
-          await vscode.commands.executeCommand(
-            fix.command.command,
-            ...(fix.command.arguments || [])
-          );
-        }
-        console.log(`  ✅ Applied: "${fix.title}"`);
-      } else {
-        console.log(`  ⏭️ No import/include fix found for: "${diag.message}"`);
+      } catch (e) {
+        console.warn(`  ⚠️ Could not resolve quick fix for: ${diag.message}`, e);
       }
-    } catch (e) {
-      console.warn(`  ⚠️ Could not resolve quick fix for: ${diag.message}`, e);
     }
-  }
+  };
+
+  // Give LSP 5 seconds max — then move on regardless
+  await Promise.race([
+    importWork(),
+    new Promise<void>((resolve) => setTimeout(resolve, 5000)),
+  ]);
+  console.log("✅ Import resolution done or timed out.");
+  // ── END TIMEOUT FIX ────────────────────────────────────────────────────────
 
   await new Promise((r) => setTimeout(r, 50));
 }
@@ -368,13 +379,29 @@ function getTaskInstructions(smellType: string): string {
       "If it's a state formula:\n" +
       "while(val > 0) { val = update(val); } return val;\n",
 
-    NESTED_LOOPS:
-      "Optimize O(N^2) complexity to O(N) by eliminating ALL inner loops. For EACH inner loop, build a lookup HashMap from that loop's collection BEFORE the main loop begins. Use the join condition as the key.\n" +
-      "Example:\n" +
-      "Map<String, User> userMap = new HashMap<>();\n" +
-      "for (User u : users) { userMap.put(u.id, u); }\n" +
-      "// Then in the main loop: User u = userMap.get(order.userId);\n",
-
+ NESTED_LOOPS:
+  "Optimize O(N^2) or O(N^3) complexity to O(N) by eliminating ALL inner loops.\n" +
+  "CRITICAL: You MUST convert EVERY inner loop to a HashMap lookup. If there are 2 inner loops, build 2 HashMaps. If there are 3 inner loops, build 3 HashMaps.\n" +
+  "STEP 1: Identify ALL inner loops in the method.\n" +
+  "STEP 2: For EACH inner loop, build a separate HashMap BEFORE the outer loop.\n" +
+  "STEP 3: Replace EACH inner loop with a single HashMap.get() call.\n" +
+  "STEP 4: The final code must have ZERO nested loops — only sequential loops.\n" +
+  "// EXAMPLE with 2 inner loops:\n" +
+  "// BEFORE:\n" +
+  "// for (o of orders) {\n" +
+  "//   for (u of users) { if (u.id === o.userId) ... }  ← inner loop 1\n" +
+  "//   for (p of products) { if (p.id === o.productId) ... }  ← inner loop 2\n" +
+  "// }\n" +
+  "// AFTER:\n" +
+  "// Map<String, User> userMap = new HashMap<>();\n" +
+  "// for (u of users) { userMap.put(u.id, u); }  ← sequential loop 1\n" +
+  "// Map<String, Product> productMap = new HashMap<>();\n" +
+  "// for (p of products) { productMap.put(p.id, p); }  ← sequential loop 2\n" +
+  "// for (o of orders) {\n" +
+  "//   User u = userMap.get(o.userId);  ← O(1) lookup\n" +
+  "//   Product p = productMap.get(o.productId);  ← O(1) lookup\n" +
+  "// }  ← ONE outer loop only\n" +
+  "NEVER use Math.pow() or ** operator. NEVER remove all loops completely.\n",
     STRING_BUILDER:
       "Replace all String concatenation inside loops with a StringBuilder (Java), an array + join (JS/TS/Python), or equivalent. " +
       "Avoid using '+' or '+=' on Strings inside any loop. " +
@@ -585,7 +612,7 @@ function parseAiResponse(
  * Extract just the target method body so we can estimate Big-O.
  * This is a heuristic (NOT a formal proof) but it matches the simple reporting style you show in the console.
  */
-function extractMethodBody(fullCode: string, methodName: string): string {
+export function extractMethodBody(fullCode: string, methodName: string): string {
   // Find the method signature line (very forgiving regex).
   const sig = new RegExp(`\\b${methodName}\\s*\\(`);
   const lines = fullCode.split(/\r?\n/);
@@ -620,8 +647,6 @@ function extractMethodBody(fullCode: string, methodName: string): string {
   return out.join("\n");
 }
 
-
-
 function bigOToScore(bigO: string): number {
   const s = (bigO || "").replace(/\s+/g, "").toLowerCase();
   if (s.includes("o(1)")) return 1;
@@ -635,12 +660,7 @@ function bigOToScore(bigO: string): number {
   return 0;
 }
 
-export type OptimizationReport = {
-  metric: "time" | "space";
-  before: string;
-  after: string;
-  improvement: string;
-};
+
 
 /**
  * Logs an optimization result to .sustainadev/log.jsonl
@@ -680,6 +700,20 @@ export async function logOptimizationFromReport(
       energy = await estimateEnergy(scoreDelta * 5);
     }
 
+    const fmtEnergy = (kwh: number): string => {
+      if (kwh < 1e-6) return `${(kwh * 1e9).toFixed(2)} nWh`;
+      if (kwh < 1e-3) return `${(kwh * 1e6).toFixed(2)} µWh`;
+      if (kwh < 1)    return `${(kwh * 1e3).toFixed(2)} mWh`;
+      return `${kwh.toFixed(4)} kWh`;
+    };
+
+    const fmtCarbon = (g: number): string => {
+      if (g < 0.000001) return `${(g * 1e9).toFixed(2)} ngCO₂`;
+      if (g < 0.001)    return `${(g * 1e6).toFixed(4)} µgCO₂`;
+      if (g < 1)        return `${(g * 1000).toFixed(4)} mgCO₂`;
+      return `${g.toFixed(4)} gCO₂`;
+    };
+
     const logEntry = {
       timestamp: new Date().toISOString(),
       file: fileName ? path.basename(fileName) : "unknown",
@@ -695,18 +729,24 @@ export async function logOptimizationFromReport(
           before: {
             energyKwh: sustainability.beforeEnergyKwh,
             carbonGrams: sustainability.beforeCarbonGrams,
+            energyFormatted: fmtEnergy(sustainability.beforeEnergyKwh),
+            carbonFormatted: fmtCarbon(sustainability.beforeCarbonGrams),
           },
           after: {
             energyKwh: sustainability.energyKwh,
             carbonGrams: sustainability.carbonGrams,
+            energyFormatted: fmtEnergy(sustainability.energyKwh),
+            carbonFormatted: fmtCarbon(sustainability.carbonGrams),
           },
           saved: {
             energyKwh: sustainability.beforeEnergyKwh - sustainability.energyKwh,
             carbonGrams: sustainability.beforeCarbonGrams - sustainability.carbonGrams,
+            energyFormatted: fmtEnergy(sustainability.beforeEnergyKwh - sustainability.energyKwh),
+            carbonFormatted: fmtCarbon(sustainability.beforeCarbonGrams - sustainability.carbonGrams),
           },
         }
         : null,
-      energy: energy ?? null,
+      ...(sustainability ? {} : { energy: energy ?? null }),
       reason,
     };
 
