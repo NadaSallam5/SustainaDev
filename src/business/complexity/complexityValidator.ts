@@ -200,13 +200,24 @@ export function resolveComplexity(
   const warnings: string[] = [];
 
   // ─── Special case: ITERATIVE_REWRITE reports SPACE not TIME ──────────────
-  if (smellType === "ITERATIVE_REWRITE") {
-    const known = inferKnownSmellComplexity(beforeFacts, afterFacts, smellType);
-    if (known) {
-      console.log("✅ ITERATIVE_REWRITE: using space complexity rules");
-      return { ...known, source: "rules", warnings };
-    }
+if (smellType === "ITERATIVE_REWRITE") {
+  const known = inferKnownSmellComplexity(beforeFacts, afterFacts, smellType);
+  if (known) {
+    console.log("✅ ITERATIVE_REWRITE: using space complexity rules");
+    return { ...known, source: "rules", warnings };
   }
+  // If before-facts show overlapping subproblems, force O(2^n) → O(n) for TIME
+  if (beforeFacts?.hasOverlappingSubproblems) {
+    console.log("✅ ITERATIVE_REWRITE + overlapping subproblems: forcing O(2^n) → O(n)");
+    return {
+      metric: "time",
+      before: "O(2^n)",
+      after: "O(n)",
+      source: "rules",
+      warnings,
+    };
+  }
+}
 
   // ─── Normalize Qwen's output ──────────────────────────────────────────────
   const beforeTime = normalizeBigO(beforeAI.timeComplexity);

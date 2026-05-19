@@ -174,9 +174,11 @@ export async function estimateComplexityPairWithQwen(
       "BEFORE: Sort = O(n log n) time.\n" +
       "AFTER: Linear scan = O(n) time.",
     ITERATIVE_REWRITE:
-      "The optimization converted recursion to an iterative loop.\n" +
-      "BEFORE: Linear recursion = O(n) time, O(n) space (call stack).\n" +
-      "AFTER: Iterative = O(n) time, O(1) space.",
+   "The optimization converted recursion to an iterative loop.\n" +
+    "BEFORE: If the method calls itself TWICE (e.g. Fibonacci: f(n-1) + f(n-2)), it has overlapping subproblems = O(2^n) time, O(n) space.\n" +
+    "BEFORE: If the method calls itself ONCE (e.g. factorial), it is linear recursion = O(n) time, O(n) space.\n" +
+    "AFTER: Iterative = O(n) time, O(1) space.\n" +
+    "CRITICAL: Count the number of recursive calls. Two recursive calls = O(2^n), not O(n).",
   };
 
   const smellContext = smellType && smellHints[smellType]

@@ -1,7 +1,9 @@
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
 public class OrderFulfillmentService {
@@ -19,6 +21,9 @@ public class OrderFulfillmentService {
         this.priorityFulfillmentEnabled = priorityFulfillmentEnabled;
     }
 
+    // =========================================================================
+    // DTOs
+    // =========================================================================
 
     public static class CustomerOrder {
         public String orderId;
@@ -127,27 +132,23 @@ public class OrderFulfillmentService {
 
         LOGGER.info("[" + regionCode + "] Starting stock allocation for " + orders.size() + " orders.");
         List<FulfillmentResult> results = new ArrayList<>();
-        Map<String, WarehouseStock> stockMap = new HashMap<>();
-
-        // Build lookup map from stockSnapshot
-        for (WarehouseStock stock : stockSnapshot) {
-            stockMap.put(stock.productSku, stock);
-        }
 
         for (CustomerOrder order : orders) {
             boolean stockFound = false;
 
-            if (stockMap.containsKey(order.productSku)) {
-                WarehouseStock stock = stockMap.get(order.productSku);
-                stockFound = true;
+            for (WarehouseStock stock : stockSnapshot) {
+                if (order.productSku.equals(stock.productSku)) {
+                    stockFound = true;
 
-                if (stock.availableUnits >= order.quantityRequested) {
-                    results.add(new FulfillmentResult(
-                            order.orderId, "FULFILLED", stock.warehouseId, order.quantityRequested));
-                    fulfilledOrderIds.add(order.orderId);
-                } else if (stock.availableUnits > 0) {
-                    results.add(new FulfillmentResult(
-                            order.orderId, "PARTIALLY_FULFILLED", stock.warehouseId, stock.availableUnits));
+                    if (stock.availableUnits >= order.quantityRequested) {
+                        results.add(new FulfillmentResult(
+                                order.orderId, "FULFILLED", stock.warehouseId, order.quantityRequested));
+                        fulfilledOrderIds.add(order.orderId);
+                    } else if (stock.availableUnits > 0) {
+                        results.add(new FulfillmentResult(
+                                order.orderId, "PARTIALLY_FULFILLED", stock.warehouseId, stock.availableUnits));
+                    }
+                    break;
                 }
             }
 
@@ -169,41 +170,60 @@ public class OrderFulfillmentService {
         LOGGER.info("Assigning carriers to " + fulfillments.size() + " fulfillments.");
         List<OrderShipment> shipments = new ArrayList<>();
 
+        // Build a map of warehouseId to shippingZone
+        Map<String, String> warehouseToShippingZoneMap = new HashMap<>();
+        for (WarehouseStock stock : stockSnapshot) {
+            warehouseToShippingZoneMap.put(stock.warehouseId, stock.shippingZone);
+        }
+
+        // Build a map of coverageZone to carriers
+        Map<String, List<ShippingCarrier>> zoneToCarriersMap = new HashMap<>();
+        for (ShippingCarrier carrier : availableCarriers) {
+            zoneToCarriersMap.computeIfAbsent(carrier.coverageZone, k -> new ArrayList<>()).add(carrier);
+        }
+
+        // Build a map of orderId to fulfillment details
+        Map<String, FulfillmentResult> orderToFulfillmentMap = new HashMap<>();
         for (FulfillmentResult fulfillment : fulfillments) {
-            if (!"FULFILLED".equals(fulfillment.status)) {
+            if ("FULFILLED".equals(fulfillment.status)) {
+                orderToFulfillmentMap.put(fulfillment.orderId, fulfillment);
+            }
+        }
+
+        // Iterate over the orderToFulfillmentMap to assign carriers
+        for (Map.Entry<String, FulfillmentResult> entry : orderToFulfillmentMap.entrySet()) {
+            String orderId = entry.getKey();
+            FulfillmentResult fulfillment = entry.getValue();
+
+            String shippingZone = warehouseToShippingZoneMap.get(fulfillment.warehouseId);
+            if (shippingZone == null) {
+                LOGGER.warning("Could not determine shipping zone for warehouse: " + fulfillment.warehouseId);
+                shipments.add(new OrderShipment(orderId, null, 0.0, "NO_CARRIER"));
                 continue;
             }
 
-            String shippingZone = null;
-            for (WarehouseStock stock : stockSnapshot) {
-                if (fulfillment.warehouseId != null && fulfillment.warehouseId.equals(stock.warehouseId)) {
-                    shippingZone = stock.shippingZone;
-                    break;
-                }
-            }
-
-            if (shippingZone == null) {
-                LOGGER.warning("Could not determine shipping zone for warehouse: " + fulfillment.warehouseId);
-                shipments.add(new OrderShipment(fulfillment.orderId, null, 0.0, "NO_CARRIER"));
+            List<ShippingCarrier> carriers = zoneToCarriersMap.get(shippingZone);
+            if (carriers == null || carriers.isEmpty()) {
+                LOGGER.warning("No carriers available for shipping zone: " + shippingZone);
+                shipments.add(new OrderShipment(orderId, null, 0.0, "NO_CARRIER"));
                 continue;
             }
 
             // Step 2: Find the cheapest carrier for that zone
             ShippingCarrier bestCarrier = null;
-            for (ShippingCarrier carrier : availableCarriers) {
-                if (shippingZone.equals(carrier.coverageZone)) {
-                    if (bestCarrier == null || carrier.costPerUnit < bestCarrier.costPerUnit) {
-                        bestCarrier = carrier;
-                    }
+            for (ShippingCarrier carrier : carriers) {
+                if (bestCarrier == null || carrier.costPerUnit < bestCarrier.costPerUnit) {
+                    bestCarrier = carrier;
                 }
             }
 
             if (bestCarrier != null) {
                 double totalCost = bestCarrier.costPerUnit * fulfillment.allocatedQuantity;
-                shipments.add(new OrderShipment(fulfillment.orderId, bestCarrier.carrierId, totalCost, "ASSIGNED"));
+                shipments.add(new OrderShipment(orderId, bestCarrier.carrierId, totalCost, "ASSIGNED"));
             } else {
-                shipments.add(new OrderShipment(fulfillment.orderId, null, 0.0, "NO_CARRIER"));
+                shipments.add(new OrderShipment(orderId, null, 0.0, "NO_CARRIER"));
             }
+        }
 
         LOGGER.info("Carrier assignment complete. " + shipments.size() + " shipments created.");
         return shipments;
@@ -214,6 +234,9 @@ public class OrderFulfillmentService {
             List<CustomerProfile> customerProfiles) {
 
         LOGGER.info("Enriching " + orders.size() + " orders with loyalty data.");
+        List<OrderEnrichment> enrichments = new ArrayList<>();
+
+        for (CustomerOrder order : orders) {
             boolean profileFound = false;
 
             for (CustomerProfile profile : customerProfiles) {
