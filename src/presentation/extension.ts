@@ -28,6 +28,11 @@ export function activate(context: vscode.ExtensionContext) {
   console.log("🟢 SustainaDev Analyzer extension is active");
   sustainaDevOutput = vscode.window.createOutputChannel("SustainaDev");
   sustainaDevOutput.appendLine("SustainaDev activated ✅");
+  
+  const runAnalyzer = vscode.commands.registerCommand(
+  "sustainadev.runAnalyzer",
+  () => executeAnalyzeActiveFile(context)
+);
 
   const analyzeActiveFile = vscode.commands.registerCommand(
     "sustainadev.analyzeActiveFile",
