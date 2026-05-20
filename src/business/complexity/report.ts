@@ -1,36 +1,24 @@
-import { MethodFacts } from "../types";
-import { estimateBigO, estimateSpaceBigO } from "./estimator";
-import { OptimizationReport } from "./types";
+// report.ts
+import { AIComplexityResult, OptimizationReport } from "./types";
+import { resolveComplexity } from "./complexityValidator";
 
 export function buildOptimizationReport(
-  beforeFacts: MethodFacts,
-  afterFacts: MethodFacts
+  beforeAI: AIComplexityResult,
+  afterAI: AIComplexityResult,
+  beforeFacts?: any,
+  afterFacts?: any,
+  smellType?: string
 ): OptimizationReport {
-  const beforeTime = estimateBigO(beforeFacts);
-  const afterTime = estimateBigO(afterFacts);
 
-  const beforeSpace = estimateSpaceBigO(beforeFacts);
-  const afterSpace = estimateSpaceBigO(afterFacts);
+  const result = resolveComplexity(beforeAI, afterAI, beforeFacts, afterFacts, smellType);
 
-  const isFactorialCase =
-    beforeFacts.callsSelf &&
-    beforeFacts.isLinearRecursion &&
-    !beforeFacts.hasOverlappingSubproblems && // not Fibonacci
-    !afterFacts.callsSelf;                    // optimized becomes non-recursive
-
-  if (isFactorialCase) {
-    return {
-      metric: "space",
-      before: beforeSpace,
-      after: afterSpace,
-      improvement: `From ${beforeSpace} → ${afterSpace}`,
-    };
-  }
+  console.log(`🧪 Complexity source: ${result.source} | warnings: ${result.warnings.join("; ") || "none"}`);
 
   return {
-    metric: "time",
-    before: beforeTime,
-    after: afterTime,
-    improvement: `From ${beforeTime} → ${afterTime}`,
+    metric: result.metric,
+    before: result.before,
+    after: result.after,
+    improvement: `From ${result.before} → ${result.after}`,
+    source: result.source, // ✅ NEW
   };
 }

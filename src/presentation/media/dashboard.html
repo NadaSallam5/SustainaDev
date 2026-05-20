@@ -2,2189 +2,1027 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'none';
-                 img-src data:;
-                 style-src 'unsafe-inline';
-                 script-src 'unsafe-inline'"
-    />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SustainaDev Dashboard - Enhanced</title>
+    <title>SustainaDev Dashboard</title>
     <style>
+      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Syne:wght@400;600;700;800&display=swap');
       :root {
-        --bg: #1b1d20;
-        --panel: #202329;
-        --muted: #9aa4ad;
-        --text: #e9eef3;
-        --accent: #4fc3f7;
-        --accent-2: #5fb3df;
-        --line: #ffcf5a;
-        --grid: #ffffff22;
-        --grid-soft: #ffffff12;
-        --border: #ffffff18;
-        --chip: #ffffff12;
-        --shadow: 0 0 0 1px var(--border) inset;
-        --success: #4caf50;
-        --warning: #ff9800;
-        --danger: #f44336;
-        --purple: #9c27b0;
-        --green: #4caf50;
-        --red: #f44336;
-        --blue: #2196f3;
-        --orange: #ff9800;
-        --cyan: #00bcd4;
+        --bg:#0d0f12;--panel:#13161b;--panel2:#181c22;--muted:#7a8694;--text:#e2eaf3;
+        --accent:#00e5a0;--accent2:#00b8d4;--warn:#ffcf5a;--danger:#ff5a5a;
+        --border:rgba(255,255,255,0.07);--chip:rgba(255,255,255,0.05);
+        --font:'Syne',system-ui,sans-serif;--mono:'JetBrains Mono',monospace;
       }
-      @media (prefers-color-scheme: light) {
-        :root {
-          --bg: #f6f7f9;
-          --panel: #ffffff;
-          --muted: #5a6672;
-          --text: #1a1d21;
-          --grid: #3a3f4418;
-          --grid-soft: #3a3f440e;
-          --border: #3a3f441a;
-          --chip: #3a3f4410;
-          --shadow: 0 0 0 1px var(--border) inset;
-        }
-      }
-      * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
-      body {
-        padding: 20px;
-        background: var(--bg);
-        color: var(--text);
-        font:
-          14px/1.45 system-ui,
-          -apple-system,
-          Segoe UI,
-          Roboto,
-          Helvetica,
-          Arial;
-      }
-      h1 {
-        margin: 0 0 16px;
-        color: var(--accent);
-        font-size: 28px;
-        font-weight: 800;
-        letter-spacing: 0.3px;
-      }
-      h2 {
-        margin: 20px 0 14px;
-        color: var(--accent-2);
-        font-size: 20px;
-        font-weight: 700;
-      }
-      h3 {
-        margin: 14px 0 10px;
-        color: var(--text);
-        font-size: 16px;
-        font-weight: 600;
-      }
-      .row {
-        display: flex;
-        gap: 10px;
-        align-items: center;
-        flex-wrap: wrap;
-      }
-      .grow {
-        flex: 1 1 auto;
-      }
+      *{box-sizing:border-box;margin:0;padding:0;}
+      body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.5;padding:24px;min-height:100vh;}
 
-      /* Buttons */
-      button {
-        border: none;
-        border-radius: 10px;
-        padding: 10px 16px;
-        font-weight: 700;
-        cursor: pointer;
-        background: var(--accent);
-        color: #0b1116;
-        box-shadow: var(--shadow);
-        font-size: 13px;
-      }
-      button.secondary {
-        background: #3fb3e8;
-      }
-      button.success {
-        background: var(--success);
-        color: white;
-      }
-      button.warning {
-        background: var(--warning);
-        color: white;
-      }
-      button.danger {
-        background: var(--danger);
-        color: white;
-      }
-      button.ghost {
-        background: transparent;
-        color: var(--text);
-        border: 1px solid var(--border);
-      }
-      button:hover {
-        filter: brightness(1.1);
-        transform: translateY(-1px);
-      }
-      button:active {
-        transform: translateY(1px);
-      }
+      .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px;}
+      .header-left{display:flex;align-items:center;gap:14px;}
+      .logo{width:42px;height:42px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+      .header h1{font-size:22px;font-weight:800;letter-spacing:-0.3px;}
+      .header h1 span{color:var(--accent);}
+      .header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 
-      /* Input */
-      input[type="search"] {
-        background: var(--chip);
-        color: var(--text);
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 10px 14px;
-        min-width: 280px;
-        outline: none;
-      }
-      input[type="search"]:focus {
-        border-color: var(--accent);
-      }
+      button{border:none;border-radius:10px;padding:9px 16px;font-family:var(--font);font-weight:700;font-size:13px;cursor:pointer;transition:all 0.15s ease;}
+      .btn-secondary{background:var(--accent2);color:#050d12;}
+      .btn-ghost{background:var(--chip);color:var(--text);border:1px solid var(--border);}
+      button:hover{filter:brightness(1.12);transform:translateY(-1px);}
+      button:active{transform:translateY(0);}
+      button:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
 
-      /* Cards */
-      .card {
-        margin-top: 18px;
-        padding: 18px;
-        border-radius: 16px;
-        background: var(--panel);
-        box-shadow: var(--shadow);
-        transition: transform 0.2s ease;
-      }
-      .card:hover {
-        transform: translateY(-2px);
-      }
-      .card.highlight {
-        border: 2px solid var(--accent);
-      }
+      .search-wrap{position:relative;}
+      .search-wrap input{background:var(--chip);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:9px 14px 9px 36px;font-family:var(--font);font-size:13px;min-width:260px;outline:none;transition:border-color 0.2s;}
+      .search-wrap input:focus{border-color:var(--accent);}
+      .search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;pointer-events:none;}
 
-      .muted {
-        color: var(--muted);
-      }
-      .grid {
-        display: grid;
-        gap: 14px;
-      }
+      .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:24px;}
+      .kpi-card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px 20px;transition:transform 0.2s,box-shadow 0.2s;position:relative;overflow:hidden;}
+      .kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));opacity:0.7;}
+      .kpi-card:hover{transform:translateY(-3px);box-shadow:0 8px 28px rgba(0,229,160,0.08);}
+      .kpi-icon{font-size:20px;margin-bottom:10px;}
+      .kpi-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;}
+      .kpi-value{font-size:28px;font-weight:800;margin:6px 0 0;font-family:var(--mono);background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
 
-      /* KPI Cards */
-      .kpi {
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      }
-      .kpi > div {
-        background: linear-gradient(135deg, var(--panel) 0%, var(--chip) 100%);
-        padding: 20px;
-        border-radius: 14px;
-        box-shadow: var(--shadow);
-        border-left: 4px solid var(--accent);
-        transition: all 0.3s ease;
-      }
-      .kpi > div:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-      }
-      .kpi .num {
-        font-size: 32px;
-        font-weight: 900;
-        letter-spacing: 0.4px;
-        margin: 8px 0;
-        background: linear-gradient(135deg, var(--accent), var(--accent-2));
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-      }
-      .kpi .label {
-        font-size: 13px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        font-weight: 700;
-      }
-      .kpi .icon {
-        font-size: 24px;
-        margin-bottom: 8px;
-      }
+      .tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--border);margin-bottom:20px;}
+      .tab{padding:10px 16px;border-radius:10px 10px 0 0;background:transparent;color:var(--muted);font-size:13px;font-weight:700;border:none;cursor:pointer;transition:all 0.2s;white-space:nowrap;}
+      .tab:hover{color:var(--text);background:var(--chip);transform:none;filter:none;}
+      .tab.active{background:var(--accent);color:#050a07;}
+      .tab-content{display:none;}
+      .tab-content.active{display:block;}
 
-      /* Tables */
-      pre {
-        background: var(--chip);
-        padding: 14px;
-        border-radius: 12px;
-        white-space: pre-wrap;
-        overflow: auto;
-        max-height: 400px;
-        border: 1px solid var(--border);
-      }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 12px;
-      }
-      th,
-      td {
-        text-align: left;
-        padding: 12px 14px;
-        border-bottom: 1px solid var(--grid-soft);
-        vertical-align: middle;
-      }
-      th {
-        color: var(--muted);
-        font-weight: 800;
-        font-size: 12px;
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
-        background: var(--chip);
-      }
-      tbody tr {
-        transition: background 0.2s ease;
-      }
-      tbody tr:hover {
-        background: var(--chip);
-      }
-      tr.selected {
-        background: color-mix(in oklab, var(--accent) 20%, transparent);
-        border-left: 4px solid var(--accent);
-      }
+      .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px;}
+      .card h3{font-size:15px;font-weight:700;margin-bottom:14px;}
+      .card-title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
+      .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+      .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
 
-      /* Pills & Badges */
-      .pill {
-        display: inline-flex;
-        gap: 6px;
-        align-items: center;
-        padding: 4px 12px;
-        border-radius: 999px;
-        font-size: 12px;
-        background: var(--chip);
-        border: 1px solid var(--border);
-        font-weight: 600;
-      }
-      .badge {
-        display: inline-block;
-        padding: 4px 10px;
-        border-radius: 6px;
-        font-size: 11px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-      .badge.success {
-        background: var(--success);
-        color: white;
-      }
-      .badge.warning {
-        background: var(--warning);
-        color: white;
-      }
-      .badge.danger {
-        background: var(--danger);
-        color: white;
-      }
-      .badge.info {
-        background: var(--blue);
-        color: white;
-      }
+      .table-wrap{overflow-x:auto;}
+      table{width:100%;border-collapse:collapse;}
+      th{text-align:left;padding:10px 14px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);background:var(--chip);border-bottom:1px solid var(--border);}
+      td{padding:11px 14px;border-bottom:1px solid rgba(255,255,255,0.04);vertical-align:middle;font-size:13px;}
+      tbody tr{transition:background 0.15s;}
+      tbody tr:hover{background:var(--chip);}
+      tr.selected{background:rgba(0,229,160,0.07);border-left:3px solid var(--accent);}
 
-      /* Layouts */
-      .panel-2col {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 18px;
-      }
-      .panel-3col {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 18px;
-      }
+      .pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;background:var(--chip);border:1px solid var(--border);font-family:var(--mono);}
+      .badge{display:inline-block;padding:3px 9px;border-radius:6px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;}
+      .badge-success{background:rgba(0,229,160,0.15);color:var(--accent);border:1px solid rgba(0,229,160,0.3);}
+      .badge-info{background:rgba(0,184,212,0.15);color:var(--accent2);border:1px solid rgba(0,184,212,0.3);}
+      .badge-warn{background:rgba(255,207,90,0.15);color:var(--warn);border:1px solid rgba(255,207,90,0.3);}
+      .badge-danger{background:rgba(255,90,90,0.15);color:var(--danger);border:1px solid rgba(255,90,90,0.3);}
 
-      /* Charts */
-      .chart-wrap {
-        position: relative;
-        height: 300px;
-        margin: 12px 0;
-      }
-      canvas {
-        width: 100%;
-        height: 100%;
-        background: var(--chip);
-        border-radius: 14px;
-        border: 1px solid var(--border);
-      }
+      .comparison{display:grid;grid-template-columns:1fr auto 1fr;gap:16px;align-items:center;background:var(--chip);border-radius:14px;padding:20px;margin:14px 0;}
+      .cmp-side{text-align:center;padding:20px;border-radius:12px;background:var(--panel);}
+      .cmp-before{border:2px solid rgba(255,90,90,0.4);background:rgba(255,90,90,0.05);}
+      .cmp-after{border:2px solid rgba(0,229,160,0.4);background:rgba(0,229,160,0.05);}
+      .cmp-arrow{font-size:28px;color:var(--accent);}
+      .cmp-value{font-size:36px;font-weight:900;font-family:var(--mono);margin:10px 0;}
+      .cmp-before .cmp-value{color:var(--danger);}
+      .cmp-after .cmp-value{color:var(--accent);}
+      .cmp-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;}
 
-      /* Legend */
-      .legend {
-        display: flex;
-        gap: 12px;
-        align-items: center;
-        flex-wrap: wrap;
-      }
-      .legend .chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 6px 12px;
-        border-radius: 10px;
-        border: 1px solid var(--border);
-        background: var(--chip);
-        font-size: 12px;
-        font-weight: 600;
-      }
-      .swatch {
-        display: inline-block;
-        width: 14px;
-        height: 14px;
-        border-radius: 3px;
-      }
-      .swatch.ccn {
-        background: var(--accent-2);
-      }
-      .swatch.energy {
-        background: var(--line);
-      }
-      .swatch.co2 {
-        background: var(--success);
-      }
-      .swatch.before {
-        background: var(--danger);
-      }
-      .swatch.after {
-        background: var(--success);
-      }
+      .chart-wrap{position:relative;height:280px;margin:10px 0;}
+      canvas{width:100%;height:100%;background:var(--chip);border-radius:12px;border:1px solid var(--border);}
 
-      /* Tooltip */
-      #tip {
-        position: absolute;
-        pointer-events: none;
-        padding: 12px 16px;
-        border-radius: 12px;
-        background: color-mix(in oklab, var(--bg) 80%, #000);
-        color: var(--text);
-        border: 1px solid var(--border);
-        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
-        font-size: 13px;
-        display: none;
-        z-index: 1000;
-        max-width: 300px;
-      }
-      #tip b {
-        color: var(--accent);
-      }
+      .prog-bar{width:100%;height:6px;background:var(--chip);border-radius:3px;overflow:hidden;margin:6px 0;}
+      .prog-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:3px;transition:width 0.6s ease;}
 
-      /* Status indicator */
-      .status {
-        min-width: 60px;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-      }
-      .status-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: var(--success);
-        animation: pulse 2s ease infinite;
-      }
-      @keyframes pulse {
-        0%,
-        100% {
-          opacity: 1;
-        }
-        50% {
-          opacity: 0.5;
-        }
-      }
+      .freq-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);}
+      .freq-row:last-child{border-bottom:none;}
+      .freq-name{min-width:180px;font-weight:700;font-size:13px;}
+      .freq-bar-bg{flex:1;height:28px;background:var(--chip);border-radius:6px;overflow:hidden;}
+      .freq-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));display:flex;align-items:center;padding:0 10px;font-size:12px;font-weight:800;color:#050a07;border-radius:6px;transition:width 0.8s ease;}
+      .freq-count{min-width:40px;text-align:right;font-weight:800;color:var(--accent);font-family:var(--mono);}
 
-      /* Tabs */
-      .tabs {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        margin-top: 20px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-      }
-      .tab {
-        flex: 1 1 150px;
-        min-width: 150px;
-        padding: 10px 14px;
-        text-align: center;
-        background: rgba(255, 255, 255, 0.04);
-        border-top-left-radius: 12px;
-        border-top-right-radius: 12px;
-        cursor: pointer;
-        font-weight: 700;
-        font-size: 13px;
-        color: rgba(255, 255, 255, 0.75);
-        user-select: none;
-        transition:
-          transform 0.1s ease,
-          background 0.2s ease,
-          color 0.2s ease;
-      }
-      .tab:hover {
-        background: var(--chip);
-        color: var(--text);
-      }
-      .tab.active {
-        background: var(--accent);
-        color: #0b1116;
-        border-bottom: 3px solid var(--accent);
-      }
-      .tab-content {
-        display: none;
-      }
-      .tab-content.active {
-        display: block;
-      }
-
-      /* Comparison View */
-      .comparison {
-        display: grid;
-        grid-template-columns: 1fr auto 1fr;
-        gap: 20px;
-        align-items: center;
-        padding: 20px;
-        background: var(--chip);
-        border-radius: 14px;
-        margin: 16px 0;
-      }
-      .comparison .side {
-        text-align: center;
-        padding: 20px;
-        border-radius: 12px;
-        background: var(--panel);
-      }
-      .comparison .side.before {
-        border: 2px solid var(--danger);
-      }
-      .comparison .side.after {
-        border: 2px solid var(--success);
-      }
-      .comparison .arrow {
-        font-size: 32px;
-        color: var(--accent);
-      }
-      .comparison .metric-value {
-        font-size: 42px;
-        font-weight: 900;
-        margin: 12px 0;
-      }
-      .comparison .before .metric-value {
-        color: var(--danger);
-      }
-      .comparison .after .metric-value {
-        color: var(--success);
-      }
-      .comparison .metric-label {
-        font-size: 14px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        color: var(--muted);
-      }
-
-      /* Progress Bar */
-      .progress-bar {
-        width: 100%;
-        height: 8px;
-        background: var(--chip);
-        border-radius: 4px;
-        overflow: hidden;
-        margin: 8px 0;
-      }
-      .progress-fill {
-        height: 100%;
-        background: linear-gradient(90deg, var(--accent), var(--accent-2));
-        transition: width 0.5s ease;
-        border-radius: 4px;
-      }
-
-      /* Analysis Report Section */
-      .analysis-section {
-        margin: 20px 0;
-      }
-      .method-card {
-        background: var(--chip);
-        padding: 16px;
-        border-radius: 12px;
-        margin: 10px 0;
-        border-left: 4px solid var(--border);
-        transition: all 0.3s ease;
-      }
-      .method-card:hover {
-        border-left-color: var(--accent);
-        transform: translateX(4px);
-      }
-      .method-card.long-method {
-        border-left-color: var(--danger);
-      }
-      .method-name {
-        font-size: 16px;
-        font-weight: 700;
-        color: var(--accent);
-        margin-bottom: 8px;
-      }
-      .method-stats {
-        display: flex;
-        gap: 16px;
-        flex-wrap: wrap;
-      }
-      .method-stat {
-        display: flex;
-        flex-direction: column;
-      }
-      .method-stat .label {
-        font-size: 11px;
-        color: var(--muted);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-      .method-stat .value {
-        font-size: 18px;
-        font-weight: 700;
-        margin-top: 4px;
-      }
-
-      /* Frequency Chart */
-      .freq-item {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px;
-        background: var(--chip);
-        border-radius: 10px;
-        margin: 8px 0;
-      }
-      .freq-bar {
-        flex: 1;
-        height: 32px;
-        background: var(--chip);
-        border-radius: 6px;
-        overflow: hidden;
-        position: relative;
-      }
-      .freq-bar-fill {
-        height: 100%;
-        background: linear-gradient(90deg, var(--accent), var(--accent-2));
-        transition: width 0.8s ease;
-        display: flex;
-        align-items: center;
-        padding: 0 12px;
-        font-weight: 700;
-        font-size: 13px;
-        color: white;
-      }
-      .freq-label {
-        min-width: 140px;
-        font-weight: 600;
-      }
-      .freq-count {
-        min-width: 60px;
-        text-align: right;
-        font-weight: 700;
-        color: var(--accent);
-      }
+      /* Donut Chart */
+      .donut-wrap{display:flex;align-items:center;gap:32px;flex-wrap:wrap;padding:10px 0;}
+      .donut-canvas-wrap{position:relative;flex-shrink:0;width:200px;height:200px;}
+      .donut-canvas-wrap canvas{background:transparent!important;border:none!important;border-radius:0!important;width:200px!important;height:200px!important;}
+      .donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;}
+      .donut-center-num{font-size:28px;font-weight:900;font-family:var(--mono);color:var(--accent);}
+      .donut-center-lbl{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-weight:800;margin-top:2px;}
+      .donut-legend{flex:1;display:flex;flex-direction:column;gap:12px;min-width:180px;}
+      .legend-item{display:flex;align-items:center;gap:10px;}
+      .legend-swatch{width:12px;height:12px;border-radius:3px;flex-shrink:0;}
+      .legend-name{flex:1;font-size:13px;font-weight:700;}
+      .legend-pct{font-family:var(--mono);font-size:12px;font-weight:800;color:var(--muted);}
+      .legend-count{font-family:var(--mono);font-size:13px;color:var(--accent);font-weight:800;min-width:30px;text-align:right;}
 
       /* Individual Log Card */
-      .log-detail-card {
-        background: var(--panel);
-        padding: 20px;
-        border-radius: 14px;
-        border: 2px solid var(--border);
-        margin: 16px 0;
-      }
-      .log-detail-card.selected {
-        border-color: var(--accent);
-        box-shadow: 0 8px 32px rgba(79, 195, 247, 0.3);
-      }
+      .ilog-card{background:var(--panel2);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:14px;transition:border-color 0.2s;}
+      .ilog-card:hover{border-color:rgba(0,229,160,0.3);}
+      .ilog-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
+      .ilog-title{font-size:15px;font-weight:800;}
+      .stat-row{display:flex;gap:20px;flex-wrap:wrap;margin:12px 0;}
+      .stat-item .s-l{font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);font-weight:700;}
+      .stat-item .s-v{font-size:16px;font-weight:800;margin-top:3px;font-family:var(--mono);}
 
-      /* Responsive */
-      @media (max-width: 980px) {
-        .panel-2col,
-        .panel-3col {
-          grid-template-columns: 1fr;
-        }
-        .comparison {
-          grid-template-columns: 1fr;
-          gap: 12px;
-        }
-        .comparison .arrow {
-          transform: rotate(90deg);
-        }
+      .sustain-highlight{background:linear-gradient(135deg,rgba(0,229,160,0.06),rgba(0,184,212,0.06));border:1px solid rgba(0,229,160,0.2);border-radius:12px;padding:16px;margin-top:14px;}
+      .sustain-highlight h4{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--accent);font-weight:800;margin-bottom:12px;}
+      .sh-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;}
+      .sh-item .sh-l{font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);font-weight:700;}
+      .sh-item .sh-v{font-size:17px;font-weight:800;font-family:var(--mono);color:var(--accent);margin-top:3px;}
+      .sh-item .sh-s{font-size:11px;color:var(--muted);}
+
+      /* ══ CREATIVE SUSTAINABILITY TAB ══ */
+      .sustain-hero{
+        position:relative;overflow:hidden;
+        background:linear-gradient(135deg,#0a1f16 0%,#08141e 50%,#0d1a0e 100%);
+        border:1px solid rgba(0,229,160,0.18);border-radius:22px;padding:36px;margin-bottom:16px;
+      }
+      .sustain-hero::before{content:'';position:absolute;top:-80px;right:-80px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,rgba(0,229,160,0.13) 0%,transparent 65%);pointer-events:none;}
+      .sustain-hero::after{content:'';position:absolute;bottom:-100px;left:-60px;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(0,184,212,0.09) 0%,transparent 65%);pointer-events:none;}
+      .sustain-hero-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:32px;position:relative;z-index:1;flex-wrap:wrap;gap:12px;}
+      .sustain-hero-title{font-size:24px;font-weight:800;letter-spacing:-0.5px;line-height:1.2;}
+      .sustain-hero-title em{color:var(--accent);font-style:normal;}
+      .sustain-hero-sub{font-size:13px;color:var(--muted);margin-top:6px;}
+      .sustain-live-pill{display:flex;align-items:center;gap:7px;background:rgba(0,229,160,0.1);border:1px solid rgba(0,229,160,0.28);border-radius:999px;padding:6px 14px;font-size:11px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:1px;}
+      .sustain-live-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:blink 1.8s ease infinite;}
+
+      .sustain-stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;position:relative;z-index:1;}
+      .sustain-stat-card{
+        background:rgba(255,255,255,0.035);border:1px solid rgba(255,255,255,0.09);
+        border-radius:18px;padding:24px;transition:transform 0.2s,border-color 0.2s;
+        position:relative;overflow:hidden;
+      }
+      .sustain-stat-card:hover{transform:translateY(-4px);border-color:rgba(0,229,160,0.3);}
+      .sustain-stat-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,229,160,0.5),transparent);}
+      .ssc-icon{font-size:32px;margin-bottom:12px;display:block;}
+      .ssc-label{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(122,134,148,0.9);font-weight:800;}
+      .ssc-value{font-size:34px;font-weight:900;font-family:var(--mono);margin:8px 0 4px;background:linear-gradient(135deg,#00e5a0,#00b8d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+      .ssc-unit{font-size:12px;color:var(--muted);font-weight:700;letter-spacing:0.5px;}
+
+      /* Sustain chart section */
+      .sustain-chart-card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px;}
+      .sustain-chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;}
+      .sustain-chart-header h3{font-size:15px;font-weight:700;}
+
+      /* Per-run cards */
+      .sustain-run-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;}
+      .sustain-run-card{
+        background:var(--panel2);border:1px solid var(--border);
+        border-radius:14px;padding:18px;
+        transition:border-color 0.2s,transform 0.2s;
+        position:relative;overflow:hidden;
+      }
+      .sustain-run-card:hover{border-color:rgba(0,229,160,0.3);transform:translateY(-2px);}
+      .sustain-run-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,var(--accent),var(--accent2));border-radius:3px 0 0 3px;}
+      .src-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+      .src-num{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+      .src-file{font-size:12px;font-weight:700;font-family:var(--mono);color:var(--accent2);max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .src-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+      .src-item .src-l{font-size:9px;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);font-weight:700;}
+      .src-item .src-v{font-size:15px;font-weight:800;font-family:var(--mono);color:var(--accent);margin-top:3px;}
+      .src-item .src-v.red{color:var(--danger);}
+      .src-item .src-u{font-size:10px;color:var(--muted);}
+      .src-time{font-size:11px;color:var(--muted);margin-top:12px;padding-top:10px;border-top:1px solid var(--border);}
+
+      /* Insight Cards */
+      .insight-card{background:linear-gradient(135deg,var(--panel),var(--panel2));border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:14px;position:relative;overflow:hidden;}
+      .insight-card::after{content:'';position:absolute;top:-20px;right:-20px;width:80px;height:80px;border-radius:50%;background:radial-gradient(var(--accent),transparent 70%);opacity:0.08;}
+      .insight-card h4{font-size:14px;font-weight:800;margin-bottom:6px;}
+      .insight-card p{font-size:13px;color:var(--muted);line-height:1.6;}
+      .insight-val{font-size:32px;font-weight:900;font-family:var(--mono);color:var(--accent);margin:10px 0 4px;}
+
+      .top-file-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);}
+      .top-file-row:last-child{border-bottom:none;}
+      .tf-rank{width:28px;height:28px;border-radius:8px;background:var(--chip);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:var(--accent);flex-shrink:0;}
+      .tf-name{flex:1;font-weight:700;font-size:13px;font-family:var(--mono);}
+      .tf-count{font-family:var(--mono);font-weight:800;color:var(--accent);}
+
+      .hw-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;}
+      .hw-item{background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:16px;}
+      .hw-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;margin-bottom:8px;}
+      .hw-val{font-weight:800;font-size:14px;font-family:var(--mono);}
+
+      #status-bar{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);}
+      .dot{width:7px;height:7px;border-radius:50%;background:var(--muted);}
+      .dot.active{background:var(--accent);animation:blink 1.8s ease infinite;}
+      @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+      .muted{color:var(--muted);}
+      .reason-box{background:var(--chip);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--muted);line-height:1.6;font-family:var(--mono);}
+
+      @media(max-width:800px){
+        .grid-2,.grid-3{grid-template-columns:1fr;}
+        .comparison{grid-template-columns:1fr;}
+        .kpi-grid{grid-template-columns:repeat(2,1fr);}
+        .donut-wrap{flex-direction:column;}
       }
     </style>
   </head>
   <body>
-    <h1>🌱 SustainaDev Dashboard</h1>
 
-    <!-- Control Bar -->
-    <div class="row">
-      <button id="load-analysis" class="success">
-        📊 Load Analysis Report
-      </button>
-      <button id="load-log" class="secondary">📜 Load Refactor Logs</button>
-      <input
-        id="filter"
-        type="search"
-        placeholder="Filter by file, refactor type, or commit..."
-      />
-      <span class="grow"></span>
-      <span id="status" class="status muted">
-        <span class="status-dot" style="background: var(--muted)"></span>
-        Idle
-      </span>
-      <button id="export-png" class="ghost">💾 Export Chart</button>
-    </div>
-
-    <!-- KPI Cards -->
-    <div class="grid kpi">
-      <div>
-        <div class="icon">🔄</div>
-        <div class="label muted">Total Refactors</div>
-        <div id="kpi-refactors" class="num">0</div>
+    <div class="header">
+      <div class="header-left">
+        <div class="logo">🌱</div>
+        <div>
+          <h1>Sustaina<span>Dev</span></h1>
+          <div class="muted" style="font-size:12px;margin-top:1px">Green Code Analytics Dashboard</div>
+        </div>
       </div>
-      <div>
-        <div class="icon">📉</div>
-        <div class="label muted">Avg Complexity Reduction</div>
-        <div id="kpi-delta" class="num">0</div>
-      </div>
-      <div>
-        <div class="icon">⚡</div>
-        <div class="label muted">Total Energy Saved</div>
-        <div id="kpi-energy" class="num">0 kWh</div>
-      </div>
-      <div>
-        <div class="icon">🌍</div>
-        <div class="label muted">CO₂ Emissions Saved</div>
-        <div id="kpi-co2" class="num">0 kg</div>
-      </div>
-      <div>
-        <div class="icon">💰</div>
-        <div class="label muted">Cost Saved</div>
-        <div id="kpi-cost" class="num">$0.00</div>
+      <div class="header-right">
+        <button class="btn-secondary" id="load-log">📜 Load Logs</button>
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input id="filter" type="search" placeholder="Search file, refactor type…" />
+        </div>
+        <button class="btn-ghost" id="export-png">💾 Export</button>
+        <div id="status-bar"><div class="dot" id="status-dot"></div><span id="status-text">Idle</span></div>
       </div>
     </div>
 
-    <!-- Tabs Navigation -->
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="kpi-icon">🔄</div><div class="kpi-label">Total Refactors</div><div class="kpi-value" id="kpi-refactors">0</div></div>
+      <div class="kpi-card"><div class="kpi-icon">⚡</div><div class="kpi-label">Total Energy Saved</div><div class="kpi-value" id="kpi-energy">0 kWh</div></div>
+      <div class="kpi-card"><div class="kpi-icon">🌍</div><div class="kpi-label">CO₂ Saved</div><div class="kpi-value" id="kpi-co2">0 g</div></div>
+      <div class="kpi-card"><div class="kpi-icon">📁</div><div class="kpi-label">Files Optimized</div><div class="kpi-value" id="kpi-files">0</div></div>
+    </div>
+
     <div class="tabs">
       <button class="tab active" data-tab="overview">📊 Overview</button>
-      <button class="tab" data-tab="analysis">📋 Analysis Report</button>
       <button class="tab" data-tab="refactors">🔧 Refactor History</button>
-      <button class="tab" data-tab="frequency">📈 Frequency Analysis</button>
-      <button class="tab" data-tab="energy">⚡ Energy & CO₂</button>
+      <button class="tab" data-tab="frequency">📈 Frequency</button>
+      <button class="tab" data-tab="sustainability">🌱 Sustainability</button>
+      <button class="tab" data-tab="insights">💡 Insights</button>
       <button class="tab" data-tab="individual">🔍 Individual Logs</button>
-      <button class="tab" data-tab="hardware">🖥️ Hardware Specs</button>
-    </div>
+<button class="tab" data-tab="hardware">🖥️ Hardware</button>
+<button class="tab" data-tab="recommendations">💡 Upgrade Tips</button>   
+ </div>
 
-    <!-- TAB 1: Overview -->
+    <!-- Overview -->
     <div id="tab-overview" class="tab-content active">
-      <div class="panel-2col">
-        <!-- Main Chart -->
+      <div class="grid-2">
         <div class="card">
-          <h3>📊 Refactoring Impact Over Time</h3>
-          <div
-            class="row"
-            style="justify-content: space-between; margin: 12px 0"
-          >
-            <div class="legend">
-              <span class="chip"><span class="swatch ccn"></span> Δ CCN</span>
-              <span class="chip"
-                ><span class="swatch energy"></span> Energy Saved</span
-              >
-            </div>
-          </div>
-          <div class="chart-wrap">
-            <canvas id="chart-main" width="900" height="360"></canvas>
-            <div id="tip"></div>
-          </div>
+          <div class="card-title-row"><h3>📊 Refactoring Impact Over Time</h3></div>
+          <div class="chart-wrap" style="height:320px;"><canvas id="chart-main"></canvas></div>
         </div>
-
-        <!-- Quick Stats -->
         <div class="card">
           <h3>🎯 Quick Statistics</h3>
-          <div id="quick-stats" style="margin-top: 12px">
-            <div class="muted">Load refactor logs to see statistics</div>
-          </div>
+          <div id="quick-stats"><div class="muted">Load logs to see statistics</div></div>
         </div>
       </div>
     </div>
 
-    <!-- TAB 2: Analysis Report -->
-    <div id="tab-analysis" class="tab-content">
-      <div class="card">
-        <h2>📋 Analysis Report</h2>
-        <div class="muted" style="margin-bottom: 16px">
-          Shows code smells detected by the Java analyzer
-        </div>
-        <div id="analysis-content">
-          <div class="muted">
-            Click "Load Analysis Report" to view detected code smells
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- TAB 3: Refactor History -->
+    <!-- Refactor History — no Score column -->
     <div id="tab-refactors" class="tab-content">
       <div class="card">
-        <h2>🔧 Refactoring History</h2>
-        <div
-          class="row"
-          style="justify-content: space-between; margin-bottom: 12px"
-        >
-          <div class="muted">Complete refactoring timeline</div>
-          <div class="muted" id="count">0 items</div>
+        <div class="card-title-row">
+          <h3>🔧 Refactoring History</h3>
+          <span class="muted" id="count" style="font-size:12px">0 items</span>
         </div>
-
-        <!-- Before/After Comparison for Selected -->
-        <div id="comparison-view" style="display: none">
-          <h3>Detailed Comparison</h3>
+        <div id="comparison-view" style="display:none;margin-bottom:16px">
           <div class="comparison">
-            <div class="side before">
-              <div class="metric-label">Before Refactoring</div>
-              <div class="metric-value" id="compare-before-ccn">0</div>
-              <div class="muted">Algorithmic Complexity (Big-O)</div>
-            </div>
-            <div class="arrow">→</div>
-            <div class="side after">
-              <div class="metric-label">After Refactoring</div>
-              <div class="metric-value" id="compare-after-ccn">0</div>
-              <div class="muted">Algorithmic Complexity (Big-O)</div>
-            </div>
+            <div class="cmp-side cmp-before"><div class="cmp-label">Before</div><div class="cmp-value" id="cmp-before">—</div><div class="muted" style="font-size:12px">Big-O Complexity</div></div>
+            <div class="cmp-arrow">→</div>
+            <div class="cmp-side cmp-after"><div class="cmp-label">After</div><div class="cmp-value" id="cmp-after">—</div><div class="muted" style="font-size:12px">Big-O Complexity</div></div>
           </div>
-          <div style="text-align: center; margin-top: 12px">
-            <div class="badge success" id="improvement-badge">
-              0% Improvement
-            </div>
-          </div>
+          <div style="text-align:center;margin-top:8px"><span class="badge badge-success" id="cmp-badge">—</span></div>
         </div>
-
-        <table>
-          <thead>
-            <tr>
-              <th>Time</th>
-              <th>File</th>
-              <th>Refactor Type</th>
-              <th>Δ CCN</th>
-              <th>Δ Lines</th>
-              <th>Energy</th>
-              <th>CO₂</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="log-tbody">
-            <tr>
-              <td class="muted" colspan="8">
-                Click "Load Refactor Logs" to view history
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Time</th><th>File</th><th>Refactor</th><th>Before</th><th>After</th><th>Energy Saved</th><th>CO₂ Saved</th><th></th></tr>
+            </thead>
+            <tbody id="log-tbody">
+              <tr><td class="muted" colspan="8">Click "Load Logs" to view history</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
-    <!-- TAB 4: Frequency Analysis -->
+    <!-- Frequency — professional donut -->
     <div id="tab-frequency" class="tab-content">
       <div class="card">
-        <h2>📈 Refactoring Type Frequency</h2>
-        <div class="muted" style="margin-bottom: 20px">
-          Most commonly used refactoring patterns
-        </div>
-        <div id="frequency-chart">
-          <div class="muted">Load refactor logs to see frequency analysis</div>
-        </div>
+        <h3>📈 Refactoring Type Frequency</h3>
+        <div id="freq-bars"><div class="muted">Load logs to see frequency</div></div>
       </div>
-
-      <div class="panel-2col" style="margin-top: 20px">
+      <div class="grid-2">
         <div class="card">
-          <h3>📊 Distribution Chart</h3>
-          <div class="chart-wrap" style="height: 250px">
-            <canvas id="chart-frequency" width="600" height="300"></canvas>
+          <h3>📊 Distribution</h3>
+          <div class="donut-wrap">
+            <div class="donut-canvas-wrap">
+              <canvas id="chart-freq" width="200" height="200"></canvas>
+              <div class="donut-center">
+                <div class="donut-center-num" id="donut-total">0</div>
+                <div class="donut-center-lbl">total</div>
+              </div>
+            </div>
+            <div class="donut-legend" id="donut-legend"><div class="muted" style="font-size:13px">No data</div></div>
           </div>
         </div>
-
         <div class="card">
-          <h3>🎯 Top Patterns</h3>
-          <div id="top-patterns">
-            <div class="muted">No data available</div>
-          </div>
+          <h3>🥇 Top Patterns</h3>
+          <div id="top-patterns"><div class="muted">No data</div></div>
         </div>
       </div>
     </div>
 
-    <!-- TAB 5: Energy & CO2 -->
-    <div id="tab-energy" class="tab-content">
+    <!-- Sustainability — creative, no score ring, no score anywhere -->
+    <div id="tab-sustainability" class="tab-content">
+      <div class="sustain-hero">
+        <div class="sustain-hero-top">
+          <div>
+            <div class="sustain-hero-title">🌍 Carbon <em>Impact</em> Report</div>
+            <div class="sustain-hero-sub">Real savings measured from every refactoring operation</div>
+          </div>
+          <div class="sustain-live-pill"><div class="sustain-live-dot"></div>Live from Logs</div>
+        </div>
+        <div class="sustain-stats-grid">
+          <div class="sustain-stat-card">
+            <span class="ssc-icon">⚡</span>
+            <div class="ssc-label">Total Energy Saved</div>
+            <div class="ssc-value" id="s-energy">—</div>
+            <div class="ssc-unit">micro watt-hours (µWh)</div>
+          </div>
+          <div class="sustain-stat-card">
+            <span class="ssc-icon">💨</span>
+            <div class="ssc-label">Total Carbon Saved</div>
+            <div class="ssc-value" id="s-carbon">—</div>
+            <div class="ssc-unit">micro grams CO₂ (µgCO₂)</div>
+          </div>
+          <div class="sustain-stat-card">
+            <span class="ssc-icon">🔬</span>
+            <div class="ssc-label">Operations Logged</div>
+            <div class="ssc-value" id="s-count">—</div>
+            <div class="ssc-unit">with sustainability data</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sustain-chart-card">
+        <div class="sustain-chart-header"><h3>🗂️ Per-Run Breakdown</h3></div>
+        <div class="sustain-run-grid" id="sustain-run-grid">
+          <div class="muted">Load logs to see per-run data</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Insights -->
+    <div id="tab-insights" class="tab-content">
+      <div class="grid-3">
+        <div class="insight-card"><h4>🏆 Most Optimized File</h4><div class="insight-val" id="ins-top-file">—</div><p id="ins-top-file-count" class="muted">Load logs to see</p></div>
+        <div class="insight-card"><h4>⚡ Best Energy Saving</h4><div class="insight-val" id="ins-best-energy">—</div><p id="ins-best-energy-file" class="muted">single refactoring</p></div>
+        <div class="insight-card"><h4>🌱 Greenest Refactor Type</h4><div class="insight-val" id="ins-greenest">—</div><p id="ins-greenest-sub" class="muted">by total energy saved</p></div>
+      </div>
+      <div class="grid-2" style="margin-top:0">
+        <div class="card"><h3>📁 Top Optimized Files</h3><div id="top-files-list"><div class="muted">No data</div></div></div>
+        <div class="card"><h3>⚡ Energy Saved per Refactor Type</h3><div id="energy-by-type"><div class="muted">No data</div></div></div>
+      </div>
       <div class="card">
-        <h2>⚡ Energy Consumption & CO₂ Emissions</h2>
-        <div class="muted" style="margin-bottom: 20px">
-          Environmental impact of refactoring activities
+        <div class="card-title-row">
+          <h3>📅 Energy Saved Per Day</h3>
+          <span class="badge badge-info" id="daily-range-badge" style="display:none"></span>
         </div>
-
-        <!-- Before/After Energy Comparison -->
-        <div class="comparison">
-          <div class="side before">
-            <div class="metric-label">Before Optimization</div>
-            <div class="metric-value" id="energy-before">~0.0</div>
-            <div class="muted">kWh (estimated)</div>
-          </div>
-          <div class="arrow">→</div>
-          <div class="side after">
-            <div class="metric-label">After Optimization</div>
-            <div class="metric-value" id="energy-after">~0.0</div>
-            <div class="muted">kWh (saved)</div>
-          </div>
-        </div>
-
-        <div class="panel-2col" style="margin-top: 20px">
-          <div class="card">
-            <h3>⚡ Energy Savings Over Time</h3>
-            <div class="chart-wrap">
-              <canvas id="chart-energy" width="600" height="300"></canvas>
-            </div>
-          </div>
-
-          <div class="card">
-            <h3>🌍 CO₂ Emissions Reduction</h3>
-            <div class="chart-wrap">
-              <canvas id="chart-co2" width="600" height="300"></canvas>
-            </div>
-          </div>
-        </div>
-
-        <div class="card" style="margin-top: 20px">
-          <h3>💡 Environmental Impact Summary</h3>
-          <div id="env-impact">
-            <div class="muted">Load logs to see environmental impact</div>
-          </div>
+        <div style="position:relative;height:320px;margin-top:4px;">
+          <canvas id="chart-daily" style="background:var(--chip);border-radius:12px;border:1px solid var(--border);width:100%;height:100%;display:block;"></canvas>
         </div>
       </div>
     </div>
 
-    <!-- TAB 6: Individual Logs -->
+    <!-- Individual Logs — no score in sustain section -->
     <div id="tab-individual" class="tab-content">
-      <div class="card">
-        <h2>🔍 Individual Refactoring Details</h2>
-        <div class="muted" style="margin-bottom: 20px">
-          Detailed view of each refactoring operation
-        </div>
-        <div id="individual-logs">
-          <div class="muted">Load refactor logs to view individual entries</div>
-        </div>
-      </div>
+      <div id="individual-logs"><div class="muted">Load logs to see individual entries</div></div>
     </div>
 
-    <!-- TAB 7: Hardware Specs -->
+    <!-- Hardware -->
     <div id="tab-hardware" class="tab-content">
       <div class="card">
-        <h2>🖥️ Hardware Specs</h2>
-        <div class="muted" style="margin-bottom: 14px">
-          Current device specifications (read live from your machine)
-        </div>
-
-        <div
-          class="row"
-          style="
-            justify-content: space-between;
-            margin-bottom: 12px;
-            gap: 10px;
-            flex-wrap: wrap;
-          "
-        >
-          <button id="load-hardware" class="btn secondary">
-            Load Hardware Specs
-          </button>
-          <div class="muted">
-            <span id="hw-loading" class="pill" style="display: none"
-              >Loading…</span
-            >
-            <span id="hw-status">Not loaded yet</span>
+        <div class="card-title-row">
+          <h3>🖥️ Hardware Specifications</h3>
+          <div style="display:flex;align-items:center;gap:10px">
+            <button class="btn-secondary" id="load-hardware">Load Hardware Specs</button>
+            <span class="muted" id="hw-status" style="font-size:12px">Not loaded</span>
           </div>
         </div>
-
-        <div
-          class="grid"
-          style="
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 12px;
-          "
-        >
-          <div
-            class="card"
-            style="
-              background: rgba(255, 255, 255, 0.02);
-              border: 1px solid var(--border);
-            "
-          >
-            <div class="muted">CPU</div>
-            <div id="hw-cpu" style="font-weight: 800; margin-top: 6px">—</div>
-          </div>
-
-          <div
-            class="card"
-            style="
-              background: rgba(255, 255, 255, 0.02);
-              border: 1px solid var(--border);
-            "
-          >
-            <div class="muted">GPU</div>
-            <div id="hw-gpu" style="font-weight: 800; margin-top: 6px">—</div>
-          </div>
-
-          <div
-            class="card"
-            style="
-              background: rgba(255, 255, 255, 0.02);
-              border: 1px solid var(--border);
-            "
-          >
-            <div class="muted">RAM</div>
-            <div id="hw-ram" style="font-weight: 800; margin-top: 6px">—</div>
-          </div>
-
-          <div
-            class="card"
-            style="
-              background: rgba(255, 255, 255, 0.02);
-              border: 1px solid var(--border);
-            "
-          >
-            <div class="muted">OS</div>
-            <div id="hw-os" style="font-weight: 800; margin-top: 6px">—</div>
-          </div>
-
-          <div
-            class="card"
-            style="
-              background: rgba(255, 255, 255, 0.02);
-              border: 1px solid var(--border);
-              grid-column: 1 / -1;
-            "
-          >
-            <div class="muted">Disks</div>
-            <pre
-              id="hw-disks"
-              style="
-                margin: 8px 0 0;
-                white-space: pre-wrap;
-                font-family:
-                  ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-                  &quot;Liberation Mono&quot;, &quot;Courier New&quot;,
-                  monospace;
-              "
-            >
-—</pre
-            >
-          </div>
-
-          <div
-            class="card"
-            style="
-              background: rgba(255, 255, 255, 0.02);
-              border: 1px solid var(--border);
-              grid-column: 1 / -1;
-            "
-          >
-            <div class="muted">Battery</div>
-            <div id="hw-battery" style="font-weight: 800; margin-top: 6px">
-              —
-            </div>
-          </div>
+        <div class="hw-grid">
+          <div class="hw-item"><div class="hw-label">🧠 CPU</div><div class="hw-val" id="hw-cpu">—</div></div>
+          <div class="hw-item"><div class="hw-label">🎮 GPU</div><div class="hw-val" id="hw-gpu">—</div></div>
+          <div class="hw-item"><div class="hw-label">📦 RAM</div><div class="hw-val" id="hw-ram">—</div></div>
+          <div class="hw-item"><div class="hw-label">🖥️ OS</div><div class="hw-val" id="hw-os">—</div></div>
+          <div class="hw-item" style="grid-column:1/-1"><div class="hw-label">💽 Disks</div><pre id="hw-disks" style="font-family:var(--mono);font-size:13px;margin-top:6px;white-space:pre-wrap;color:var(--text)">—</pre></div>
+          <div class="hw-item" style="grid-column:1/-1"><div class="hw-label">🔋 Battery</div><div class="hw-val" id="hw-battery">—</div></div>
         </div>
       </div>
     </div>
-
+<!-- Hardware Recommendations -->
+    <div id="tab-recommendations" class="tab-content">
+      <div class="card">
+        <div class="card-title-row">
+          <h3>💡 Hardware Upgrade Recommendations</h3>
+          <div style="display:flex;align-items:center;gap:10px">
+            <button class="btn-secondary" id="load-recommendations">Analyze My Hardware</button>
+            <span class="muted" id="rec-status" style="font-size:12px">Not loaded</span>
+          </div>
+        </div>
+        <div id="rec-summary" style="display:none;margin-bottom:16px;padding:14px;background:var(--chip);border-radius:12px;font-size:13px;color:var(--muted)">
+          Based on your detected hardware — recommendations are sorted by priority and estimated energy saving.
+        </div>
+        <div id="rec-list"><div class="muted">Click "Analyze My Hardware" to get personalized upgrade recommendations</div></div>
+      </div>
+    </div>
     <script>
-      // =====================================================
-      // VS Code API & DOM Setup
-      // =====================================================
-      const vscode =
-        typeof acquireVsCodeApi === "function" ? acquireVsCodeApi() : null;
+    const vscode=typeof acquireVsCodeApi==='function'?acquireVsCodeApi():null;
+    const $=id=>document.getElementById(id);
+    let allRows=[],viewRows=[],selectedIndex=-1,animPct=0;
 
-      function byId(id) {
-        const el = document.getElementById(id);
-        if (!el) console.error("#" + id + " not found");
-        return el;
+    function setStatus(t,l=false){$('status-dot').className='dot'+(l?' active':'');$('status-text').textContent=t;}
+    function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);}
+function nf(n,d=6){const v=Number(n||0);if(v===0)return'0';if(v>=1)return v.toFixed(Math.min(d,3));if(v>=0.01)return v.toFixed(4);if(v>=0.001)return v.toFixed(5);if(v>=0.0001)return v.toFixed(6);return v.toFixed(8);}
+    function fmtKwh(kwh){return`${(Number(kwh||0)*1e6).toFixed(4)} µWh`;}
+    function fmtCo2(g){return`${(Number(g||0)*1e6).toFixed(4)} µgCO₂`;}
+        function gv(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim();}
+
+    document.querySelectorAll('.tab').forEach(tab=>{
+      tab.addEventListener('click',()=>{
+        document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+        tab.classList.add('active');
+        $('tab-'+tab.dataset.tab).classList.add('active');
+if(tab.dataset.tab==='hardware')requestHardware();
+if(tab.dataset.tab==='recommendations'){}
+        if(tab.dataset.tab==='insights')setTimeout(drawDailyChart,80);
+        if(tab.dataset.tab==='overview')setTimeout(()=>{animPct=0;drawMainChart();},50);
+        setTimeout(drawAllCharts,50);
+      });
+    });
+
+    $('load-log').addEventListener('click',()=>{setStatus('Loading logs…',true);vscode&&vscode.postMessage({type:'readLog'});});
+    $('filter').addEventListener('input',e=>{applyFilter(e.target.value);renderAll();});
+    $('export-png').addEventListener('click',()=>{const a=document.createElement('a');a.download='sustainadev.png';a.href=$('chart-main').toDataURL();a.click();});
+    $('load-hardware').addEventListener('click',requestHardware);
+$('load-recommendations').addEventListener('click',loadRecommendations);
+    function requestHardware(){$('hw-status').textContent='Loading…';$('load-hardware').disabled=true;vscode&&vscode.postMessage({type:'readHardware'});}
+
+    window.addEventListener('message',ev=>{
+      const msg=ev.data;
+      if(msg.type==='logContent'){
+        try{allRows=msg.lines.map(l=>JSON.parse(l));allRows.sort((a,b)=>new Date(b.timestamp||0)-new Date(a.timestamp||0));applyFilter($('filter').value);renderAll();setStatus(`${allRows.length} logs loaded ✓`);}
+        catch(e){setStatus('Parse error');console.error(e);}
       }
-
-      const statusEl = byId("status");
-      const filterInput = byId("filter");
-      const tbody = byId("log-tbody");
-      const tip = byId("tip");
-
-      // Canvas elements
-      const canvasMain = byId("chart-main");
-      const canvasFreq = byId("chart-frequency");
-      const canvasEnergy = byId("chart-energy");
-      const canvasCO2 = byId("chart-co2");
-
-      const ctxMain = canvasMain?.getContext("2d");
-      const ctxFreq = canvasFreq?.getContext("2d");
-      const ctxEnergy = canvasEnergy?.getContext("2d");
-      const ctxCO2 = canvasCO2?.getContext("2d");
-
-      // =====================================================
-      // State Management
-      // =====================================================
-      let allRows = [];
-      let viewRows = [];
-      let selectedIndex = -1;
-      let anim = 0;
-      let analysisData = null;
-
-      // =====================================================
-      // Tab System
-      // =====================================================
-      document.querySelectorAll(".tab").forEach((tab) => {
-        tab.addEventListener("click", () => {
-          const targetTab = tab.dataset.tab;
-
-          // Update active tab
-          document
-            .querySelectorAll(".tab")
-            .forEach((t) => t.classList.remove("active"));
-          tab.classList.add("active");
-
-          // Update active content
-          document.querySelectorAll(".tab-content").forEach((content) => {
-            content.classList.remove("active");
-          });
-          byId("tab-" + targetTab).classList.add("active");
-
-          if (targetTab === "hardware") {
-            requestHardware();
-          }
-        });
-      });
-
-      // =====================================================
-      // Event Listeners
-      // =====================================================
-      byId("load-analysis").addEventListener("click", () => {
-        setStatus("Reading analysis-report.json…", true);
-        vscode && vscode.postMessage({ type: "readAnalysis" });
-      });
-
-      byId("load-log").addEventListener("click", () => {
-        setStatus("Reading log.jsonl…", true);
-        vscode && vscode.postMessage({ type: "readLog" });
-      });
-
-      function requestHardware() {
-        const btn = byId("load-hardware");
-        const loading = byId("hw-loading");
-        const status = byId("hw-status");
-
-        if (!vscode) {
-          if (status) status.textContent = "VS Code API not available.";
+      if(msg.type==='logError')setStatus('Error loading logs');
+      if(msg.type==='hardwareContent'){
+        const s=msg.specs||{};
+        $('hw-cpu').textContent=s.cpu||'—';$('hw-gpu').textContent=s.gpu||'—';$('hw-ram').textContent=s.ram||'—';$('hw-os').textContent=s.os||'—';$('hw-disks').textContent=s.disks||'—';$('hw-battery').textContent=s.battery||'—';
+        $('hw-status').textContent='Loaded ✓';$('load-hardware').disabled=false;$('load-hardware').textContent='Reload';
+      }
+      if(msg.type==='hardwareError'){$('hw-status').textContent='Error: '+(msg.error||'unknown');$('load-hardware').disabled=false;$('load-hardware').textContent='Retry';}
+      if(msg.type==='hardwareRecommendations'){
+        const recs=msg.recommendations||[];
+        $('rec-status').textContent=`${recs.length} recommendation${recs.length!==1?'s':''} found`;
+        $('load-recommendations').disabled=false;
+        $('load-recommendations').textContent='Refresh';
+        if(!recs.length){
+          $('rec-list').innerHTML='<div style="color:var(--accent);font-weight:700;padding:20px 0">✅ Your hardware looks good — no urgent upgrades needed</div>';
           return;
         }
-
-        if (loading) loading.style.display = "inline-flex";
-        if (status) status.textContent = "Loading hardware specs...";
-        if (btn) {
-          btn.disabled = true;
-          btn.textContent = "Loading...";
-        }
-
-        console.log("📡 Requesting hardware specs from extension...");
-        vscode.postMessage({ type: "readHardware" });
+        $('rec-summary').style.display='block';
+        const priorityColors={high:'badge-danger',medium:'badge-warn',low:'badge-info'};
+        const priorityIcons={high:'🔴',medium:'🟡',low:'🟢'};
+        let html='';
+        recs.forEach(rec=>{
+          html+=`<div class="ilog-card" style="margin-bottom:12px">
+            <div class="ilog-header">
+              <div class="ilog-title">${priorityIcons[rec.priority]} ${esc(rec.component)}</div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span class="badge ${priorityColors[rec.priority]}">${rec.priority} priority</span>
+                ${rec.estimatedSavingWatts>0?`<span class="badge badge-success">~${rec.estimatedSavingWatts.toFixed(1)}W saving</span>`:''}
+              </div>
+            </div>
+            <div style="margin-bottom:10px;padding:10px 14px;background:rgba(255,90,90,0.06);border:1px solid rgba(255,90,90,0.15);border-radius:8px;font-size:13px;color:var(--muted)">
+              <strong style="color:var(--text)">Issue:</strong> ${esc(rec.issue)}
+            </div>
+            <div style="padding:10px 14px;background:rgba(0,229,160,0.06);border:1px solid rgba(0,229,160,0.15);border-radius:8px;font-size:13px;color:var(--muted)">
+              <strong style="color:var(--accent)">Recommendation:</strong> ${esc(rec.recommendation)}
+            </div>
+          </div>`;
+        });
+        $('rec-list').innerHTML=html;
       }
-      const hwBtn = byId("load-hardware");
-      if (hwBtn) {
-        hwBtn.addEventListener("click", () => requestHardware());
+      if(msg.type==='hardwareRecommendationsError'){
+        $('rec-status').textContent='Error: '+(msg.error||'unknown');
+        $('load-recommendations').disabled=false;
+        $('rec-list').innerHTML=`<div style="color:var(--danger)">Failed to load recommendations: ${esc(msg.error||'unknown error')}</div>`;
       }
+});
 
-      filterInput.addEventListener("input", (e) => {
-        applyFilter(e.target.value);
-        renderTable();
-        drawAllCharts();
+    function applyFilter(q){
+      viewRows=q?allRows.filter(r=>(r.file||'').toLowerCase().includes(q.toLowerCase())||(r.refactor||'').toLowerCase().includes(q.toLowerCase())):[...allRows];
+      selectedIndex=-1;
+      $('count').textContent=`${viewRows.length} item${viewRows.length!==1?'s':''}`;
+    }
+    function getBigO(row){
+      const p=(...vs)=>{for(const v of vs){if(v!=null){const s=String(v).trim();if(s)return s;}}return null;};
+      return{before:p(row?.complexity?.before,row?.bigO?.before,row?.before?.bigO),after:p(row?.complexity?.after,row?.bigO?.after,row?.after?.bigO)};
+    }
+    function getSustain(row){
+      const s=row?.sustainability;if(!s)return null;
+      if(s.after!==undefined)return{
+        energyKwh:s.after.energyKwh,carbonGrams:s.after.carbonGrams,
+        energyFormatted:s.after.energyFormatted,carbonFormatted:s.after.carbonFormatted,
+        beforeEnergyKwh:s.before?.energyKwh,beforeCarbonGrams:s.before?.carbonGrams,
+        beforeEnergyFormatted:s.before?.energyFormatted,beforeCarbonFormatted:s.before?.carbonFormatted,
+        savedEnergyKwh:s.saved?.energyKwh,savedCarbonGrams:s.saved?.carbonGrams,
+        savedEnergyFormatted:s.saved?.energyFormatted,savedCarbonFormatted:s.saved?.carbonFormatted,
+      };
+      return s;
+    }
+    function getSavedEnergy(row){const s=row?.sustainability;if(s?.saved?.energyKwh!=null)return Number(s.saved.energyKwh);return Number(row?.energy?.estimated_kwh_saved??0);}
+    function getSavedCO2grams(row){const s=row?.sustainability;if(s?.saved?.carbonGrams!=null)return Number(s.saved.carbonGrams);return Number(row?.energy?.estimated_co2_saved_kg??row?.energy?.emissions_kg??0)*1000;}
+function fmtVal(formatted,raw,isCarbon){
+      if(formatted)return formatted;
+      return isCarbon?fmtCo2(raw):fmtKwh(raw);
+    }
+    function renderAll(){updateKPIs();renderTable();renderFrequency();renderSustainabilityTab();renderInsights();renderIndividualLogs();renderQuickStats();drawAllCharts();}
+
+    function updateKPIs(){
+      const energy=viewRows.reduce((s,r)=>s+getSavedEnergy(r),0);
+      const co2g=viewRows.reduce((s,r)=>s+getSavedCO2grams(r),0);
+      const files=new Set(viewRows.map(r=>r.file)).size;
+      $('kpi-refactors').textContent=viewRows.length;
+      $('kpi-energy').textContent=fmtKwh(energy);
+      $('kpi-co2').textContent=fmtCo2(co2g);
+      $('kpi-files').textContent=files;
+    }
+
+    // Refactor History table — NO score column
+    function renderTable(){
+      const tbody=$('log-tbody');tbody.innerHTML='';
+      viewRows.forEach((row,i)=>{
+        const fn=(row.file||'').split('\\').pop()||'—';
+        const bigO=getBigO(row);
+        const energy=getSavedEnergy(row);
+        const co2g=getSavedCO2grams(row);
+        const tr=document.createElement('tr');
+        if(i===selectedIndex)tr.classList.add('selected');
+        tr.dataset.index=i;
+        tr.innerHTML=`
+          <td style="font-size:12px;color:var(--muted)">${row.timestamp?new Date(row.timestamp).toLocaleString():''}</td>
+          <td><span class="pill">${esc(fn)}</span></td>
+          <td><span class="badge badge-info">${esc(row.refactor||'')}</span></td>
+          <td style="font-family:var(--mono);color:var(--danger)">${bigO.before?esc(bigO.before):'—'}</td>
+          <td style="font-family:var(--mono);color:var(--accent)">${bigO.after?esc(bigO.after):'—'}</td>
+          <td style="font-family:var(--mono)">${fmtVal(row?.sustainability?.saved?.energyFormatted,energy,false)}</td>
+          <td style="font-family:var(--mono)">${fmtVal(row?.sustainability?.saved?.carbonFormatted,co2g,true)}</td>
+          <td><button class="btn-ghost" style="padding:5px 10px;font-size:11px" onclick="selectRow(${i})">View</button></td>`;
+        tbody.appendChild(tr);
       });
-
-      byId("export-png").addEventListener("click", () => {
-        const link = document.createElement("a");
-        link.download = "sustainadev-chart.png";
-        link.href = canvasMain.toDataURL();
-        link.click();
-      });
-
-      // =====================================================
-      // Message Handler from VS Code
-      // =====================================================
-      window.addEventListener("message", (event) => {
-        const msg = event.data;
-
-        // Analysis Report
-        if (msg.type === "analysisContent") {
-          try {
-            analysisData = JSON.parse(msg.content);
-            renderAnalysisReport(analysisData);
-            setStatus("Analysis loaded ✓", false);
-          } catch (e) {
-            byId("analysis-content").innerHTML = `<pre>${msg.content}</pre>`;
-            setStatus("Analysis loaded (raw) ✓", false);
-          }
-        }
-        if (msg.type === "analysisError") {
-          byId("analysis-content").innerHTML =
-            `<div class="muted">⚠ ${esc(msg.error)}</div>`;
-          setStatus("Error loading analysis", false);
-        }
-
-        // Log Data
-        if (msg.type === "logContent") {
-          try {
-            allRows = msg.lines.map((line) => JSON.parse(line));
-            // ✅ Latest first
-            allRows.sort(
-              (a, b) =>
-                new Date(b.timestamp || 0).getTime() -
-                new Date(a.timestamp || 0).getTime(),
-            );
-            applyFilter(filterInput.value);
-            renderTable();
-            renderFrequencyAnalysis();
-            renderEnergyCharts();
-            renderIndividualLogs();
-            drawAllCharts();
-            setStatus(`Loaded ${allRows.length} logs ✓`, false);
-          } catch (e) {
-            setStatus("Error parsing logs", false);
-            console.error(e);
-          }
-        }
-        if (msg.type === "logError") {
-          tbody.innerHTML =
-            '<tr><td class="muted" colspan="8">⚠ ' +
-            esc(msg.error) +
-            "</td></tr>";
-          setStatus("Error loading logs", false);
-        }
-
-        // Hardware Specs
-        if (msg.type === "hardwareContent") {
-          try {
-            const loading = byId("hw-loading");
-            const status = byId("hw-status");
-            const btn = byId("load-hardware");
-
-            if (loading) loading.style.display = "none";
-            if (status) status.textContent = "Hardware specs loaded ✓";
-            if (btn) {
-              btn.disabled = false;
-              btn.textContent = "Reload Hardware Specs";
-            }
-
-            // Now render the hardware specs
-            const specs = msg.specs;
-            if (specs) {
-              byId("hw-cpu").textContent = specs.cpu || "—";
-              byId("hw-gpu").textContent = specs.gpu || "—";
-              byId("hw-ram").textContent = specs.ram || "—";
-              byId("hw-os").textContent = specs.os || "—";
-              byId("hw-disks").textContent = specs.disks || "—";
-              byId("hw-battery").textContent = specs.battery || "—";
-            }
-          } catch (e) {
-            console.error("Hardware render error:", e);
-          }
-        }
-
-        if (msg.type === "hardwareError") {
-          const loading = byId("hw-loading");
-          const status = byId("hw-status");
-          const btn = byId("load-hardware");
-
-          if (loading) loading.style.display = "none";
-          if (status)
-            status.textContent =
-              "Error loading hardware specs: " + (msg.error || "Unknown error");
-          if (btn) {
-            btn.disabled = false;
-            btn.textContent = "Retry Hardware Specs";
-          }
-
-          console.error("Hardware error:", msg.error);
-        }
-
-        // Legacy support
-        if (msg.type === "fileContent") {
-          try {
-            analysisData = JSON.parse(msg.content);
-            renderAnalysisReport(analysisData);
-            setStatus("Loaded ✓", false);
-          } catch {
-            byId("analysis-content").innerHTML = `<pre>${msg.content}</pre>`;
-          }
-        }
-        if (msg.type === "fileError") {
-          byId("analysis-content").innerHTML =
-            `<div class="muted">⚠ ${esc(msg.error)}</div>`;
-        }
-      });
-
-      // =====================================================
-      // Status & Helper Functions
-      // =====================================================
-      function setStatus(text, loading = false) {
-        statusEl.innerHTML = loading
-          ? `<span class="status-dot"></span>${text}`
-          : `<span class="status-dot" style="background:var(--success)"></span>${text}`;
-      }
-
-      function esc(s) {
-        return String(s).replace(
-          /[&<>"']/g,
-          (m) =>
-            ({
-              "&": "&amp;",
-              "<": "&lt;",
-              ">": "&gt;",
-              '"': "&quot;",
-              "'": "&#39;",
-            })[m],
-        );
-      }
-
-      function nf(n, dec = 3) {
-        const num = Number(n || 0);
-
-        // Smart dynamic formatting based on value magnitude
-        if (num === 0) return "0";
-        if (num >= 1) return num.toFixed(Math.min(dec, 3));
-        if (num >= 0.01) return num.toFixed(4);
-        if (num >= 0.001) return num.toFixed(5);
-        if (num >= 0.0001) return num.toFixed(6);
-
-        // For very small numbers, show 8 decimals
-        return num.toFixed(8);
-      }
-
-      function getVar(name) {
-        return getComputedStyle(document.documentElement)
-          .getPropertyValue(name)
-          .trim();
-      }
-
-      // =====================================================
-      // Log schema adapter (NEW vs legacy)
-      // =====================================================
-      function getMetrics(row) {
-        const m = row?.metrics || {};
-        const before = m.before || row.before || {};
-        const after = m.after || row.after || {};
-
-        // Prefer explicit deltas if present, otherwise compute as reduction (before - after)
-        const deltaCCN =
-          m.deltaCCN ??
-          row?.delta?.ccn ??
-          Number(before.ccn || 0) - Number(after.ccn || 0);
-
-        const deltaNLOC =
-          m.deltaNLOC ??
-          row?.delta?.nloc ??
-          Number(before.nloc || 0) - Number(after.nloc || 0);
-
-        return {
-          before: {
-            ccn: Number(before.ccn || 0),
-            nloc: Number(before.nloc || 0),
-          },
-          after: {
-            ccn: Number(after.ccn || 0),
-            nloc: Number(after.nloc || 0),
-          },
-          delta: {
-            ccn: Number(deltaCCN || 0),
-            nloc: Number(deltaNLOC || 0),
-          },
-        };
-      }
-
-      function getBigO(row) {
-        // Tries multiple possible schema shapes for algorithmic (Big-O) complexity.
-        // Returns { before: string|null, after: string|null }
-        const pick = (...vals) => {
-          for (const v of vals) {
-            if (v === undefined || v === null) continue;
-            const s = String(v).trim();
-            if (!s) continue;
-            return s;
-          }
-          return null;
-        };
-
-        const before = pick(
-          row?.complexity?.before,
-          row?.bigO?.before,
-          row?.bigo?.before,
-          row?.big_o?.before,
-          row?.algorithmicComplexity?.before,
-          row?.algoComplexity?.before,
-          row?.metrics?.before?.bigO,
-          row?.metrics?.before?.bigo,
-          row?.metrics?.before?.complexity,
-          row?.before?.bigO,
-          row?.before?.bigo,
-          row?.before?.complexity,
-          row?.complexityBefore,
-          row?.beforeComplexity,
-          row?.before_complexity,
-          row?.beforeBigO,
-          row?.before_bigo,
-        );
-
-        const after = pick(
-          row?.complexity?.after,
-          row?.bigO?.after,
-          row?.bigo?.after,
-          row?.big_o?.after,
-          row?.algorithmicComplexity?.after,
-          row?.algoComplexity?.after,
-          row?.metrics?.after?.bigO,
-          row?.metrics?.after?.bigo,
-          row?.metrics?.after?.complexity,
-          row?.after?.bigO,
-          row?.after?.bigo,
-          row?.after?.complexity,
-          row?.complexityAfter,
-          row?.afterComplexity,
-          row?.after_complexity,
-          row?.afterBigO,
-          row?.after_bigo,
-        );
-
-        return { before, after };
-      }
-
-      function formatDelta(n) {
-        const v = Number(n || 0);
-        if (v === 0) return { text: "0", cls: "muted" };
-        // v is reduction: positive means improvement, negative means worse
-        return v > 0
-          ? { text: "-" + Math.abs(v), cls: "success" }
-          : { text: "+" + Math.abs(v), cls: "danger" };
-      }
-
-      // =====================================================
-      // Filter & Data Processing
-      // =====================================================
-      function applyFilter(query) {
-        if (!query) {
-          viewRows = [...allRows];
-        } else {
-          const s = query.toLowerCase();
-          viewRows = allRows.filter(
-            (r) =>
-              (r.file || "").toLowerCase().includes(s) ||
-              (r.refactor || "").toLowerCase().includes(s) ||
-              (r.commit?.message || "").toLowerCase().includes(s),
-          );
-        }
-        byId("count").textContent =
-          `${viewRows.length} item${viewRows.length === 1 ? "" : "s"}`;
-        selectedIndex = -1;
-      }
-
-      // =====================================================
-      // Analysis Report Rendering
-      // =====================================================
-      function renderAnalysisReport(data) {
-        const container = byId("analysis-content");
-        if (!data || !Array.isArray(data) || data.length === 0) {
-          container.innerHTML =
-            '<div class="muted">No analysis data available</div>';
-          return;
-        }
-
-        let html = "";
-        let totalMethods = 0;
-        let totalLongMethods = 0;
-
-        data.forEach((fileData) => {
-          const fileName = fileData.file.split("\\").pop() || fileData.file;
-          const methods = fileData.methods || [];
-          totalMethods += methods.length;
-
-          html += `<div class="analysis-section">`;
-          html += `<h3>📄 ${esc(fileName)}</h3>`;
-          html += `<div class="muted" style="margin-bottom:12px">${methods.length} method(s) analyzed</div>`;
-
-          methods.forEach((method) => {
-            const isLong = method.isLongMethod;
-            if (isLong) totalLongMethods++;
-
-            html += `<div class="method-card ${isLong ? "long-method" : ""}">`;
-            html += `<div class="method-name">🔧 ${esc(method.name)}()`;
-            if (isLong)
-              html += ` <span class="badge danger">Long Method</span>`;
-            html += `</div>`;
-            html += `<div class="method-stats">`;
-            html += `<div class="method-stat"><div class="label">Lines</div><div class="value">${method.lines}</div></div>`;
-            html += `<div class="method-stat"><div class="label">Parameters</div><div class="value">${method.params}</div></div>`;
-            html += `<div class="method-stat"><div class="label">If Statements</div><div class="value">${method.ifCount}</div></div>`;
-            html += `<div class="method-stat"><div class="label">For Loops</div><div class="value">${method.forCount}</div></div>`;
-            html += `</div></div>`;
-          });
-
-          html += `</div>`;
-        });
-
-        // Summary at top
-        let summary = `<div class="card highlight" style="margin-bottom:20px">`;
-        summary += `<h3>📊 Analysis Summary</h3>`;
-        summary += `<div class="method-stats" style="margin-top:12px">`;
-        summary += `<div class="method-stat"><div class="label">Files Analyzed</div><div class="value">${data.length}</div></div>`;
-        summary += `<div class="method-stat"><div class="label">Total Methods</div><div class="value">${totalMethods}</div></div>`;
-        summary += `<div class="method-stat"><div class="label">Long Methods</div><div class="value" style="color:var(--danger)">${totalLongMethods}</div></div>`;
-        summary += `<div class="method-stat"><div class="label">Health Score</div><div class="value" style="color:var(--success)">${Math.round((1 - totalLongMethods / totalMethods) * 100)}%</div></div>`;
-        summary += `</div></div>`;
-
-        container.innerHTML = summary + html;
-      }
-
-      // =====================================================
-      // Table Rendering
-      // =====================================================
-
-      function renderTable() {
-        tbody.innerHTML = "";
-
-        let count = 0,
-          sumEnergy = 0,
-          sumCO2 = 0,
-          sumCost = 0;
-
-        viewRows.forEach((row, i) => {
-          const energy = Number(row?.energy?.estimated_kwh_saved ?? 0);
-          const co2 = Number(
-            row?.energy?.estimated_co2_saved_kg ??
-              row?.energy?.emissions_kg ??
-              0,
-          );
-          const cost = Number(row?.energy?.estimated_cost_saved_usd ?? 0);
-
-          sumEnergy += energy;
-          sumCO2 += co2;
-          sumCost += cost;
-          count++;
-
-          const tr = document.createElement("tr");
-          tr.dataset.index = String(i);
-          if (i === selectedIndex) tr.classList.add("selected");
-
-          const fileName = row.file ? row.file.split("\\").pop() : "";
-
-          tr.innerHTML = `
-      <td>${row.timestamp ? new Date(row.timestamp).toLocaleString() : ""}</td>
-      <td><span class="pill">${esc(fileName)}</span></td>
-      <td><span class="badge info">${esc(row.refactor || "")}</span></td>
-      <td>${nf(energy, 6)} kWh</td>
-      <td>${nf(co2, 6)} kg</td>
-      <td>
-        <button class="ghost" onclick="selectRow(${i})">View</button>
-      </td>
-    `;
-
-          tbody.appendChild(tr);
-        });
-
-        // update KPIs without CCN
-        byId("kpi-refactors").textContent = count;
-        byId("kpi-delta").textContent = "—"; // no CCN-based KPI anymore
-        byId("kpi-energy").textContent = nf(sumEnergy, 4) + " kWh";
-        byId("kpi-co2").textContent = nf(sumCO2, 6) + " kg";
-        byId("kpi-cost").textContent = "$" + nf(sumCost, 6);
-
-        updateQuickStats();
-      }
-
-      function selectRow(index) {
-        selectedIndex = index;
-        renderTable();
-        showComparison(viewRows[index]);
-        drawAllCharts();
-
-        // Scroll to comparison
-        byId("comparison-view").scrollIntoView({
-          behavior: "smooth",
-          block: "nearest",
-        });
-      }
-
-      function showComparison(row) {
-        const compView = byId("comparison-view");
-        compView.style.display = "block";
-
-        const bigO = getBigO(row);
-
-        // Only Big-O (no CCN fallback)
-        byId("compare-before-ccn").textContent = bigO.before ?? "N/A";
-        byId("compare-after-ccn").textContent = bigO.after ?? "N/A";
-
-        // Improvement text in the exact form you want
-        const badge = byId("improvement-badge");
-        if (bigO.before && bigO.after) {
-          badge.textContent = `Improvement: From ${bigO.before} → ${bigO.after}`;
-          badge.className = "badge success";
-        } else {
-          badge.textContent = "Improvement: Not Available";
-          badge.className = "badge info";
-        }
-      }
-
-      // =====================================================
-      // KPI Updates
-      // =====================================================
-      function setKPIs(count, sumDelta, sumEnergy, sumCO2, sumCost) {
-        byId("kpi-refactors").textContent = count;
-        byId("kpi-delta").textContent = count
-          ? (sumDelta / count).toFixed(1)
-          : "0";
-        byId("kpi-energy").textContent = nf(sumEnergy, 4) + " kWh";
-        byId("kpi-co2").textContent = nf(sumCO2, 6) + " kg";
-        byId("kpi-cost").textContent = "$" + nf(sumCost, 6); // Changed from 2 to 6 for better visibility
-      }
-
-      function updateQuickStats() {
-        const container = byId("quick-stats");
-        if (!viewRows.length) {
-          container.innerHTML = '<div class="muted">No data</div>';
-          return;
-        }
-
-        const avgEnergy =
-          viewRows.reduce(
-            (sum, r) => sum + (r.energy?.estimated_kwh_saved ?? 0),
-            0,
-          ) / viewRows.length;
-
-        const totalFiles = new Set(viewRows.map((r) => r.file)).size;
-
-        container.innerHTML = `
-    <div class="method-stats">
-      <div class="method-stat">
-        <div class="label">Total Files Affected</div>
-        <div class="value" style="color:var(--accent)">${totalFiles}</div>
-      </div>
-      <div class="method-stat">
-        <div class="label">Avg Energy Saved</div>
-        <div class="value" style="color:var(--accent)">${nf(avgEnergy, 6)} kWh</div>
-      </div>
-    </div>
-  `;
-      }
-
-      // =====================================================
-      // Frequency Analysis
-      // =====================================================
-      function renderFrequencyAnalysis() {
-        const freqMap = {};
-        viewRows.forEach((row) => {
-          const type = row.refactor || "Unknown";
-          freqMap[type] = (freqMap[type] || 0) + 1;
-        });
-
-        const sorted = Object.entries(freqMap).sort((a, b) => b[1] - a[1]);
-        const maxCount = sorted[0]?.[1] || 1;
-
-        // Bar chart
-        let html = "";
-        sorted.forEach(([type, count]) => {
-          const percentage = (count / maxCount) * 100;
-          html += `<div class="freq-item">`;
-          html += `<div class="freq-label">${esc(type)}</div>`;
-          html += `<div class="freq-bar">`;
-          html += `<div class="freq-bar-fill" style="width:${percentage}%">${count}</div>`;
-          html += `</div>`;
-          html += `<div class="freq-count">${count}x</div>`;
-          html += `</div>`;
-        });
-
-        byId("frequency-chart").innerHTML = html;
-
-        // Top patterns
-        let topHtml = "";
-        sorted.slice(0, 5).forEach(([type, count], i) => {
-          const percentage = ((count / viewRows.length) * 100).toFixed(1);
-          topHtml += `<div class="method-card">`;
-          topHtml += `<div class="method-name">${i + 1}. ${esc(type)}</div>`;
-          topHtml += `<div class="method-stats">`;
-          topHtml += `<div class="method-stat"><div class="label">Count</div><div class="value">${count}</div></div>`;
-          topHtml += `<div class="method-stat"><div class="label">Percentage</div><div class="value">${percentage}%</div></div>`;
-          topHtml += `</div>`;
-          topHtml += `<div class="progress-bar"><div class="progress-fill" style="width:${percentage}%"></div></div>`;
-          topHtml += `</div>`;
-        });
-
-        byId("top-patterns").innerHTML = topHtml;
-
-        // Pie chart
-        drawFrequencyChart(sorted);
-      }
-
-      function drawFrequencyChart(data) {
-        if (!ctxFreq || !data.length) return;
-
-        const W = canvasFreq.width;
-        const H = canvasFreq.height;
-        ctxFreq.clearRect(0, 0, W, H);
-
-        const colors = [
-          "#4fc3f7",
-          "#5fb3df",
-          "#ffcf5a",
-          "#4caf50",
-          "#ff9800",
-          "#9c27b0",
-          "#f44336",
-        ];
-        const total = data.reduce((sum, [_, count]) => sum + count, 0);
-        const centerX = W / 2;
-        const centerY = H / 2;
-        const radius = Math.min(W, H) / 2 - 40;
-
-        let currentAngle = -Math.PI / 2;
-
-        data.forEach(([type, count], i) => {
-          const sliceAngle = (count / total) * 2 * Math.PI;
-
-          ctxFreq.beginPath();
-          ctxFreq.moveTo(centerX, centerY);
-          ctxFreq.arc(
-            centerX,
-            centerY,
-            radius,
-            currentAngle,
-            currentAngle + sliceAngle,
-          );
-          ctxFreq.closePath();
-          ctxFreq.fillStyle = colors[i % colors.length];
-          ctxFreq.fill();
-          ctxFreq.strokeStyle = getVar("--bg");
-          ctxFreq.lineWidth = 3;
-          ctxFreq.stroke();
-
-          // Label
-          const midAngle = currentAngle + sliceAngle / 2;
-          const labelX = centerX + Math.cos(midAngle) * (radius * 0.7);
-          const labelY = centerY + Math.sin(midAngle) * (radius * 0.7);
-          const percentage = ((count / total) * 100).toFixed(0);
-
-          ctxFreq.fillStyle = "#ffffff";
-          ctxFreq.font = "bold 14px system-ui";
-          ctxFreq.textAlign = "center";
-          ctxFreq.textBaseline = "middle";
-          ctxFreq.fillText(`${percentage}%`, labelX, labelY);
-
-          currentAngle += sliceAngle;
-        });
-      }
-
-      // =====================================================
-      // Energy Charts
-      // =====================================================
-      function renderEnergyCharts() {
-        // Calculate total energy before and after
-        const totalEnergyBefore = viewRows.length * 0.001; // Rough estimate
-        const totalEnergySaved = viewRows.reduce(
-          (sum, r) => sum + (r.energy?.estimated_kwh_saved ?? 0),
-          0,
-        );
-        const totalEnergyAfter = Math.max(
-          0,
-          totalEnergyBefore - totalEnergySaved,
-        );
-
-        byId("energy-before").textContent = nf(totalEnergyBefore, 4);
-        byId("energy-after").textContent = nf(totalEnergySaved, 4);
-
-        // Environmental impact
-        const totalCO2 = viewRows.reduce(
-          (sum, r) =>
-            sum +
-            (r.energy?.estimated_co2_saved_kg ?? r.energy?.emissions_kg ?? 0),
-          0,
-        );
-        // Correct environmental equivalents with proper formulas
-        const treesEquivalent = totalCO2 / 21; // 1 tree absorbs ~21kg CO2/year
-        const milesNotDriven = totalCO2 / 0.4; // 1 mile = ~0.4kg CO2
-        const lightbulbHours = totalEnergySaved / 0.1; // 100W bulb = 0.1 kWh per hour
-
-        byId("env-impact").innerHTML = `
-        <div class="method-stats">
-          <div class="method-stat">
-            <div class="label">Total CO₂ Saved</div>
-            <div class="value" style="color:var(--success)">${nf(totalCO2, 6)} kg</div>
-          </div>
-          <div class="method-stat">
-            <div class="label">🌳 Trees Equivalent</div>
-            <div class="value">${nf(treesEquivalent, 6)} trees</div>
-            <div class="muted" style="margin-top:4px;font-size:10px">annually</div>
-          </div>
-          <div class="method-stat">
-            <div class="label">🚗 Miles Not Driven</div>
-            <div class="value">${nf(milesNotDriven, 6)} miles</div>
-            <div class="muted" style="margin-top:4px;font-size:10px">equivalent</div>
-          </div>
-          <div class="method-stat">
-            <div class="label">💡 Lightbulbs Powered</div>
-            <div class="value">${nf(lightbulbHours, 6)} hours</div>
-            <div class="muted" style="margin-top:4px;font-size:10px">100W bulb</div>
-          </div>
-        </div>
-      `;
-
-        drawEnergyLineChart();
-        drawCO2LineChart();
-      }
-
-      function drawEnergyLineChart() {
-        if (!ctxEnergy || !viewRows.length) return;
-
-        const W = canvasEnergy.width;
-        const H = canvasEnergy.height;
-        ctxEnergy.clearRect(0, 0, W, H);
-
-        const padL = 60,
-          padR = 24,
-          padT = 20,
-          padB = 40;
-        const plotW = W - padL - padR;
-        const plotH = H - padT - padB;
-
-        // Grid
-        ctxEnergy.strokeStyle = getVar("--grid");
-        ctxEnergy.lineWidth = 1;
-        ctxEnergy.setLineDash([3, 3]);
-        for (let i = 0; i <= 4; i++) {
-          const y = padT + (plotH * i) / 4;
-          ctxEnergy.beginPath();
-          ctxEnergy.moveTo(padL, y);
-          ctxEnergy.lineTo(padL + plotW, y);
-          ctxEnergy.stroke();
-        }
-        ctxEnergy.setLineDash([]);
-
-        // Axes
-        ctxEnergy.beginPath();
-        ctxEnergy.moveTo(padL, padT);
-        ctxEnergy.lineTo(padL, padT + plotH);
-        ctxEnergy.lineTo(padL + plotW, padT + plotH);
-        ctxEnergy.stroke();
-
-        const energyData = viewRows.map(
-          (r) => r.energy?.estimated_kwh_saved ?? 0,
-        );
-        const maxEnergy = Math.max(0.0001, ...energyData);
-
-        // Labels
-        ctxEnergy.fillStyle = getVar("--muted");
-        ctxEnergy.font = "12px system-ui";
-        ctxEnergy.textAlign = "right";
-        ctxEnergy.fillText(nf(maxEnergy, 6), padL - 8, padT + 12);
-        ctxEnergy.fillText("0", padL - 8, padT + plotH);
-
-        ctxEnergy.textAlign = "center";
-        ctxEnergy.fillText("Refactoring Timeline →", padL + plotW / 2, H - 10);
-
-        // Line
-        ctxEnergy.strokeStyle = getVar("--line");
-        ctxEnergy.lineWidth = 3;
-        ctxEnergy.beginPath();
-
-        const gap = plotW / Math.max(energyData.length - 1, 1);
-        energyData.forEach((val, i) => {
-          const x = padL + i * gap;
-          const y = padT + plotH - (val / maxEnergy) * plotH;
-          if (i === 0) ctxEnergy.moveTo(x, y);
-          else ctxEnergy.lineTo(x, y);
-        });
-
-        ctxEnergy.stroke();
-
-        // Points
-        ctxEnergy.fillStyle = getVar("--line");
-        energyData.forEach((val, i) => {
-          const x = padL + i * gap;
-          const y = padT + plotH - (val / maxEnergy) * plotH;
-          ctxEnergy.beginPath();
-          ctxEnergy.arc(x, y, 4, 0, Math.PI * 2);
-          ctxEnergy.fill();
-        });
-      }
-
-      function drawCO2LineChart() {
-        if (!ctxCO2 || !viewRows.length) return;
-
-        const W = canvasCO2.width;
-        const H = canvasCO2.height;
-        ctxCO2.clearRect(0, 0, W, H);
-
-        const padL = 60,
-          padR = 24,
-          padT = 20,
-          padB = 40;
-        const plotW = W - padL - padR;
-        const plotH = H - padT - padB;
-
-        // Grid
-        ctxCO2.strokeStyle = getVar("--grid");
-        ctxCO2.lineWidth = 1;
-        ctxCO2.setLineDash([3, 3]);
-        for (let i = 0; i <= 4; i++) {
-          const y = padT + (plotH * i) / 4;
-          ctxCO2.beginPath();
-          ctxCO2.moveTo(padL, y);
-          ctxCO2.lineTo(padL + plotW, y);
-          ctxCO2.stroke();
-        }
-        ctxCO2.setLineDash([]);
-
-        // Axes
-        ctxCO2.beginPath();
-        ctxCO2.moveTo(padL, padT);
-        ctxCO2.lineTo(padL, padT + plotH);
-        ctxCO2.lineTo(padL + plotW, padT + plotH);
-        ctxCO2.stroke();
-
-        const co2Data = viewRows.map(
-          (r) =>
-            r.energy?.estimated_co2_saved_kg ?? r.energy?.emissions_kg ?? 0,
-        );
-        const maxCO2 = Math.max(0.0001, ...co2Data);
-
-        // Labels
-        ctxCO2.fillStyle = getVar("--muted");
-        ctxCO2.font = "12px system-ui";
-        ctxCO2.textAlign = "right";
-        ctxCO2.fillText(nf(maxCO2, 6) + " kg", padL - 8, padT + 12);
-        ctxCO2.fillText("0", padL - 8, padT + plotH);
-
-        ctxCO2.textAlign = "center";
-        ctxCO2.fillText("Refactoring Timeline →", padL + plotW / 2, H - 10);
-
-        // Line
-        ctxCO2.strokeStyle = getVar("--success");
-        ctxCO2.lineWidth = 3;
-        ctxCO2.beginPath();
-
-        const gap = plotW / Math.max(co2Data.length - 1, 1);
-        co2Data.forEach((val, i) => {
-          const x = padL + i * gap;
-          const y = padT + plotH - (val / maxCO2) * plotH;
-          if (i === 0) ctxCO2.moveTo(x, y);
-          else ctxCO2.lineTo(x, y);
-        });
-
-        ctxCO2.stroke();
-
-        // Points
-        ctxCO2.fillStyle = getVar("--success");
-        co2Data.forEach((val, i) => {
-          const x = padL + i * gap;
-          const y = padT + plotH - (val / maxCO2) * plotH;
-          ctxCO2.beginPath();
-          ctxCO2.arc(x, y, 4, 0, Math.PI * 2);
-          ctxCO2.fill();
-        });
-      }
-
-      // =====================================================
-      // Individual Logs
-      // =====================================================
-
-      function renderIndividualLogs() {
-        const container = byId("individual-logs");
-        if (!viewRows.length) {
-          container.innerHTML = '<div class="muted">No logs available</div>';
-          return;
-        }
-
-        let html = "";
-        viewRows.forEach((row, i) => {
-          const fileName = row.file ? row.file.split("\\").pop() : "Unknown";
-          const bigO = getBigO(row);
-
-          const energy = Number(row?.energy?.estimated_kwh_saved ?? 0);
-          const co2 = Number(
-            row?.energy?.estimated_co2_saved_kg ??
-              row?.energy?.emissions_kg ??
-              0,
-          );
-          const cost = Number(row?.energy?.estimated_cost_saved_usd ?? 0);
-
-          // Environmental equivalents (per log)
-          const treesEquivalent = co2 / 21; // ~21kg CO2 absorbed per tree/year
-          const milesNotDriven = co2 / 0.4; // ~0.4kg CO2 per mile
-          const lightbulbHours = energy / 0.1; // 100W bulb = 0.1 kWh per hour
-
-          html += `<div class="log-detail-card" id="log-card-${i}">`;
-
-          html += `<div class="row" style="justify-content:space-between;margin-bottom:16px">`;
-          html += `<h3>🧠 Complexity Optimization #${i + 1}</h3>`;
-          html += `<span class="badge info">${esc(row.refactor || "Algorithmic Optimization")}</span>`;
-          html += `</div>`;
-
-          // Header stats row
-          html += `<div class="method-stats" style="margin-bottom:16px">`;
-          html += `<div class="method-stat"><div class="label">File</div><div class="value" style="font-size:14px">${esc(fileName)}</div></div>`;
-          html += `<div class="method-stat"><div class="label">Timestamp</div><div class="value" style="font-size:14px">${
-            row.timestamp ? new Date(row.timestamp).toLocaleString() : "N/A"
-          }</div></div>`;
-          html += `<div class="method-stat"><div class="label">Improvement</div><div class="value" style="color:var(--success)">${
-            bigO.before && bigO.after
-              ? `From ${esc(bigO.before)} → ${esc(bigO.after)}`
-              : "Not Available"
-          }</div></div>`;
-          html += `</div>`;
-
-          // Big-O comparison
-          html += `<div class="comparison">`;
-
-          html += `<div class="side before">`;
-          html += `<div class="metric-label">Before</div>`;
-          html += `<div class="metric-value">${bigO.before ? esc(bigO.before) : "N/A"}</div>`;
-          html += `<div class="muted">Algorithmic Complexity (Big-O)</div>`;
-          html += `</div>`;
-
-          html += `<div class="arrow">→</div>`;
-
-          html += `<div class="side after">`;
-          html += `<div class="metric-label">After</div>`;
-          html += `<div class="metric-value">${bigO.after ? esc(bigO.after) : "N/A"}</div>`;
-          html += `<div class="muted">Algorithmic Complexity (Big-O)</div>`;
-          html += `</div>`;
-
-          html += `</div>`;
-
-          // Energy row
-          html += `<div class="method-stats" style="margin-top:16px">`;
-          html += `<div class="method-stat"><div class="label">⚡ Energy Saved</div><div class="value">${nf(energy, 6)} kWh</div></div>`;
-          html += `<div class="method-stat"><div class="label">🌍 CO₂ Reduced</div><div class="value">${nf(co2, 6)} kg</div></div>`;
-          html += `<div class="method-stat"><div class="label">💰 Cost Saved</div><div class="value">$${nf(cost, 6)}</div></div>`;
-          html += `</div>`;
-
-          // Explanation
-          html += `<div style="margin-top:16px">`;
-          html += `<div class="muted" style="font-weight:700;letter-spacing:.02em;margin-bottom:8px">COMPLEXITY OPTIMIZATION EXPLANATION</div>`;
-          html += `<div class="codeblock">${esc(row.reason || "No explanation available.")}</div>`;
-          html += `</div>`;
-
-          // ✅ Environmental impact under the explanation (per log)
-          html += `<div style="margin-top:16px">`;
-          html += `<div class="muted" style="font-weight:700;letter-spacing:.02em;margin-bottom:8px">ENVIRONMENTAL IMPACT</div>`;
-          html += `<div class="method-stats">`;
-          html += `<div class="method-stat"><div class="label">Total CO₂ Saved</div><div class="value" style="color:var(--success)">${nf(co2, 6)} kg</div></div>`;
-          html += `<div class="method-stat"><div class="label">🌳 Trees Equivalent</div><div class="value">${nf(treesEquivalent, 6)} trees</div><div class="muted" style="margin-top:4px;font-size:10px">annually</div></div>`;
-          html += `<div class="method-stat"><div class="label">🚗 Miles Not Driven</div><div class="value">${nf(milesNotDriven, 6)} miles</div><div class="muted" style="margin-top:4px;font-size:10px">equivalent</div></div>`;
-          html += `<div class="method-stat"><div class="label">💡 Lightbulbs Powered</div><div class="value">${nf(lightbulbHours, 6)} hours</div><div class="muted" style="margin-top:4px;font-size:10px">100W bulb</div></div>`;
-          html += `</div>`;
-          html += `</div>`;
-
-          html += `</div>`;
-        });
-
-        container.innerHTML = html;
-      }
-      // =====================================================
-      // Main Chart Drawing
-      // =====================================================
-      function drawMainChart() {
-        if (!ctxMain) return;
-
-        const W = canvasMain.width;
-        const H = canvasMain.height;
-        ctxMain.clearRect(0, 0, W, H);
-
-        const padL = 60,
-          padR = 24,
-          padT = 20,
-          padB = 40;
-        const plotW = W - padL - padR;
-        const plotH = H - padT - padB;
-
-        // Grid
-        ctxMain.strokeStyle = getVar("--grid");
-        ctxMain.lineWidth = 1;
-        ctxMain.setLineDash([3, 3]);
-        for (let i = 0; i <= 4; i++) {
-          const y = padT + (plotH * i) / 4;
-          ctxMain.beginPath();
-          ctxMain.moveTo(padL, y);
-          ctxMain.lineTo(padL + plotW, y);
-          ctxMain.stroke();
-        }
-        ctxMain.setLineDash([]);
-
-        // Axes
-        ctxMain.strokeStyle = getVar("--grid");
-        ctxMain.beginPath();
-        ctxMain.moveTo(padL, padT);
-        ctxMain.lineTo(padL, padT + plotH);
-        ctxMain.lineTo(padL + plotW, padT + plotH);
-        ctxMain.stroke();
-
-        if (!viewRows.length) {
-          ctxMain.fillStyle = getVar("--muted");
-          ctxMain.font = "14px system-ui";
-          ctxMain.textAlign = "center";
-          ctxMain.fillText("No data to display", W / 2, H / 2);
-          return;
-        }
-
-        const deltas = viewRows.map((r) =>
-          Number(getMetrics(r).delta.ccn ?? 0),
-        );
-        const energy = viewRows.map((r) =>
-          Number(r?.energy?.estimated_kwh_saved ?? 0),
-        );
-        const maxDelta = Math.max(1, ...deltas);
-        const maxEnergy = Math.max(1e-9, ...energy);
-
-        // Labels
-        ctxMain.fillStyle = getVar("--muted");
-        ctxMain.font = "12px system-ui";
-        ctxMain.textAlign = "right";
-        ctxMain.fillText(maxDelta.toFixed(0), padL - 8, padT + 12);
-        ctxMain.fillText("0", padL - 8, padT + plotH);
-
-        ctxMain.textAlign = "left";
-        ctxMain.fillText(
-          nf(maxEnergy, 6) + " kWh",
-          padL + plotW + 8,
-          padT + 12,
-        );
-
-        ctxMain.textAlign = "center";
-        ctxMain.fillText("Refactor Index →", padL + plotW / 2, H - 10);
-
-        // Bars
-        const n = deltas.length;
-        const gap = 3;
-        const barW = Math.max(4, Math.floor(plotW / n) - gap);
-
-        anim = Math.min(1, anim + 0.15);
-
-        const hits = [];
-        for (let i = 0; i < n; i++) {
-          const x = padL + i * (barW + gap);
-          const h = (deltas[i] / maxDelta) * plotH * anim;
-          const y = padT + plotH - h;
-
-          ctxMain.fillStyle =
-            i === selectedIndex ? getVar("--accent") : getVar("--accent-2");
-          ctxMain.fillRect(x, y, barW, h);
-
-          hits.push({ x1: x, x2: x + barW, y1: y, y2: padT + plotH, i });
-        }
-
-        // Energy line
-        ctxMain.strokeStyle = getVar("--line");
-        ctxMain.lineWidth = 3;
-        ctxMain.beginPath();
-
-        for (let i = 0; i < n; i++) {
-          const x = padL + i * (barW + gap) + barW / 2;
-          const y = padT + plotH - (energy[i] / maxEnergy) * plotH * anim;
-          if (i === 0) ctxMain.moveTo(x, y);
-          else ctxMain.lineTo(x, y);
-        }
-
-        ctxMain.stroke();
-
-        // Energy points
-        ctxMain.fillStyle = getVar("--line");
-        for (let i = 0; i < n; i++) {
-          const x = padL + i * (barW + gap) + barW / 2;
-          const y = padT + plotH - (energy[i] / maxEnergy) * plotH * anim;
-          ctxMain.beginPath();
-          ctxMain.arc(x, y, 4, 0, Math.PI * 2);
-          ctxMain.fill();
-        }
-
-        // Selection marker
-        if (selectedIndex >= 0 && selectedIndex < n) {
-          const x = padL + selectedIndex * (barW + gap) + barW / 2;
-          ctxMain.strokeStyle = "#ffffffaa";
-          ctxMain.lineWidth = 2;
-          ctxMain.setLineDash([5, 5]);
-          ctxMain.beginPath();
-          ctxMain.moveTo(x, padT);
-          ctxMain.lineTo(x, padT + plotH);
-          ctxMain.stroke();
-          ctxMain.setLineDash([]);
-        }
-
-        // Hover
-        canvasMain.onmousemove = (ev) => {
-          const r = canvasMain.getBoundingClientRect();
-          const mx = ev.clientX - r.left;
-          const my = ev.clientY - r.top;
-          hideTip();
-          for (const h of hits) {
-            if (mx >= h.x1 && mx <= h.x2 && my >= h.y1 && my <= h.y2) {
-              showTip(
-                mx + 12,
-                my - 12,
-                h.i,
-                deltas[h.i],
-                energy[h.i],
-                viewRows[h.i],
-              );
-              return;
-            }
-          }
-        };
-
-        canvasMain.onmouseleave = hideTip;
-
-        if (anim < 1) requestAnimationFrame(drawMainChart);
-      }
-
-      function showTip(x, y, i, delta, ener, row) {
-        tip.style.left = x + "px";
-        tip.style.top = y + "px";
-        tip.style.display = "block";
-
-        const fileName = row.file ? row.file.split("\\").pop() : "Unknown";
-
-        tip.innerHTML = `
-        <b>Refactoring #${i + 1}</b>
-        <div class="muted" style="margin-top:4px">${esc(fileName)}</div>
-        <div style="margin-top:8px">
-          <div>🔧 ${esc(row.refactor || "Unknown")}</div>
-          <div>📉 Δ CCN: <b style="color:var(--success)">-${delta}</b></div>
-          <div>⚡ Energy: <b>${nf(ener, 6)} kWh</b></div>
-          <div>🌍 CO₂: <b>${nf(row.energy?.estimated_co2_saved_kg ?? row.energy?.emissions_kg ?? 0, 6)} kg</b></div>
-        </div>
-      `;
-      }
-
-      function hideTip() {
-        tip.style.display = "none";
-      }
-
-      function drawAllCharts() {
-        anim = 0;
-        drawMainChart();
-        drawFrequencyChart(
-          Object.entries(
-            viewRows.reduce((map, r) => {
-              const type = r.refactor || "Unknown";
-              map[type] = (map[type] || 0) + 1;
-              return map;
-            }, {}),
-          ).sort((a, b) => b[1] - a[1]),
-        );
-        drawEnergyLineChart();
-        drawCO2LineChart();
-      }
-
-      // =====================================================
-      // Initial Draw
-      // =====================================================
+    }
+    function selectRow(i){
+      selectedIndex=i;renderTable();
+      const row=viewRows[i];const bigO=getBigO(row);
+      $('comparison-view').style.display='block';
+      $('cmp-before').textContent=bigO.before||'—';$('cmp-after').textContent=bigO.after||'—';
+      $('cmp-badge').textContent=bigO.before&&bigO.after?`${bigO.before} → ${bigO.after}`:'N/A';
+      $('comparison-view').scrollIntoView({behavior:'smooth',block:'nearest'});
       drawAllCharts();
+    }
+
+    function renderFrequency(){
+      const map={};viewRows.forEach(r=>{const t=r.refactor||'Unknown';map[t]=(map[t]||0)+1;});
+      const sorted=Object.entries(map).sort((a,b)=>b[1]-a[1]);
+      const max=sorted[0]?.[1]||1;
+      let html='';
+      sorted.forEach(([type,count])=>{const pct=(count/max*100).toFixed(0);html+=`<div class="freq-row"><div class="freq-name">${esc(type)}</div><div class="freq-bar-bg"><div class="freq-bar-fill" style="width:${pct}%">${count}</div></div><div class="freq-count">${count}x</div></div>`;});
+      $('freq-bars').innerHTML=html||'<div class="muted">No data</div>';
+      let topHtml='';
+      sorted.slice(0,5).forEach(([type,count],i)=>{
+        const pct=((count/viewRows.length)*100).toFixed(1);
+        topHtml+=`<div style="padding:10px 0;border-bottom:1px solid var(--border)"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-weight:700">${i+1}. ${esc(type)}</span><span class="badge badge-info">${pct}%</span></div><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div></div>`;
+      });
+      $('top-patterns').innerHTML=topHtml||'<div class="muted">No data</div>';
+      drawDonutChart(sorted);
+    }
+
+    // Sustainability Tab — creative, NO score anywhere
+    function renderSustainabilityTab(){
+      const entries=viewRows.filter(r=>getSustain(r)!==null);
+      const count=entries.length;
+      if(!count){
+        $('sustain-run-grid').innerHTML='<div class="muted">No sustainability data — run a refactor to populate</div>';
+        $('s-energy').textContent='—';$('s-carbon').textContent='—';$('s-count').textContent='—';
+        return;
+      }
+      const totalE=entries.reduce((s,r)=>s+getSavedEnergy(r),0);
+      const totalC=entries.reduce((s,r)=>s+getSavedCO2grams(r),0);
+      $('s-energy').textContent=fmtKwh(totalE);
+      $('s-carbon').textContent=fmtCo2(totalC);
+      $('s-count').textContent=count;
+
+      // Per-run cards, NO score
+      let html='';
+      entries.forEach((row,i)=>{
+        const fn=(row.file||'').split('\\').pop()||'—';
+        const s=getSustain(row);
+        html+=`<div class="sustain-run-card">
+          <div class="src-header"><span class="src-num">Run #${i+1}</span><span class="src-file">${esc(fn)}</span></div>
+          <div class="src-grid">
+            <div class="src-item"><div class="src-l">⚡ Before Energy</div><div class="src-v red">${fmtVal(s.beforeEnergyFormatted,s.beforeEnergyKwh,false)}</div></div>
+            <div class="src-item"><div class="src-l">⚡ After Energy</div><div class="src-v">${fmtVal(s.energyFormatted,s.energyKwh,false)}</div></div>
+            <div class="src-item"><div class="src-l">💚 Energy Saved</div><div class="src-v">${fmtVal(s.savedEnergyFormatted,s.savedEnergyKwh,false)}</div></div>
+            <div class="src-item"><div class="src-l">💚 Carbon Saved</div><div class="src-v">${fmtVal(s.savedCarbonFormatted,s.savedCarbonGrams,true)}</div></div>
+          </div>
+          <div class="src-time">${row.timestamp?new Date(row.timestamp).toLocaleString():''}</div>
+        </div>`;
+      });
+      $('sustain-run-grid').innerHTML=html;
+    }
+
+    function renderInsights(){
+      if(!viewRows.length)return;
+      const fileMap={};viewRows.forEach(r=>{fileMap[r.file||'unknown']=(fileMap[r.file||'unknown']||0)+1;});
+      const topFiles=Object.entries(fileMap).sort((a,b)=>b[1]-a[1]);
+      const topFile=topFiles[0];
+      if(topFile){$('ins-top-file').textContent=(topFile[0]||'').split('\\').pop()||topFile[0];$('ins-top-file-count').textContent=`${topFile[1]} refactoring${topFile[1]!==1?'s':''}`;}
+      const best=viewRows.reduce((b,r)=>{const e=getSavedEnergy(r);return e>b.e?{e,r}:b;},{e:-1,r:null});
+      if(best.r){$('ins-best-energy').textContent=fmtKwh(best.e);$('ins-best-energy-file').textContent=(best.r.file||'').split('\\').pop()||'—';}
+      const typeEnergy={};viewRows.forEach(r=>{const t=r.refactor||'Unknown';typeEnergy[t]=(typeEnergy[t]||0)+getSavedEnergy(r);});
+      const greenest=Object.entries(typeEnergy).sort((a,b)=>b[1]-a[1])[0];
+      if(greenest){$('ins-greenest').textContent=greenest[0];$('ins-greenest-sub').textContent=fmtKwh(greenest[1])+' total';}
+      let topHtml='';
+      topFiles.slice(0,6).forEach(([file,count],i)=>{const fn=file.split('\\').pop()||file;topHtml+=`<div class="top-file-row"><div class="tf-rank">${i+1}</div><div class="tf-name">${esc(fn)}</div><div class="tf-count">${count}x</div></div>`;});
+      $('top-files-list').innerHTML=topHtml||'<div class="muted">No data</div>';
+      const typesSorted=Object.entries(typeEnergy).sort((a,b)=>b[1]-a[1]);
+      const maxE=typesSorted[0]?.[1]||1;
+      let eHtml='';
+      typesSorted.forEach(([type,e])=>{const pct=maxE>0?(e/maxE*100).toFixed(0):0;eHtml+=`<div class="freq-row"><div class="freq-name">${esc(type)}</div><div class="freq-bar-bg"><div class="freq-bar-fill" style="width:${pct}%">${fmtKwh(e)}</div></div></div>`;});
+      $('energy-by-type').innerHTML=eHtml||'<div class="muted">No data</div>';
+      setTimeout(drawDailyChart,20);
+    }
+
+    // Individual Logs — NO score in sustain section
+    function renderIndividualLogs(){
+      const container=$('individual-logs');
+      if(!viewRows.length){container.innerHTML='<div class="muted">No logs available</div>';return;}
+      let html='';
+      viewRows.forEach((row,i)=>{
+        const fn=(row.file||'').split('\\').pop()||'Unknown';
+        const bigO=getBigO(row);const sustain=getSustain(row);
+        const savedEnergy=getSavedEnergy(row);const savedCO2=getSavedCO2grams(row);
+        html+=`<div class="ilog-card">
+          <div class="ilog-header">
+            <div class="ilog-title">🧠 Optimization #${i+1} — <span style="color:var(--accent2)">${esc(fn)}</span></div>
+            <span class="badge badge-info">${esc(row.refactor||'Algorithmic Optimization')}</span>
+          </div>
+          <div class="stat-row">
+            <div class="stat-item"><div class="s-l">Timestamp</div><div class="s-v" style="font-size:13px">${row.timestamp?new Date(row.timestamp).toLocaleString():'N/A'}</div></div>
+            <div class="stat-item"><div class="s-l">Before</div><div class="s-v" style="color:var(--danger)">${bigO.before?esc(bigO.before):'—'}</div></div>
+            <div class="stat-item"><div class="s-l">After</div><div class="s-v" style="color:var(--accent)">${bigO.after?esc(bigO.after):'—'}</div></div>
+            <div class="stat-item"><div class="s-l">Energy Saved</div><div class="s-v" style="color:var(--accent)">${fmtKwh(savedEnergy)}</div></div>
+            <div class="stat-item"><div class="s-l">CO₂ Saved</div><div class="s-v" style="color:var(--accent)">${fmtCo2(savedCO2)}</div></div>
+          </div>
+          ${bigO.before&&bigO.after?`<div class="comparison" style="margin:10px 0"><div class="cmp-side cmp-before"><div class="cmp-label">Before</div><div class="cmp-value">${esc(bigO.before)}</div></div><div class="cmp-arrow">→</div><div class="cmp-side cmp-after"><div class="cmp-label">After</div><div class="cmp-value">${esc(bigO.after)}</div></div></div>`:''}
+          ${sustain?`<div class="sustain-highlight"><h4>🌱 Sustainability Metrics</h4><div class="sh-grid">
+            <div class="sh-item"><div class="sh-l">⚡ Before Energy</div><div class="sh-v" style="color:var(--danger)">${fmtVal(sustain.beforeEnergyFormatted,sustain.beforeEnergyKwh,false)}</div></div>
+            <div class="sh-item"><div class="sh-l">⚡ After Energy</div><div class="sh-v">${fmtVal(sustain.energyFormatted,sustain.energyKwh,false)}</div></div>
+            <div class="sh-item"><div class="sh-l">💚 Energy Saved</div><div class="sh-v" style="color:var(--accent)">${fmtVal(sustain.savedEnergyFormatted,sustain.savedEnergyKwh,false)}</div></div>
+            <div class="sh-item"><div class="sh-l">💨 Before Carbon</div><div class="sh-v" style="color:var(--danger)">${fmtVal(sustain.beforeCarbonFormatted,sustain.beforeCarbonGrams,true)}</div></div>
+            <div class="sh-item"><div class="sh-l">💨 After Carbon</div><div class="sh-v">${fmtVal(sustain.carbonFormatted,sustain.carbonGrams,true)}</div></div>
+            <div class="sh-item"><div class="sh-l">💚 Carbon Saved</div><div class="sh-v" style="color:var(--accent)">${fmtVal(sustain.savedCarbonFormatted,sustain.savedCarbonGrams,true)}</div></div>
+          </div></div>`:`<div style="margin-top:10px;padding:10px 14px;background:var(--chip);border-radius:8px;font-size:12px;color:var(--muted)">⚠ No sustainability data for this entry</div>`}
+          <div style="margin-top:14px"><div class="muted" style="font-size:10px;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:6px">Reason</div><div class="reason-box">${esc(row.reason||'No explanation available.')}</div></div>
+        </div>`;
+      });
+      container.innerHTML=html;
+    }
+
+    function renderQuickStats(){
+      if(!viewRows.length){$('quick-stats').innerHTML='<div class="muted">No data</div>';return;}
+      const totalEnergy=viewRows.reduce((s,r)=>s+getSavedEnergy(r),0);
+      const avgE=totalEnergy/viewRows.length;
+      const files=new Set(viewRows.map(r=>r.file)).size;
+      const sustainEntries=viewRows.filter(r=>getSustain(r));
+      $('quick-stats').innerHTML=`<div class="stat-row">
+        <div class="stat-item"><div class="s-l">Files Affected</div><div class="s-v" style="color:var(--accent)">${files}</div></div>
+        <div class="stat-item"><div class="s-l">Avg Energy / Run</div><div class="s-v">${fmtKwh(avgE)}</div></div>
+        <div class="stat-item"><div class="s-l">Total Energy Saved</div><div class="s-v" style="color:var(--accent)">${fmtKwh(totalEnergy)}</div></div>
+        <div class="stat-item"><div class="s-l">With Sustain Data</div><div class="s-v">${sustainEntries.length} / ${viewRows.length}</div></div>
+      </div>`;
+    }
+
+    // ══ Charts ══
+    function drawLine(ctx,data,color,W,H,padL=60,padR=24,padT=20,padB=40,label=''){
+      ctx.clearRect(0,0,W,H);
+      const pW=W-padL-padR,pH=H-padT-padB;
+      ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+      for(let i=0;i<=4;i++){const y=padT+(pH*i)/4;ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+pW,y);ctx.stroke();}
+      ctx.setLineDash([]);ctx.strokeStyle='rgba(255,255,255,0.1)';ctx.beginPath();ctx.moveTo(padL,padT);ctx.lineTo(padL,padT+pH);ctx.lineTo(padL+pW,padT+pH);ctx.stroke();
+      if(!data.length){ctx.fillStyle=gv('--muted');ctx.font='13px system-ui';ctx.textAlign='center';ctx.fillText('No data',W/2,H/2);return;}
+      const maxV=Math.max(1e-12,...data);
+      ctx.fillStyle=gv('--muted');ctx.font='11px system-ui';ctx.textAlign='right';
+      ctx.fillText(nf(maxV,6),padL-6,padT+12);ctx.fillText('0',padL-6,padT+pH);
+      ctx.textAlign='center';if(label)ctx.fillText(label,padL+pW/2,H-8);
+      const gap=pW/Math.max(data.length-1,1);
+      ctx.strokeStyle=color;ctx.lineWidth=2.5;ctx.beginPath();
+      data.forEach((v,i)=>{const x=padL+i*gap;const y=padT+pH-(v/maxV)*pH;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});ctx.stroke();
+      ctx.fillStyle=color;
+      data.forEach((v,i)=>{const x=padL+i*gap;const y=padT+pH-(v/maxV)*pH;ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill();});
+    }
+
+    function drawMainChart(){
+      const cv=document.getElementById('chart-main');if(!cv)return;
+      cv.width=cv.offsetWidth||700;cv.height=cv.offsetHeight||280;
+      const ctx=cv.getContext('2d'),W=cv.width,H=cv.height;
+      ctx.clearRect(0,0,W,H);
+
+      if(!viewRows.length){
+        ctx.fillStyle='rgba(122,134,148,0.6)';ctx.font='14px system-ui';
+        ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText('No data — click Load Logs to begin',W/2,H/2);return;
+      }
+
+      const padL=78,padR=20,padT=36,padB=72;
+      const pW=W-padL-padR,pH=H-padT-padB;
+      const rows=[...viewRows].reverse();
+      const energyVals=rows.map(r=>getSavedEnergy(r));
+      const maxE=Math.max(1e-12,...energyVals)*1.22;
+      const n=rows.length;
+
+      // Grid + Y axis labels
+      const yTicks=4;
+      ctx.setLineDash([4,5]);ctx.lineWidth=1;
+      for(let i=0;i<=yTicks;i++){
+        const v=(maxE/yTicks)*i;
+        const y=padT+pH-(v/maxE)*pH;
+        ctx.strokeStyle=i===0?'rgba(255,255,255,0.12)':'rgba(255,255,255,0.05)';
+        ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+pW,y);ctx.stroke();
+        ctx.fillStyle='rgba(122,134,148,0.85)';
+        ctx.font='10px JetBrains Mono,monospace';ctx.textAlign='right';ctx.textBaseline='middle';
+        ctx.fillText(nf(v,4),padL-8,y);
+      }
+      ctx.setLineDash([]);
+
+      // Y axis line
+      ctx.strokeStyle='rgba(255,255,255,0.12)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(padL,padT-8);ctx.lineTo(padL,padT+pH);ctx.stroke();
+
+      // Y axis title
+      ctx.save();ctx.translate(13,padT+pH/2);ctx.rotate(-Math.PI/2);
+      ctx.fillStyle='rgba(122,134,148,0.7)';ctx.font='bold 9px system-ui';
+      ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('kWh SAVED',0,0);ctx.restore();
+
+      // Subtitle inside canvas
+      ctx.fillStyle='rgba(122,134,148,0.5)';ctx.font='bold 10px system-ui';
+      ctx.textAlign='left';ctx.textBaseline='top';
+      ctx.fillText('Energy saved per refactoring run  (newest → right)',padL+4,6);
+
+      // Bars
+      const slotW=pW/n;
+      const barW=Math.min(slotW*0.58,72);
+      animPct=Math.min(1,animPct+0.07);
+
+      rows.forEach((row,i)=>{
+        const e=energyVals[i];
+        const x=padL+i*slotW+slotW/2;
+        const bh=(e/maxE)*pH*animPct;
+        const by=padT+pH-bh;
+        const bx=x-barW/2;
+        const isSelected=viewRows.indexOf(row)===selectedIndex;
+
+        const grad=ctx.createLinearGradient(0,by,0,by+bh);
+        if(isSelected){
+          grad.addColorStop(0,'rgba(0,229,160,1)');
+          grad.addColorStop(1,'rgba(0,200,140,0.7)');
+        } else {
+          grad.addColorStop(0,'rgba(0,184,212,0.9)');
+          grad.addColorStop(1,'rgba(0,140,180,0.45)');
+        }
+        ctx.shadowColor=isSelected?'rgba(0,229,160,0.5)':'rgba(0,184,212,0.25)';
+        ctx.shadowBlur=isSelected?18:8;
+        ctx.fillStyle=grad;
+        if(bh>0){
+          const r=Math.min(5,barW/2,bh/2);
+          ctx.beginPath();
+          ctx.moveTo(bx+r,by);ctx.lineTo(bx+barW-r,by);
+          ctx.quadraticCurveTo(bx+barW,by,bx+barW,by+r);
+          ctx.lineTo(bx+barW,by+bh);ctx.lineTo(bx,by+bh);
+          ctx.lineTo(bx,by+r);ctx.quadraticCurveTo(bx,by,bx+r,by);
+          ctx.closePath();ctx.fill();
+        }
+        ctx.shadowBlur=0;
+
+        // Top cap
+        if(bh>3){
+          ctx.fillStyle=isSelected?'rgba(0,255,180,0.7)':'rgba(0,220,255,0.5)';
+          ctx.fillRect(bx,by,barW,2);
+        }
+
+        // Value label above bar
+        if(animPct>0.85&&bh>0){
+          ctx.fillStyle=isSelected?'rgba(0,229,160,0.95)':'rgba(0,184,212,0.85)';
+          ctx.font='bold 9px JetBrains Mono,monospace';
+          ctx.textAlign='center';ctx.textBaseline='bottom';
+          ctx.fillText(nf(e,4),x,by-3);
+        }
+
+        // File name
+        const fn=(row.file||'').split('\\').pop()||'?';
+        const shortFn=fn.replace('.java','').replace('.js','').replace('.py','');
+        const displayFn=shortFn.length>14?shortFn.slice(0,13)+'…':shortFn;
+        ctx.fillStyle='rgba(180,190,200,0.85)';
+        ctx.font='bold 10px system-ui';ctx.textAlign='center';ctx.textBaseline='top';
+        ctx.fillText(displayFn,x,padT+pH+10);
+
+        // Refactor type
+        const refType=(row.refactor||'');
+        const shortRef=refType.length>16?refType.slice(0,15)+'…':refType;
+        ctx.fillStyle='rgba(0,184,212,0.65)';
+        ctx.font='9px system-ui';ctx.textAlign='center';ctx.textBaseline='top';
+        ctx.fillText(shortRef,x,padT+pH+24);
+
+        // Run number
+        ctx.fillStyle=isSelected?'rgba(0,229,160,0.9)':'rgba(122,134,148,0.5)';
+        ctx.font='bold 8px system-ui';ctx.textAlign='center';ctx.textBaseline='top';
+        ctx.fillText('#'+(i+1),x,padT+pH+40);
+      });
+
+      // X axis line
+      ctx.strokeStyle='rgba(255,255,255,0.1)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(padL,padT+pH);ctx.lineTo(padL+pW,padT+pH);ctx.stroke();
+
+      if(animPct<1)requestAnimationFrame(drawMainChart);
+    }
+
+    const COLORS=['#00e5a0','#00b8d4','#ffcf5a','#a78bfa','#ff5a5a','#ff9800','#e91e63','#4fc3f7'];
+
+    function drawDonutChart(data){
+      const cv=document.getElementById('chart-freq');
+      if(!cv||!data.length){$('donut-legend').innerHTML='<div class="muted" style="font-size:13px">No data</div>';return;}
+      cv.width=200;cv.height=200;
+      const ctx=cv.getContext('2d');
+      ctx.clearRect(0,0,200,200);
+      const total=data.reduce((s,[,c])=>s+c,0);
+      if(!total)return;
+      const cx=100,cy=100,outerR=92,innerR=58,GAP=0.03;
+      let angle=-Math.PI/2;
+      data.forEach(([,count],i)=>{
+        const slice=(count/total)*Math.PI*2;
+        const a1=angle+GAP/2,a2=angle+slice-GAP/2;
+        if(a2<=a1){angle+=slice;return;}
+        // Outer glow for first segment
+        if(i===0){ctx.shadowColor=COLORS[0];ctx.shadowBlur=16;}
+        ctx.beginPath();
+        ctx.arc(cx,cy,outerR,a1,a2);
+        ctx.arc(cx,cy,innerR,a2,a1,true);
+        ctx.closePath();
+        ctx.fillStyle=COLORS[i%COLORS.length];
+        ctx.fill();
+        ctx.shadowBlur=0;
+        angle+=slice;
+      });
+      // Clean inner circle
+      ctx.beginPath();ctx.arc(cx,cy,innerR-1,0,Math.PI*2);
+      ctx.fillStyle='#13161b';ctx.fill();
+      // Subtle inner ring
+      ctx.beginPath();ctx.arc(cx,cy,innerR,0,Math.PI*2);
+      ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=1;ctx.stroke();
+
+      $('donut-total').textContent=total;
+      let legendHtml='';
+      data.forEach(([type,count],i)=>{
+        const pct=((count/total)*100).toFixed(1);
+        legendHtml+=`<div class="legend-item">
+          <div class="legend-swatch" style="background:${COLORS[i%COLORS.length]}"></div>
+          <div class="legend-name">${esc(type)}</div>
+          <div class="legend-pct">${pct}%</div>
+          <div class="legend-count">${count}x</div>
+        </div>`;
+      });
+      $('donut-legend').innerHTML=legendHtml;
+    }
+
+    function drawDailyChart(){
+      const cv=document.getElementById('chart-daily');if(!cv)return;
+      cv.width=cv.offsetWidth||900;cv.height=cv.offsetHeight||320;
+      const ctx=cv.getContext('2d'),W=cv.width,H=cv.height;
+      ctx.clearRect(0,0,W,H);
+
+      // Build daily data
+      const dailyMap={};
+      viewRows.forEach(r=>{const d=(r.timestamp||'').split('T')[0];if(d)dailyMap[d]=(dailyMap[d]||0)+getSavedEnergy(r);});
+      const sorted=Object.entries(dailyMap).sort((a,b)=>a[0].localeCompare(b[0]));
+
+      // Also count refactors per day for secondary info
+      const dailyCount={};
+      viewRows.forEach(r=>{const d=(r.timestamp||'').split('T')[0];if(d)dailyCount[d]=(dailyCount[d]||0)+1;});
+
+      if(!sorted.length){
+        ctx.fillStyle='rgba(122,134,148,0.6)';ctx.font='14px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText('No data yet — load logs to see daily energy savings',W/2,H/2);return;
+      }
+
+      const padL=72,padR=28,padT=32,padB=64;
+      const pW=W-padL-padR,pH=H-padT-padB;
+      const vals=sorted.map(([,v])=>v);
+      const maxV=Math.max(...vals)*1.18||1e-12;
+      const n=sorted.length;
+
+      // Update range badge
+      const badge=document.getElementById('daily-range-badge');
+      if(badge){badge.style.display='';badge.textContent=n===1?sorted[0][0]:`${sorted[0][0]} → ${sorted[n-1][0]}`;}
+
+      // Grid lines + Y axis labels
+      const yTicks=5;
+      ctx.setLineDash([4,4]);ctx.lineWidth=1;
+      for(let i=0;i<=yTicks;i++){
+        const v=(maxV/yTicks)*i;
+        const y=padT+pH-(v/maxV)*pH;
+        ctx.strokeStyle=`rgba(255,255,255,${i===0?0.1:0.05})`;
+        ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+pW,y);ctx.stroke();
+        ctx.fillStyle='rgba(122,134,148,0.8)';ctx.font='10px JetBrains Mono, monospace';
+        ctx.textAlign='right';ctx.textBaseline='middle';
+        ctx.fillText(nf(v,4),padL-8,y);
+      }
+      ctx.setLineDash([]);
+
+      // Y axis line
+      ctx.strokeStyle='rgba(255,255,255,0.12)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(padL,padT);ctx.lineTo(padL,padT+pH+1);ctx.stroke();
+
+      // Y axis title (rotated)
+      ctx.save();ctx.translate(14,padT+pH/2);ctx.rotate(-Math.PI/2);
+      ctx.fillStyle='rgba(122,134,148,0.7)';ctx.font='bold 10px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('kWh SAVED',0,0);ctx.restore();
+
+      // Bar width
+      const slotW=pW/n;
+      const barW=Math.min(slotW*0.55,60);
+
+      // Draw bars with gradient + glow
+      sorted.forEach(([date,val],i)=>{
+        const x=padL+i*slotW+slotW/2;
+        const bh=(val/maxV)*pH;
+        const by=padT+pH-bh;
+        const bx=x-barW/2;
+
+        // Bar gradient
+        const grad=ctx.createLinearGradient(0,by,0,by+bh);
+        grad.addColorStop(0,'rgba(0,229,160,0.95)');
+        grad.addColorStop(0.5,'rgba(0,200,155,0.8)');
+        grad.addColorStop(1,'rgba(0,184,212,0.6)');
+
+        // Glow under bar
+        ctx.shadowColor='rgba(0,229,160,0.35)';ctx.shadowBlur=14;
+        ctx.fillStyle=grad;
+        ctx.beginPath();
+        const r=Math.min(6,barW/2,bh/2);
+        if(bh>0){
+          ctx.moveTo(bx+r,by);ctx.lineTo(bx+barW-r,by);
+          ctx.quadraticCurveTo(bx+barW,by,bx+barW,by+r);
+          ctx.lineTo(bx+barW,by+bh);ctx.lineTo(bx,by+bh);
+          ctx.lineTo(bx,by+r);ctx.quadraticCurveTo(bx,by,bx+r,by);
+        }
+        ctx.closePath();ctx.fill();
+        ctx.shadowBlur=0;
+
+        // Top accent line on bar
+        if(bh>4){
+          ctx.fillStyle='rgba(0,255,180,0.6)';
+          ctx.fillRect(bx,by,barW,2);
+        }
+
+        // Value label above bar
+        if(bh>0){
+          ctx.fillStyle='rgba(0,229,160,0.9)';
+          ctx.font='bold 10px JetBrains Mono, monospace';
+          ctx.textAlign='center';ctx.textBaseline='bottom';
+          ctx.fillText(nf(val,4),x,by-4);
+        }
+
+        // X axis date label
+        const label=date.slice(5); // MM-DD
+        ctx.fillStyle='rgba(122,134,148,0.85)';
+        ctx.font='11px system-ui';ctx.textAlign='center';ctx.textBaseline='top';
+        ctx.fillText(label,x,padT+pH+10);
+
+        // Refactor count bubble under date
+        const cnt=dailyCount[date]||0;
+        ctx.fillStyle='rgba(0,184,212,0.15)';
+        const bw2=32,bh2=16,bx2=x-bw2/2,by2=padT+pH+28;
+        ctx.beginPath();ctx.roundRect(bx2,by2,bw2,bh2,4);ctx.fill();
+        ctx.fillStyle='rgba(0,184,212,0.8)';
+        ctx.font='bold 9px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText(cnt+'x',x,by2+bh2/2);
+      });
+
+      // X axis base line
+      ctx.strokeStyle='rgba(255,255,255,0.1)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(padL,padT+pH);ctx.lineTo(padL+pW,padT+pH);ctx.stroke();
+    }
+
+    function drawAllCharts(){
+      animPct=0;drawMainChart();
+      const freqMap={};viewRows.forEach(r=>{const t=r.refactor||'Unknown';freqMap[t]=(freqMap[t]||0)+1;});
+      drawDonutChart(Object.entries(freqMap).sort((a,b)=>b[1]-a[1]));
+      drawDailyChart();
+    }
+    function loadRecommendations(){
+  $('rec-status').textContent='Analyzing…';
+  $('load-recommendations').disabled=true;
+  $('rec-list').innerHTML='<div class="muted">Scanning hardware…</div>';
+  vscode&&vscode.postMessage({type:'getHardwareRecommendations'});
+}
+    drawAllCharts();
     </script>
   </body>
 </html>
