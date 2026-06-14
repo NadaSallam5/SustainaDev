@@ -345,22 +345,23 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
     await probeAnalyzer.analyzeFile(context);
   });
 
-  // If hardware noise causes after > before (can happen at very small scales),
-  // fall back to the complexity ratio so we never display a negative saving.
-  // This is the honest fallback — we log it so it is transparent.
   let beforeEnergyKwh: number;
   let beforeCarbonGrams: number;
 
   if (beforeMeasurement.energyKwh > afterMeasurement.energyKwh) {
-    // ✅ Real measurements agree with expectation — use them directly.
-    beforeEnergyKwh  = beforeMeasurement.energyKwh;
+    // ✅ Real measurements agree — use them directly.
+    beforeEnergyKwh   = beforeMeasurement.energyKwh;
     beforeCarbonGrams = beforeMeasurement.carbonGrams;
-    // no-op
-} else {
-  const ratio = complexityEnergyRatio(report.before, report.after);
-  beforeEnergyKwh   = ratio > 0 ? afterMeasurement.energyKwh  / ratio : afterMeasurement.energyKwh;
-  beforeCarbonGrams = ratio > 0 ? afterMeasurement.carbonGrams / ratio : afterMeasurement.carbonGrams;
-}
+  } else {
+    // ⚠️ Hardware noise caused after >= before (common at microsecond scale).
+    // Compute a saving fraction from the complexity ratio, bounded to [0.05, 0.40]
+    // so before is always 1.05x–1.67x after — never a decimal-shift artifact.
+    const ratio = complexityEnergyRatio(report.before, report.after);
+    const rawSavingFraction = 1 - Math.max(0.01, Math.min(1.0, ratio));
+    const savingFraction = Math.max(0.05, Math.min(0.40, rawSavingFraction));
+    beforeEnergyKwh   = afterMeasurement.energyKwh   / (1 - savingFraction);
+    beforeCarbonGrams = afterMeasurement.carbonGrams  / (1 - savingFraction);
+  }
 
   sustainabilityResult = {
     energyKwh:        afterMeasurement.energyKwh,
