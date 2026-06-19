@@ -28,11 +28,11 @@ export function activate(context: vscode.ExtensionContext) {
   console.log("🟢 SustainaDev Analyzer extension is active");
   sustainaDevOutput = vscode.window.createOutputChannel("SustainaDev");
   sustainaDevOutput.appendLine("SustainaDev activated ✅");
-  
+
   const runAnalyzer = vscode.commands.registerCommand(
-  "sustainadev.runAnalyzer",
-  () => executeAnalyzeActiveFile(context)
-);
+    "sustainadev.runAnalyzer",
+    () => executeAnalyzeActiveFile(context)
+  );
 
   const analyzeActiveFile = vscode.commands.registerCommand(
     "sustainadev.analyzeActiveFile",
@@ -241,18 +241,18 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
             sustainaDevOutput.appendLine(`⚠️ Failed to extract BEFORE skeleton: ${e.message}`);
           }
 
-  // ── MEASURE BEFORE (original code still on disk) ──────────────────────────
-  // This must happen BEFORE applyPatchToDocument — original file is still live.
-  // We add a stabilization pause so JIT/GC from the Qwen call above settles.
-  await new Promise(r => setTimeout(r, 400));
-  const beforeMeasurement = await measureWorkSustainability(async () => {
-    const probeAnalyzer = new UniversalLspAnalyzer();
-    await probeAnalyzer.analyzeFile(context);
-  });
+          // ── MEASURE BEFORE (original code still on disk) ──────────────────────────
+          // This must happen BEFORE applyPatchToDocument — original file is still live.
+          // We add a stabilization pause so JIT/GC from the Qwen call above settles.
+          await new Promise(r => setTimeout(r, 400));
+          const beforeMeasurement = await measureWorkSustainability(async () => {
+            const probeAnalyzer = new UniversalLspAnalyzer();
+            await probeAnalyzer.analyzeFile(context);
+          });
 
- // ── APPLY PATCH ───────────────────────────────────────────────────────────
-  await applyPatchToDocument(originalUri, patch.preview);
-  sustainaDevOutput.appendLine("✅ Optimization applied (Tree-sitter mode)");
+          // ── APPLY PATCH ───────────────────────────────────────────────────────────
+          await applyPatchToDocument(originalUri, patch.preview);
+          sustainaDevOutput.appendLine("✅ Optimization applied (Tree-sitter mode)");
 
           // ✅ Re-analyze facts on the optimized file
           const optimizedAnalyzer = new UniversalLspAnalyzer();
@@ -293,7 +293,7 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
               afterSkeleton.targetMethod,
               facts,
               afterFacts,
-              decision  
+              decision
             );
 
             beforeAI = pair.before;
@@ -305,7 +305,7 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
           } catch (e: any) {
             sustainaDevOutput.appendLine(`⚠️ Qwen pair call failed: ${e.message}`);
             beforeAI = { timeComplexity: "Unknown", spaceComplexity: "Unknown", explanation: "" };
-            afterAI  = { timeComplexity: "Unknown", spaceComplexity: "Unknown", explanation: "" };
+            afterAI = { timeComplexity: "Unknown", spaceComplexity: "Unknown", explanation: "" };
           }
 
           // ─── Build report ──────────────────────────────────────────────────
@@ -336,75 +336,75 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
             }
             | undefined;
 
-        try {
+          try {
 
-  // Stabilization pause — lets JIT/GC settle after patch application
-  // so the after measurement is on equal footing with the before measurement.
-  await new Promise(r => setTimeout(r, 400));
+            // Stabilization pause — lets JIT/GC settle after patch application
+            // so the after measurement is on equal footing with the before measurement.
+            await new Promise(r => setTimeout(r, 400));
 
-  // ── MEASURE AFTER (optimized code now on disk) ────────────────────────────
-  // Both before and after are real hardware measurements of real LSP analysis
-  // passes on the actual code. The before was captured above before patch apply.
-  const afterMeasurement = await measureWorkSustainability(async () => {
-    const probeAnalyzer = new UniversalLspAnalyzer();
-    await probeAnalyzer.analyzeFile(context);
-  });
+            // ── MEASURE AFTER (optimized code now on disk) ────────────────────────────
+            // Both before and after are real hardware measurements of real LSP analysis
+            // passes on the actual code. The before was captured above before patch apply.
+            const afterMeasurement = await measureWorkSustainability(async () => {
+              const probeAnalyzer = new UniversalLspAnalyzer();
+              await probeAnalyzer.analyzeFile(context);
+            });
 
-  // If hardware noise causes after > before (can happen at very small scales),
-  // fall back to the complexity ratio so we never display a negative saving.
-  // This is the honest fallback — we log it so it is transparent.
-  let beforeEnergyKwh: number;
-  let beforeCarbonGrams: number;
+            // If hardware noise causes after > before (can happen at very small scales),
+            // fall back to the complexity ratio so we never display a negative saving.
+            // This is the honest fallback — we log it so it is transparent.
+            let beforeEnergyKwh: number;
+            let beforeCarbonGrams: number;
 
-  if (beforeMeasurement.energyKwh > afterMeasurement.energyKwh) {
-    // ✅ Real measurements agree with expectation — use them directly.
-    beforeEnergyKwh  = beforeMeasurement.energyKwh;
-    beforeCarbonGrams = beforeMeasurement.carbonGrams;
-    // no-op
-} else {
-  const ratio = complexityEnergyRatio(report.before, report.after);
-  beforeEnergyKwh   = ratio > 0 ? afterMeasurement.energyKwh  / ratio : afterMeasurement.energyKwh;
-  beforeCarbonGrams = ratio > 0 ? afterMeasurement.carbonGrams / ratio : afterMeasurement.carbonGrams;
-}
+            if (beforeMeasurement.energyKwh > afterMeasurement.energyKwh) {
+              // ✅ Real measurements agree with expectation — use them directly.
+              beforeEnergyKwh = beforeMeasurement.energyKwh;
+              beforeCarbonGrams = beforeMeasurement.carbonGrams;
+              // no-op
+            } else {
+              const ratio = complexityEnergyRatio(report.before, report.after);
+              beforeEnergyKwh = ratio > 0 ? afterMeasurement.energyKwh / ratio : afterMeasurement.energyKwh;
+              beforeCarbonGrams = ratio > 0 ? afterMeasurement.carbonGrams / ratio : afterMeasurement.carbonGrams;
+            }
 
-  sustainabilityResult = {
-    energyKwh:        afterMeasurement.energyKwh,
-    carbonGrams:      afterMeasurement.carbonGrams,
-    beforeEnergyKwh,
-    beforeCarbonGrams,
-  };
+            sustainabilityResult = {
+              energyKwh: afterMeasurement.energyKwh,
+              carbonGrams: afterMeasurement.carbonGrams,
+              beforeEnergyKwh,
+              beforeCarbonGrams,
+            };
 
-  const fmtEnergy = (kwh: number) => `${(kwh * 1e6).toFixed(4)} µWh`;
-const fmtCarbon = (g: number)   => `${(g   * 1e6).toFixed(4)} µgCO₂`;
+            const fmtEnergy = (kwh: number) => `${(kwh * 1e6).toFixed(4)} µWh`;
+            const fmtCarbon = (g: number) => `${(g * 1e6).toFixed(4)} µgCO₂`;
 
-const savedEnergy    = beforeEnergyKwh - afterMeasurement.energyKwh;
-const savedCarbon    = beforeCarbonGrams - afterMeasurement.carbonGrams;
-const savedEnergyPct = ((savedEnergy / beforeEnergyKwh) * 100).toFixed(2);
-const savedCarbonPct = ((savedCarbon / beforeCarbonGrams) * 100).toFixed(2);
+            const savedEnergy = beforeEnergyKwh - afterMeasurement.energyKwh;
+            const savedCarbon = beforeCarbonGrams - afterMeasurement.carbonGrams;
+            const savedEnergyPct = ((savedEnergy / beforeEnergyKwh) * 100).toFixed(2);
+            const savedCarbonPct = ((savedCarbon / beforeCarbonGrams) * 100).toFixed(2);
 
-sustainaDevOutput.appendLine(``);
-sustainaDevOutput.appendLine(`╔══════════════════════════════════════════╗`);
-sustainaDevOutput.appendLine(`║         SUSTAINABILITY IMPACT            ║`);
-sustainaDevOutput.appendLine(`╚══════════════════════════════════════════╝`);
-sustainaDevOutput.appendLine(``);
-sustainaDevOutput.appendLine(`  Complexity:  ${report.before} → ${report.after}`);
-sustainaDevOutput.appendLine(``);
-sustainaDevOutput.appendLine(`  Before  (measured — LSP analysis of original code)`);
-sustainaDevOutput.appendLine(`    Energy   ${fmtEnergy(beforeEnergyKwh)}`);
-sustainaDevOutput.appendLine(`    Carbon   ${fmtCarbon(beforeCarbonGrams)}`);
-sustainaDevOutput.appendLine(``);
-sustainaDevOutput.appendLine(`  After   (measured — LSP analysis of optimized code)`);
-sustainaDevOutput.appendLine(`    Energy   ${fmtEnergy(afterMeasurement.energyKwh)}`);
-sustainaDevOutput.appendLine(`    Carbon   ${fmtCarbon(afterMeasurement.carbonGrams)}`);
-sustainaDevOutput.appendLine(``);
-sustainaDevOutput.appendLine(`  Saved`);
-sustainaDevOutput.appendLine(`    Energy   ${fmtEnergy(savedEnergy)} saved`);
-sustainaDevOutput.appendLine(`    Carbon   ${fmtCarbon(savedCarbon)} saved`);
-sustainaDevOutput.appendLine(``);
-} catch (err) {
-  sustainaDevOutput.appendLine("Sustainability analysis failed:");
-  sustainaDevOutput.appendLine(String(err));
-}
+            sustainaDevOutput.appendLine(``);
+            sustainaDevOutput.appendLine(`╔══════════════════════════════════════════╗`);
+            sustainaDevOutput.appendLine(`║         SUSTAINABILITY IMPACT            ║`);
+            sustainaDevOutput.appendLine(`╚══════════════════════════════════════════╝`);
+            sustainaDevOutput.appendLine(``);
+            sustainaDevOutput.appendLine(`  Complexity:  ${report.before} → ${report.after}`);
+            sustainaDevOutput.appendLine(``);
+            sustainaDevOutput.appendLine(`  Before  (measured — LSP analysis of original code)`);
+            sustainaDevOutput.appendLine(`    Energy   ${fmtEnergy(beforeEnergyKwh)}`);
+            sustainaDevOutput.appendLine(`    Carbon   ${fmtCarbon(beforeCarbonGrams)}`);
+            sustainaDevOutput.appendLine(``);
+            sustainaDevOutput.appendLine(`  After   (measured — LSP analysis of optimized code)`);
+            sustainaDevOutput.appendLine(`    Energy   ${fmtEnergy(afterMeasurement.energyKwh)}`);
+            sustainaDevOutput.appendLine(`    Carbon   ${fmtCarbon(afterMeasurement.carbonGrams)}`);
+            sustainaDevOutput.appendLine(``);
+            sustainaDevOutput.appendLine(`  Saved`);
+            sustainaDevOutput.appendLine(`    Energy   ${fmtEnergy(savedEnergy)} saved`);
+            sustainaDevOutput.appendLine(`    Carbon   ${fmtCarbon(savedCarbon)} saved`);
+            sustainaDevOutput.appendLine(``);
+          } catch (err) {
+            sustainaDevOutput.appendLine("Sustainability analysis failed:");
+            sustainaDevOutput.appendLine(String(err));
+          }
 
           vscode.window.showInformationMessage(
             report.metric === "space"
@@ -485,21 +485,21 @@ async function executeOpenDashboard(context: vscode.ExtensionContext) {
       } else if (message?.type === "readHardware") {
         await handleReadHardware(panel);
       } else if (message?.type === "getSpecs") {
-  try {
-    const content = await collectHardwareSpecsMarkdown();
-    panel.webview.postMessage({ type: "specsContent", content });
-  } catch (e: any) {
-    panel.webview.postMessage({ type: "specsError", error: e?.message ?? String(e) });
-  }
-} else if (message?.type === "getHardwareRecommendations") {
-  try {
-    const specs = await getHardwareSpecs();
-    const recommendations = await generateHardwareRecommendations(specs);
-    panel.webview.postMessage({ type: "hardwareRecommendations", recommendations });
-  } catch (e: any) {
-    panel.webview.postMessage({ type: "hardwareRecommendationsError", error: e?.message ?? String(e) });
-  }
-}
+        try {
+          const content = await collectHardwareSpecsMarkdown();
+          panel.webview.postMessage({ type: "specsContent", content });
+        } catch (e: any) {
+          panel.webview.postMessage({ type: "specsError", error: e?.message ?? String(e) });
+        }
+      } else if (message?.type === "getHardwareRecommendations") {
+        try {
+          const specs = await getHardwareSpecs();
+          const recommendations = await generateHardwareRecommendations(specs);
+          panel.webview.postMessage({ type: "hardwareRecommendations", recommendations });
+        } catch (e: any) {
+          panel.webview.postMessage({ type: "hardwareRecommendationsError", error: e?.message ?? String(e) });
+        }
+      }
     },
     undefined,
     context.subscriptions
