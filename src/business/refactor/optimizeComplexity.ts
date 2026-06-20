@@ -26,7 +26,7 @@ async function pollForLspErrors(uri: vscode.Uri, initialErrorCount: number): Pro
     const errors = vscode.languages
       .getDiagnostics(uri)
       .filter((d) => d.severity === vscode.DiagnosticSeverity.Error);
-      
+
     // Wait until LSP surfaces NEW errors (like missing imports)
     if (errors.length !== initialErrorCount) {
       console.log(
@@ -52,7 +52,7 @@ async function applyMissingImports(
   uri: vscode.Uri,
   languageId: string
 ): Promise<void> {
-  await new Promise((r) => setTimeout(r, 50));
+  await new Promise((r) => setTimeout(r, 300));
 
   if (NATIVE_IMPORT_LANGUAGES.has(languageId)) {
     console.log(
@@ -62,7 +62,7 @@ async function applyMissingImports(
       kind: "source.addMissingImports",
       apply: "first",
     });
-    await new Promise((r) => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, 200));
     return;
   }
 
@@ -256,16 +256,26 @@ export async function buildOptimizationPatch(
   // Step 3: Resolve missing imports
   await applyMissingImports(document.uri, document.languageId);
 
-  // Step 3b: Sweep unused variables
-  console.log("🧹 Sweeping unused variables via fixAll...");
+  console.log("🧹 Removing unused imports and locals (targeted, safe)...");
   try {
+    // Remove unused imports only
     await vscode.commands.executeCommand("editor.action.codeAction", {
-      kind: "source.fixAll",
-      apply: "first",
+      kind: "source.removeUnusedImports",
+      apply: "ifSingle",
     });
     await new Promise((r) => setTimeout(r, 100));
   } catch (e) {
-    console.warn("fixAll not supported for this language, skipping.", e);
+    console.warn("removeUnusedImports not supported for this language, skipping.", e);
+  }
+  try {
+    // Remove unused local variables only
+    await vscode.commands.executeCommand("editor.action.codeAction", {
+      kind: "source.removeUnused",
+      apply: "ifSingle",
+    });
+    await new Promise((r) => setTimeout(r, 100));
+  } catch (e) {
+    console.warn("removeUnused not supported for this language, skipping.", e);
   }
 
   // Step 4: Capture clean result
@@ -379,29 +389,29 @@ function getTaskInstructions(smellType: string): string {
       "If it's a state formula:\n" +
       "while(val > 0) { val = update(val); } return val;\n",
 
- NESTED_LOOPS:
-  "Optimize O(N^2) or O(N^3) complexity to O(N) by eliminating ALL inner loops.\n" +
-  "CRITICAL: You MUST convert EVERY inner loop to a HashMap lookup. If there are 2 inner loops, build 2 HashMaps. If there are 3 inner loops, build 3 HashMaps.\n" +
-  "STEP 1: Identify ALL inner loops in the method.\n" +
-  "STEP 2: For EACH inner loop, build a separate HashMap BEFORE the outer loop.\n" +
-  "STEP 3: Replace EACH inner loop with a single HashMap.get() call.\n" +
-  "STEP 4: The final code must have ZERO nested loops — only sequential loops.\n" +
-  "// EXAMPLE with 2 inner loops:\n" +
-  "// BEFORE:\n" +
-  "// for (o of orders) {\n" +
-  "//   for (u of users) { if (u.id === o.userId) ... }  ← inner loop 1\n" +
-  "//   for (p of products) { if (p.id === o.productId) ... }  ← inner loop 2\n" +
-  "// }\n" +
-  "// AFTER:\n" +
-  "// Map<String, User> userMap = new HashMap<>();\n" +
-  "// for (u of users) { userMap.put(u.id, u); }  ← sequential loop 1\n" +
-  "// Map<String, Product> productMap = new HashMap<>();\n" +
-  "// for (p of products) { productMap.put(p.id, p); }  ← sequential loop 2\n" +
-  "// for (o of orders) {\n" +
-  "//   User u = userMap.get(o.userId);  ← O(1) lookup\n" +
-  "//   Product p = productMap.get(o.productId);  ← O(1) lookup\n" +
-  "// }  ← ONE outer loop only\n" +
-  "NEVER use Math.pow() or ** operator. NEVER remove all loops completely.\n",
+    NESTED_LOOPS:
+      "Optimize O(N^2) or O(N^3) complexity to O(N) by eliminating ALL inner loops.\n" +
+      "CRITICAL: You MUST convert EVERY inner loop to a HashMap lookup. If there are 2 inner loops, build 2 HashMaps. If there are 3 inner loops, build 3 HashMaps.\n" +
+      "STEP 1: Identify ALL inner loops in the method.\n" +
+      "STEP 2: For EACH inner loop, build a separate HashMap BEFORE the outer loop.\n" +
+      "STEP 3: Replace EACH inner loop with a single HashMap.get() call.\n" +
+      "STEP 4: The final code must have ZERO nested loops — only sequential loops.\n" +
+      "// EXAMPLE with 2 inner loops:\n" +
+      "// BEFORE:\n" +
+      "// for (o of orders) {\n" +
+      "//   for (u of users) { if (u.id === o.userId) ... }  ← inner loop 1\n" +
+      "//   for (p of products) { if (p.id === o.productId) ... }  ← inner loop 2\n" +
+      "// }\n" +
+      "// AFTER:\n" +
+      "// Map<String, User> userMap = new HashMap<>();\n" +
+      "// for (u of users) { userMap.put(u.id, u); }  ← sequential loop 1\n" +
+      "// Map<String, Product> productMap = new HashMap<>();\n" +
+      "// for (p of products) { productMap.put(p.id, p); }  ← sequential loop 2\n" +
+      "// for (o of orders) {\n" +
+      "//   User u = userMap.get(o.userId);  ← O(1) lookup\n" +
+      "//   Product p = productMap.get(o.productId);  ← O(1) lookup\n" +
+      "// }  ← ONE outer loop only\n" +
+      "NEVER use Math.pow() or ** operator. NEVER remove all loops completely.\n",
     STRING_BUILDER:
       "Replace all String concatenation inside loops with a StringBuilder (Java), an array + join (JS/TS/Python), or equivalent. " +
       "Avoid using '+' or '+=' on Strings inside any loop. " +
@@ -536,11 +546,14 @@ function parseAiResponse(
 
   // Strip stray imports the AI may have included in the Preview block
   newMethod = newMethod
-    .replace(/^import\s+[\w\.]+;[\r\n]*/gm, "")
-    .replace(/^import\s+[\w\.\*]+[\r\n]*/gm, "")
-    .replace(/^from\s+[\w\.]+\s+import\s+[^\r\n]*[\r\n]*/gm, "")
-    .replace(/^import\s+\{[^}]*\}\s+from\s+['"][^'"]+['"][\r\n]*/gm, "")
-    .replace(/^import\s+[\w*]+\s+from\s+['"][^'"]+['"][\r\n]*/gm, "")
+    .replace(/^import\s+static\s+[\w\.\*]+;[\r\n]*/gm, "")               // Java: import static java.util.Collections.*;
+    .replace(/^import\s+[\w\.]+;[\r\n]*/gm, "")                           // Java: import java.util.List;
+    .replace(/^import\s+[\w\.\*]+[\r\n]*/gm, "")                          // Java: bare wildcard without semicolon
+    .replace(/^from\s+[\w\.]+\s+import\s+[^\r\n]*[\r\n]*/gm, "")         // Python: from x import y
+    .replace(/^import\s+type\s+\{[^}]*\}\s+from\s+['"][^'"]+['"][\r\n]*/gm, "") // TS: import type { X } from '...'
+    .replace(/^import\s+\{[^}]*\}\s+from\s+['"][^'"]+['"][\r\n]*/gm, "") // TS/JS: import { X } from '...'
+    .replace(/^import\s+\*\s+as\s+\w+\s+from\s+['"][^'"]+['"][\r\n]*/gm, "")   // TS/JS: import * as X from '...'
+    .replace(/^import\s+[\w*]+\s+from\s+['"][^'"]+['"][\r\n]*/gm, "")    // TS/JS: import X from '...'
     .trim();
 
   // ── FIX 2: Python-specific validation ────────────────────────────────────

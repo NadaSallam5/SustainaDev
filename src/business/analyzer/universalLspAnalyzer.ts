@@ -184,13 +184,14 @@ const listParamCount = (methodText.match(/List</g) || []).length;
       .map((t) => document.getText(t.range))
       .join("\n\n");
 
-    const firstSymbolLine = symbols[0]?.range.start.line || 0;
-    const importsRange = new vscode.Range(
-      0,
-      0,
-      Math.max(0, firstSymbolLine - 1),
-      document.lineAt(Math.max(0, firstSymbolLine - 1)).text.length,
+    const firstSymbolLine = symbols.reduce(
+      (minLine, sym) => Math.min(minLine, sym.range.start.line),
+      symbols[0]?.range.start.line ?? 0,
     );
+
+    const importsRange = firstSymbolLine > 0
+      ? new vscode.Range(0, 0, firstSymbolLine, 0)
+      : new vscode.Range(0, 0, 0, 0);
     const importsText = document.getText(importsRange).trim();
 
     return {
