@@ -18,26 +18,20 @@ export enum OptimizationStrategy {
  * Takes precomputed UniversalFeatures and returns the applicable strategy, or null.
  * This is the ONLY place in the codebase where a strategy decision is made.
  */
-export function detectByRules(features: UniversalFeatures): OptimizationStrategy | null {
-  // 1) Sorting inside a loop — worst case: O(N log N × N)
-  if (features.sortingInsideLoop)
-    return OptimizationStrategy.SORTING_IN_LOOP;
+export function detectByRules(
+  features: UniversalFeatures,
+  skipped: Set<string> = new Set()
+): OptimizationStrategy | null {
+  // Helper: return strategy only if triggered AND not already skipped by user
+  const pick = (condition: boolean, strategy: OptimizationStrategy) =>
+    condition && !skipped.has(strategy) ? strategy : null;
 
-  // 2) Nested loops — O(N²). Check BEFORE string concat: algorithmic severity wins.
-  if (features.loopDepth >= 2)
-    return OptimizationStrategy.NESTED_LOOPS;
-
-  // 3) String concatenation in a loop — O(N) memory churn
-  if (features.stringConcatInLoop)
-    return OptimizationStrategy.STRING_BUILDER;
-
-  // 4) General sorting call — may be replaceable with linear scan
-  if (features.sortingCalls > 0)
-    return OptimizationStrategy.SORTING;
-
-  // 5) Recursion — rewrite to iterative to eliminate stack overhead
-  if (features.recursion)
-    return OptimizationStrategy.ITERATIVE_REWRITE;
-
-  return null;
+  // Priority order: worst algorithmic smells first
+  return (
+    pick(features.sortingInsideLoop,  OptimizationStrategy.SORTING_IN_LOOP)  || // O(N log N × N)
+    pick(features.loopDepth >= 2,     OptimizationStrategy.NESTED_LOOPS)     || // O(N²)
+    pick(features.stringConcatInLoop, OptimizationStrategy.STRING_BUILDER)   || // O(N) memory churn
+    pick(features.sortingCalls > 0,   OptimizationStrategy.SORTING)          || // redundant sort
+    pick(features.recursion,          OptimizationStrategy.ITERATIVE_REWRITE)   // stack overhead
+  );
 }

@@ -21,6 +21,8 @@ import { getHardwareSpecs } from "../business/sustainability/powerEstimator";
 
 let isRunning = false;
 export let sustainaDevOutput: vscode.OutputChannel;
+// Persists across runs until window reload — tracks rejected/handled method+strategy pairs
+const skippedStrategies = new Map<string, Set<string>>();
 
 
 
@@ -64,7 +66,16 @@ export function activate(context: vscode.ExtensionContext) {
     () => executeAnalyzeLoop(context)
   );
 
-  context.subscriptions.push(analyzeActiveFile, openDash, getSpecs, runAnalyzerLoop);
+  const resetSkipList = vscode.commands.registerCommand(
+    "sustainadev.resetSkipList",
+    () => {
+      skippedStrategies.clear();
+      vscode.window.showInformationMessage("🔄 SustainaDev: Skip list cleared. All methods will be re-evaluated.");
+      sustainaDevOutput.appendLine("🔄 Skip list cleared by user.");
+    }
+  );
+
+  context.subscriptions.push(analyzeActiveFile, openDash, getSpecs, runAnalyzerLoop, resetSkipList);
 }
 
 export function deactivate() { }
@@ -81,9 +92,11 @@ export function deactivate() { }
  *
  * @returns after/before energy ratio (< 1.0 means improvement)
  */
-type AnalyzeStatus = "optimized" | "rejected" | "cancelled" | "no-opportunity" | "no-editor" | "unsupported" | "error";
+type AnalyzeStatus = "optimized" | "rejected" | "skipped" | "cancelled" | "no-opportunity" | "no-editor" | "unsupported" | "error";
 
-async function executeAnalyzeActiveFile(context: vscode.ExtensionContext): Promise<AnalyzeStatus> {
+async function executeAnalyzeActiveFile(
+  context: vscode.ExtensionContext
+): Promise<AnalyzeStatus> {
   if (isRunning) {
     vscode.window.showWarningMessage(
       "⏳ SustainaDev is still processing. Please wait until the current refactor completes."
@@ -93,6 +106,10 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext): Promi
 
   isRunning = true;
   vscode.window.showInformationMessage("🚀 SustainaDev pipeline started...");
+
+  // Hoisted so the catch block can access them for skip tracking
+  let facts: any;
+  let decision: string | null = null;
 
   try {
     const editor = vscode.window.activeTextEditor;
@@ -140,27 +157,53 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext): Promi
       `📋 Methods found: ${factsList.map(m => m.methodName).join(', ')}`
     );
 
-    // STEP 2 — Pick the most problematic method
-    factsList.sort((a, b) => {
+    // STEP 2 — Remove methods where every applicable strategy is already skipped
+    const filteredList = factsList.filter(m => {
+      const skipped = skippedStrategies.get(m.methodName) || new Set<string>();
+      const featuresForRules = {
+        loops: m.maxLoopDepth,
+        loopDepth: m.maxLoopDepth,
+        recursion: m.callsSelf,
+        recursiveCallCount: 0,
+        stringConcatInLoop: m.hasStringConcatInLoop,
+        sortingCalls: m.hasSortingCall ? 1 : 0,
+        sortingInsideLoop: m.sortInsideLoop,
+        methodLength: 0,
+        hasNestedLoop: m.hasNestedLoop,
+        hasHashMapLookup: m.hasHashMapLookup,
+        usesStringBuilder: m.usesStringBuilder,
+      };
+      return detectByRules(featuresForRules, skipped) !== null;
+    });
+
+    if (filteredList.length === 0) {
+      sustainaDevOutput.appendLine("✅ All strategies for all methods have been handled.");
+      vscode.window.showInformationMessage("SustainaDev: No more optimization opportunities in this file.");
+      return "no-opportunity";
+    }
+
+    // Sort by worst smell first
+    filteredList.sort((a, b) => {
       if (b.maxLoopDepth !== a.maxLoopDepth) {
         return b.maxLoopDepth - a.maxLoopDepth;
       }
       return b.listParamCount - a.listParamCount;
     });
 
-    const facts =
-      factsList.find(m => m.sortInsideLoop === true) ||
-      factsList.find(m => m.maxLoopDepth >= 2) ||
-      factsList.find(m => m.hasStringConcatInLoop === true) ||
-      factsList.find(m => m.hasSortingCall === true) ||
-      factsList.find(m => m.callsSelf === true) ||
-      factsList[0];
+    // Pick the most problematic method from the filtered list
+    facts =
+      filteredList.find(m => m.sortInsideLoop === true) ||
+      filteredList.find(m => m.maxLoopDepth >= 2) ||
+      filteredList.find(m => m.hasStringConcatInLoop === true) ||
+      filteredList.find(m => m.hasSortingCall === true) ||
+      filteredList.find(m => m.callsSelf === true) ||
+      filteredList[0];
 
     sustainaDevOutput.appendLine(
       `🎯 Selected method for optimization: ${facts.methodName}`
     );
 
-    // STEP 3 — Rule Engine
+    // STEP 3 — Rule Engine (pass skipped set so it falls through to next smell)
     const featuresForRules = {
       loops: facts.maxLoopDepth,
       loopDepth: facts.maxLoopDepth,
@@ -175,7 +218,8 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext): Promi
       usesStringBuilder: facts.usesStringBuilder,
     };
 
-    const decision = detectByRules(featuresForRules);
+    const skipped = skippedStrategies.get(facts.methodName) || new Set<string>();
+    decision = detectByRules(featuresForRules, skipped);
 
     if (!decision) {
       sustainaDevOutput.appendLine("❌ No actionable smell detected by rule engine.");
@@ -431,15 +475,41 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext): Promi
         decision
       );
 
+      // Retire this method+strategy — don't re-propose it on the next iteration
+      if (!skippedStrategies.has(facts.methodName)) {
+        skippedStrategies.set(facts.methodName, new Set());
+      }
+      skippedStrategies.get(facts.methodName)!.add(decision);
+      console.log(`✅ Optimized & retired: ${facts.methodName} / ${decision}`);
+
       return "optimized";
     } else {
+      // Mark this method+strategy as skipped so the loop doesn't repeat it
+      if (!skippedStrategies.has(facts.methodName)) {
+        skippedStrategies.set(facts.methodName, new Set());
+      }
+      skippedStrategies.get(facts.methodName)!.add(decision);
+
+      // Log the full skip state after every rejection
+      console.log(`🚫 Skipped strategies updated:`);
+      for (const [method, strategies] of skippedStrategies) {
+        console.log(`  ${method}: [${[...strategies].join(", ")}]`);
+      }
       vscode.window.showInformationMessage("❌ Optimization discarded.");
-      return "rejected";
+      return "skipped";
     }
 
   } catch (err: any) {
     if (err.message === "ALREADY_OPTIMIZED") {
-      return "no-opportunity";
+      // Skip this method+strategy so the loop can try the next one
+      if (facts && decision) {
+        if (!skippedStrategies.has(facts.methodName)) {
+          skippedStrategies.set(facts.methodName, new Set());
+        }
+        skippedStrategies.get(facts.methodName)!.add(decision);
+        console.log(`🚫 ALREADY_OPTIMIZED — skipped: ${facts.methodName} / ${decision}`);
+      }
+      return "skipped";
     }
     if (err instanceof UnsupportedLanguageError) {
       vscode.window.showInformationMessage(err.message);
@@ -479,14 +549,23 @@ async function executeAnalyzeLoop(context: vscode.ExtensionContext) {
         progress.report({ message: `Iteration ${iterations} / ${MAX_ITERATIONS}` });
         sustainaDevOutput.appendLine(`🔁 Loop iteration ${iterations}/${MAX_ITERATIONS}`);
 
+        // Print current skip state at the start of each iteration
+        if (skippedStrategies.size > 0) {
+          console.log(`📋 Current skip list (iteration ${iterations}):`);
+          for (const [method, strategies] of skippedStrategies) {
+            console.log(`  ${method}: [${[...strategies].join(", ")}]`);
+          }
+        }
         const status = await executeAnalyzeActiveFile(context);
 
+        // Hard stops — no point waiting for a save
         if (status === "no-opportunity" || status === "no-editor" || status === "unsupported" || status === "cancelled" || status === "error") {
           sustainaDevOutput.appendLine(`🔁 Loop stopped after ${iterations} iteration(s): ${status}`);
           break;
         }
 
-        // "optimized" or "rejected" → wait for the file to be fully saved before the next iteration
+        // "optimized" or "skipped" — file may have been touched (ghost edit restore),
+        // always wait for the buffer to settle before the next iteration
         const editor = vscode.window.activeTextEditor;
         if (editor) {
           const SAVE_TIMEOUT_MS = 8000;
@@ -502,6 +581,12 @@ async function executeAnalyzeLoop(context: vscode.ExtensionContext) {
           }
           sustainaDevOutput.appendLine(`🔁 File ready (waited ${waited}ms). Starting next iteration.`);
         }
+
+        if (status === "skipped") {
+          sustainaDevOutput.appendLine(`↩️ Strategy skipped. Trying next...`);
+          continue;
+        }
+        // status === "optimized" → fall through to top of while loop naturally
       }
 
       if (iterations >= MAX_ITERATIONS) {
