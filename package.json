@@ -32,7 +32,8 @@
     "onCommand:sustainadev.runAnalyzer",
     "onCommand:sustainadev.analyzeActiveFile",
     "onCommand:sustainadev.openDashboard",
-    "onCommand:sustainadev.getSpecs"
+    "onCommand:sustainadev.getSpecs",
+    "onCommand:sustainadev.runAnalyzerLoop"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -52,6 +53,10 @@
       {
         "command": "sustainadev.getSpecs",
         "title": "SustainaDev: Get System Specs"
+      },
+      {
+        "command": "sustainadev.runAnalyzerLoop",
+        "title": "SustainaDev: Run Optimization Loop"
       }
     ],
     "configuration": {

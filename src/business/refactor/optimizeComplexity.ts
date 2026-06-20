@@ -66,6 +66,36 @@ async function applyMissingImports(
     return;
   }
 
+  // For Java/Python the LSP only publishes diagnostics on *saved* files,
+  // not on dirty in-memory buffers. Save now so JDT/pylsp can analyse it.
+  const doc = await vscode.workspace.openTextDocument(uri);
+  if (doc.isDirty) {
+    await doc.save();
+    console.log(`💾 [${languageId}] Saved before import resolution.`);
+  }
+
+  // Poll until the LSP has published a stable diagnostic set (up to 4 s).
+  const STABLE_WAIT_MS = 4000;
+  const MIN_WAIT_MS = 4000;
+  const POLL_MS = 150;
+  let waited = 0;
+  let prevCount = -1;
+  while (waited < STABLE_WAIT_MS) {
+    const count = vscode.languages
+      .getDiagnostics(uri)
+      .filter((d) => d.severity === vscode.DiagnosticSeverity.Error).length;
+
+    // If we have errors and the count is stable, we can proceed.
+    // If we have 0 errors, wait at least MIN_WAIT_MS to ensure the LSP isn't just being slow.
+    if (count === prevCount && (count > 0 || waited >= MIN_WAIT_MS)) {
+      break;
+    }
+
+    prevCount = count;
+    await new Promise((r) => setTimeout(r, POLL_MS));
+    waited += POLL_MS;
+  }
+
   const IMPORT_TERMS = ["import", "include"];
   const errorDiags = vscode.languages
     .getDiagnostics(uri)

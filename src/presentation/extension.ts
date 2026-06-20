@@ -59,7 +59,12 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
-  context.subscriptions.push(analyzeActiveFile, openDash, getSpecs);
+  const runAnalyzerLoop = vscode.commands.registerCommand(
+    "sustainadev.runAnalyzerLoop",
+    () => executeAnalyzeLoop(context)
+  );
+
+  context.subscriptions.push(analyzeActiveFile, openDash, getSpecs, runAnalyzerLoop);
 }
 
 export function deactivate() { }
@@ -76,12 +81,14 @@ export function deactivate() { }
  *
  * @returns after/before energy ratio (< 1.0 means improvement)
  */
-async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
+type AnalyzeStatus = "optimized" | "rejected" | "cancelled" | "no-opportunity" | "no-editor" | "unsupported" | "error";
+
+async function executeAnalyzeActiveFile(context: vscode.ExtensionContext): Promise<AnalyzeStatus> {
   if (isRunning) {
     vscode.window.showWarningMessage(
       "⏳ SustainaDev is still processing. Please wait until the current refactor completes."
     );
-    return;
+    return "error";
   }
 
   isRunning = true;
@@ -98,8 +105,7 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
       vscode.window.showErrorMessage(
         "❌ No file is open. Please open a file to analyze."
       );
-      isRunning = false;
-      return;
+      return "no-editor";
     }
 
     // Language gate
@@ -110,8 +116,7 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
         `SustainaDev: "${languageId}" is not yet supported. ` +
         `Java, Python, JavaScript and TypeScript are supported.`
       );
-      isRunning = false;
-      return;
+      return "unsupported";
     }
 
     const analyzer = new UniversalLspAnalyzer();
@@ -128,8 +133,7 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
       vscode.window.showInformationMessage(
         "SustainaDev: No methods detected in this file. Make sure the language server is active."
       );
-      isRunning = false;
-      return;
+      return "no-opportunity";
     }
 
     sustainaDevOutput.appendLine(
@@ -176,8 +180,7 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
     if (!decision) {
       sustainaDevOutput.appendLine("❌ No actionable smell detected by rule engine.");
       vscode.window.showInformationMessage("SustainaDev: No optimization opportunity found in this method.");
-      isRunning = false;
-      return;
+      return "no-opportunity";
     }
 
     sustainaDevOutput.appendLine(`⚡ Strategy: ${decision}`);
@@ -209,239 +212,306 @@ async function executeAnalyzeActiveFile(context: vscode.ExtensionContext) {
       analyzer
     );
 
-    void vscode.window
-      .showQuickPick(["✅ Accept Optimization", "❌ Reject"], {
-        placeHolder: "Apply the optimized code?",
-        ignoreFocusOut: true,
-      })
-      .then(async (choice) => {
-        // Proactive cleanup of temp preview file
-        if (patch.previewUri) {
-          try {
-            await closeExistingPreview(patch.previewUri);
-            if (fs.existsSync(patch.previewUri)) {
-              await fsp.unlink(patch.previewUri);
-            }
-            console.log(`🧹 Proactive cleanup: ${patch.previewUri}`);
-          } catch (e) {
-            console.warn(
-              `⚠️ Failed to cleanup preview file: ${patch.previewUri}`,
-              e
-            );
-          }
+    const choice = await vscode.window.showQuickPick(["✅ Accept Optimization", "❌ Reject"], {
+      placeHolder: "Apply the optimized code?",
+      ignoreFocusOut: true,
+    });
+
+    // Proactive cleanup of temp preview file
+    if (patch.previewUri) {
+      try {
+        await closeExistingPreview(patch.previewUri);
+        if (fs.existsSync(patch.previewUri)) {
+          await fsp.unlink(patch.previewUri);
         }
+        console.log(`🧹 Proactive cleanup: ${patch.previewUri}`);
+      } catch (e) {
+        console.warn(
+          `⚠️ Failed to cleanup preview file: ${patch.previewUri}`,
+          e
+        );
+      }
+    }
 
-        if (choice === "✅ Accept Optimization") {
+    if (choice === undefined) {
+      // User dismissed (Escape / click-away)
+      return "cancelled";
+    }
 
-          // ✅ Extract BEFORE skeleton before applying patch
-          let beforeSkeleton: any;
-          try {
-            beforeSkeleton = await analyzer.extractSkeleton(refreshedDoc, facts.methodName);
-          } catch (e: any) {
-            sustainaDevOutput.appendLine(`⚠️ Failed to extract BEFORE skeleton: ${e.message}`);
-          }
+    if (choice === "✅ Accept Optimization") {
 
-          // ── MEASURE BEFORE (original code still on disk) ──────────────────────────
-          // This must happen BEFORE applyPatchToDocument — original file is still live.
-          // We add a stabilization pause so JIT/GC from the Qwen call above settles.
-          await new Promise(r => setTimeout(r, 400));
-          const beforeMeasurement = await measureWorkSustainability(async () => {
-            const probeAnalyzer = new UniversalLspAnalyzer();
-            await probeAnalyzer.analyzeFile(context);
-          });
+      // ✅ Extract BEFORE skeleton before applying patch
+      let beforeSkeleton: any;
+      try {
+        beforeSkeleton = await analyzer.extractSkeleton(refreshedDoc, facts.methodName);
+      } catch (e: any) {
+        sustainaDevOutput.appendLine(`⚠️ Failed to extract BEFORE skeleton: ${e.message}`);
+      }
 
-          // ── APPLY PATCH ───────────────────────────────────────────────────────────
-          await applyPatchToDocument(originalUri, patch.preview);
-          sustainaDevOutput.appendLine("✅ Optimization applied (Tree-sitter mode)");
-
-          // ✅ Re-analyze facts on the optimized file
-          const optimizedAnalyzer = new UniversalLspAnalyzer();
-          let afterFacts = facts;
-
-          try {
-            const optimizedFactsList = await optimizedAnalyzer.analyzeFile(context);
-            const found = optimizedFactsList.find(m => m.methodName === facts.methodName);
-            if (found) afterFacts = found;
-          } catch {
-            // fallback to original facts
-          }
-
-          sustainaDevOutput.appendLine(
-            `🔍 afterFacts: hasNestedLoop=${afterFacts.hasNestedLoop}, hasHashMapLookup=${afterFacts.hasHashMapLookup}, maxLoopDepth=${afterFacts.maxLoopDepth}`
-          );
-
-          // ✅ Extract AFTER skeleton from optimized doc
-          const optimizedDoc = await vscode.workspace.openTextDocument(originalUri);
-          let afterSkeleton: any;
-          try {
-            afterSkeleton = await optimizedAnalyzer.extractSkeleton(optimizedDoc, facts.methodName);
-          } catch (e: any) {
-            sustainaDevOutput.appendLine(`⚠️ Failed to extract AFTER skeleton: ${e.message}`);
-          }
-
-          // ─── STEP: Qwen analyzes BEFORE and AFTER together in one call ────
-          let beforeAI: AIComplexityResult;
-          let afterAI: AIComplexityResult;
-
-          try {
-            if (!beforeSkeleton || !afterSkeleton) {
-              throw new Error("Missing skeleton — cannot run pair estimation");
-            }
-
-            const pair = await estimateComplexityPairWithQwen(
-              beforeSkeleton.targetMethod,
-              afterSkeleton.targetMethod,
-              facts,
-              afterFacts,
-              decision
-            );
-
-            beforeAI = pair.before;
-            afterAI = pair.after;
-
-            sustainaDevOutput.appendLine(`🤖 Qwen BEFORE: time=${beforeAI.timeComplexity} space=${beforeAI.spaceComplexity}`);
-            sustainaDevOutput.appendLine(`🤖 Qwen AFTER:  time=${afterAI.timeComplexity} space=${afterAI.spaceComplexity}`);
-
-          } catch (e: any) {
-            sustainaDevOutput.appendLine(`⚠️ Qwen pair call failed: ${e.message}`);
-            beforeAI = { timeComplexity: "Unknown", spaceComplexity: "Unknown", explanation: "" };
-            afterAI = { timeComplexity: "Unknown", spaceComplexity: "Unknown", explanation: "" };
-          }
-
-          // ─── Build report ──────────────────────────────────────────────────
-          const report = buildOptimizationReport(beforeAI, afterAI, facts, afterFacts, decision);
-          sustainaDevOutput.appendLine(`🧪 Complexity source: ${report.source}`);
-
-          sustainaDevOutput.appendLine(
-            report.metric === "space"
-              ? "=== Space Complexity Report ==="
-              : "=== Complexity Report ==="
-          );
-
-          if (report.metric === "space") {
-            sustainaDevOutput.appendLine(`Space Before: ${report.before}`);
-            sustainaDevOutput.appendLine(`Space After:  ${report.after}`);
-          } else {
-            sustainaDevOutput.appendLine(`Before: ${report.before}`);
-            sustainaDevOutput.appendLine(`After:  ${report.after}`);
-          }
-          sustainaDevOutput.appendLine(`Improvement: ${report.improvement}`);
-
-          let sustainabilityResult:
-            | {
-              energyKwh: number;
-              carbonGrams: number;
-              beforeEnergyKwh: number;
-              beforeCarbonGrams: number;
-            }
-            | undefined;
-
-          try {
-
-            // Stabilization pause — lets JIT/GC settle after patch application
-            // so the after measurement is on equal footing with the before measurement.
-            await new Promise(r => setTimeout(r, 400));
-
-            // ── MEASURE AFTER (optimized code now on disk) ────────────────────────────
-            // Both before and after are real hardware measurements of real LSP analysis
-            // passes on the actual code. The before was captured above before patch apply.
-            const afterMeasurement = await measureWorkSustainability(async () => {
-              const probeAnalyzer = new UniversalLspAnalyzer();
-              await probeAnalyzer.analyzeFile(context);
-            });
-
-            // If hardware noise causes after > before (can happen at very small scales),
-            // fall back to the complexity ratio so we never display a negative saving.
-            // This is the honest fallback — we log it so it is transparent.
-            let beforeEnergyKwh: number;
-            let beforeCarbonGrams: number;
-
-            if (beforeMeasurement.energyKwh > afterMeasurement.energyKwh) {
-              // ✅ Real measurements agree with expectation — use them directly.
-              beforeEnergyKwh = beforeMeasurement.energyKwh;
-              beforeCarbonGrams = beforeMeasurement.carbonGrams;
-              // no-op
-            } else {
-              const ratio = complexityEnergyRatio(report.before, report.after);
-              beforeEnergyKwh = ratio > 0 ? afterMeasurement.energyKwh / ratio : afterMeasurement.energyKwh;
-              beforeCarbonGrams = ratio > 0 ? afterMeasurement.carbonGrams / ratio : afterMeasurement.carbonGrams;
-            }
-
-            sustainabilityResult = {
-              energyKwh: afterMeasurement.energyKwh,
-              carbonGrams: afterMeasurement.carbonGrams,
-              beforeEnergyKwh,
-              beforeCarbonGrams,
-            };
-
-            const fmtEnergy = (kwh: number) => `${(kwh * 1e6).toFixed(4)} µWh`;
-            const fmtCarbon = (g: number) => `${(g * 1e6).toFixed(4)} µgCO₂`;
-
-            const savedEnergy = beforeEnergyKwh - afterMeasurement.energyKwh;
-            const savedCarbon = beforeCarbonGrams - afterMeasurement.carbonGrams;
-            const savedEnergyPct = ((savedEnergy / beforeEnergyKwh) * 100).toFixed(2);
-            const savedCarbonPct = ((savedCarbon / beforeCarbonGrams) * 100).toFixed(2);
-
-            sustainaDevOutput.appendLine(``);
-            sustainaDevOutput.appendLine(`╔══════════════════════════════════════════╗`);
-            sustainaDevOutput.appendLine(`║         SUSTAINABILITY IMPACT            ║`);
-            sustainaDevOutput.appendLine(`╚══════════════════════════════════════════╝`);
-            sustainaDevOutput.appendLine(``);
-            sustainaDevOutput.appendLine(`  Complexity:  ${report.before} → ${report.after}`);
-            sustainaDevOutput.appendLine(``);
-            sustainaDevOutput.appendLine(`  Before  (measured — LSP analysis of original code)`);
-            sustainaDevOutput.appendLine(`    Energy   ${fmtEnergy(beforeEnergyKwh)}`);
-            sustainaDevOutput.appendLine(`    Carbon   ${fmtCarbon(beforeCarbonGrams)}`);
-            sustainaDevOutput.appendLine(``);
-            sustainaDevOutput.appendLine(`  After   (measured — LSP analysis of optimized code)`);
-            sustainaDevOutput.appendLine(`    Energy   ${fmtEnergy(afterMeasurement.energyKwh)}`);
-            sustainaDevOutput.appendLine(`    Carbon   ${fmtCarbon(afterMeasurement.carbonGrams)}`);
-            sustainaDevOutput.appendLine(``);
-            sustainaDevOutput.appendLine(`  Saved`);
-            sustainaDevOutput.appendLine(`    Energy   ${fmtEnergy(savedEnergy)} saved`);
-            sustainaDevOutput.appendLine(`    Carbon   ${fmtCarbon(savedCarbon)} saved`);
-            sustainaDevOutput.appendLine(``);
-          } catch (err) {
-            sustainaDevOutput.appendLine("Sustainability analysis failed:");
-            sustainaDevOutput.appendLine(String(err));
-          }
-
-          vscode.window.showInformationMessage(
-            report.metric === "space"
-              ? `Space improved: ${report.before} → ${report.after}`
-              : `Complexity improved: ${report.before} → ${report.after}`
-          );
-
-          const workspace =
-            vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
-
-          await logOptimizationFromReport(
-            workspace,
-            filePath,
-            report,
-            patch.reason,
-            sustainabilityResult,
-            decision
-          );
-        } else if (choice) {
-          vscode.window.showInformationMessage("❌ Optimization discarded.");
-        }
+      // ── MEASURE BEFORE (original code still on disk) ──────────────────────────
+      // This must happen BEFORE applyPatchToDocument — original file is still live.
+      // We add a stabilization pause so JIT/GC from the Qwen call above settles.
+      await new Promise(r => setTimeout(r, 400));
+      const beforeMeasurement = await measureWorkSustainability(async () => {
+        const probeAnalyzer = new UniversalLspAnalyzer();
+        await probeAnalyzer.analyzeFile(context);
       });
+
+      // ── APPLY PATCH ───────────────────────────────────────────────────────────
+      await applyPatchToDocument(originalUri, patch.preview);
+      sustainaDevOutput.appendLine("✅ Optimization applied (Tree-sitter mode)");
+
+      // ✅ Re-analyze facts on the optimized file
+      const optimizedAnalyzer = new UniversalLspAnalyzer();
+      let afterFacts = facts;
+
+      try {
+        const optimizedFactsList = await optimizedAnalyzer.analyzeFile(context);
+        const found = optimizedFactsList.find(m => m.methodName === facts.methodName);
+        if (found) afterFacts = found;
+      } catch {
+        // fallback to original facts
+      }
+
+      sustainaDevOutput.appendLine(
+        `🔍 afterFacts: hasNestedLoop=${afterFacts.hasNestedLoop}, hasHashMapLookup=${afterFacts.hasHashMapLookup}, maxLoopDepth=${afterFacts.maxLoopDepth}`
+      );
+
+      // ✅ Extract AFTER skeleton from optimized doc
+      const optimizedDoc = await vscode.workspace.openTextDocument(originalUri);
+      let afterSkeleton: any;
+      try {
+        afterSkeleton = await optimizedAnalyzer.extractSkeleton(optimizedDoc, facts.methodName);
+      } catch (e: any) {
+        sustainaDevOutput.appendLine(`⚠️ Failed to extract AFTER skeleton: ${e.message}`);
+      }
+
+      // ─── STEP: Qwen analyzes BEFORE and AFTER together in one call ────
+      let beforeAI: AIComplexityResult;
+      let afterAI: AIComplexityResult;
+
+      try {
+        if (!beforeSkeleton || !afterSkeleton) {
+          throw new Error("Missing skeleton — cannot run pair estimation");
+        }
+
+        const pair = await estimateComplexityPairWithQwen(
+          beforeSkeleton.targetMethod,
+          afterSkeleton.targetMethod,
+          facts,
+          afterFacts,
+          decision
+        );
+
+        beforeAI = pair.before;
+        afterAI = pair.after;
+
+        sustainaDevOutput.appendLine(`🤖 Qwen BEFORE: time=${beforeAI.timeComplexity} space=${beforeAI.spaceComplexity}`);
+        sustainaDevOutput.appendLine(`🤖 Qwen AFTER:  time=${afterAI.timeComplexity} space=${afterAI.spaceComplexity}`);
+
+      } catch (e: any) {
+        sustainaDevOutput.appendLine(`⚠️ Qwen pair call failed: ${e.message}`);
+        beforeAI = { timeComplexity: "Unknown", spaceComplexity: "Unknown", explanation: "" };
+        afterAI = { timeComplexity: "Unknown", spaceComplexity: "Unknown", explanation: "" };
+      }
+
+      // ─── Build report ──────────────────────────────────────────────────
+      const report = buildOptimizationReport(beforeAI, afterAI, facts, afterFacts, decision);
+      sustainaDevOutput.appendLine(`🧪 Complexity source: ${report.source}`);
+
+      sustainaDevOutput.appendLine(
+        report.metric === "space"
+          ? "=== Space Complexity Report ==="
+          : "=== Complexity Report ==="
+      );
+
+      if (report.metric === "space") {
+        sustainaDevOutput.appendLine(`Space Before: ${report.before}`);
+        sustainaDevOutput.appendLine(`Space After:  ${report.after}`);
+      } else {
+        sustainaDevOutput.appendLine(`Before: ${report.before}`);
+        sustainaDevOutput.appendLine(`After:  ${report.after}`);
+      }
+      sustainaDevOutput.appendLine(`Improvement: ${report.improvement}`);
+
+      let sustainabilityResult:
+        | {
+          energyKwh: number;
+          carbonGrams: number;
+          beforeEnergyKwh: number;
+          beforeCarbonGrams: number;
+        }
+        | undefined;
+
+      try {
+
+        // Stabilization pause — lets JIT/GC settle after patch application
+        // so the after measurement is on equal footing with the before measurement.
+        await new Promise(r => setTimeout(r, 400));
+
+        // ── MEASURE AFTER (optimized code now on disk) ────────────────────────────
+        // Both before and after are real hardware measurements of real LSP analysis
+        // passes on the actual code. The before was captured above before patch apply.
+        const afterMeasurement = await measureWorkSustainability(async () => {
+          const probeAnalyzer = new UniversalLspAnalyzer();
+          await probeAnalyzer.analyzeFile(context);
+        });
+
+        // If hardware noise causes after > before (can happen at very small scales),
+        // fall back to the complexity ratio so we never display a negative saving.
+        // This is the honest fallback — we log it so it is transparent.
+        let beforeEnergyKwh: number;
+        let beforeCarbonGrams: number;
+
+        if (beforeMeasurement.energyKwh > afterMeasurement.energyKwh) {
+          // ✅ Real measurements agree with expectation — use them directly.
+          beforeEnergyKwh = beforeMeasurement.energyKwh;
+          beforeCarbonGrams = beforeMeasurement.carbonGrams;
+          // no-op
+        } else {
+          const ratio = complexityEnergyRatio(report.before, report.after);
+          beforeEnergyKwh = ratio > 0 ? afterMeasurement.energyKwh / ratio : afterMeasurement.energyKwh;
+          beforeCarbonGrams = ratio > 0 ? afterMeasurement.carbonGrams / ratio : afterMeasurement.carbonGrams;
+        }
+
+        sustainabilityResult = {
+          energyKwh: afterMeasurement.energyKwh,
+          carbonGrams: afterMeasurement.carbonGrams,
+          beforeEnergyKwh,
+          beforeCarbonGrams,
+        };
+
+        const fmtEnergy = (kwh: number) => `${(kwh * 1e6).toFixed(4)} µWh`;
+        const fmtCarbon = (g: number) => `${(g * 1e6).toFixed(4)} µgCO₂`;
+
+        const savedEnergy = beforeEnergyKwh - afterMeasurement.energyKwh;
+        const savedCarbon = beforeCarbonGrams - afterMeasurement.carbonGrams;
+        const savedEnergyPct = ((savedEnergy / beforeEnergyKwh) * 100).toFixed(2);
+        const savedCarbonPct = ((savedCarbon / beforeCarbonGrams) * 100).toFixed(2);
+
+        sustainaDevOutput.appendLine(``);
+        sustainaDevOutput.appendLine(`╔══════════════════════════════════════════╗`);
+        sustainaDevOutput.appendLine(`║         SUSTAINABILITY IMPACT            ║`);
+        sustainaDevOutput.appendLine(`╚══════════════════════════════════════════╝`);
+        sustainaDevOutput.appendLine(``);
+        sustainaDevOutput.appendLine(`  Complexity:  ${report.before} → ${report.after}`);
+        sustainaDevOutput.appendLine(``);
+        sustainaDevOutput.appendLine(`  Before  (measured — LSP analysis of original code)`);
+        sustainaDevOutput.appendLine(`    Energy   ${fmtEnergy(beforeEnergyKwh)}`);
+        sustainaDevOutput.appendLine(`    Carbon   ${fmtCarbon(beforeCarbonGrams)}`);
+        sustainaDevOutput.appendLine(``);
+        sustainaDevOutput.appendLine(`  After   (measured — LSP analysis of optimized code)`);
+        sustainaDevOutput.appendLine(`    Energy   ${fmtEnergy(afterMeasurement.energyKwh)}`);
+        sustainaDevOutput.appendLine(`    Carbon   ${fmtCarbon(afterMeasurement.carbonGrams)}`);
+        sustainaDevOutput.appendLine(``);
+        sustainaDevOutput.appendLine(`  Saved`);
+        sustainaDevOutput.appendLine(`    Energy   ${fmtEnergy(savedEnergy)} saved`);
+        sustainaDevOutput.appendLine(`    Carbon   ${fmtCarbon(savedCarbon)} saved`);
+        sustainaDevOutput.appendLine(``);
+      } catch (err) {
+        sustainaDevOutput.appendLine("Sustainability analysis failed:");
+        sustainaDevOutput.appendLine(String(err));
+      }
+
+      vscode.window.showInformationMessage(
+        report.metric === "space"
+          ? `Space improved: ${report.before} → ${report.after}`
+          : `Complexity improved: ${report.before} → ${report.after}`
+      );
+
+      const workspace =
+        vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
+
+      await logOptimizationFromReport(
+        workspace,
+        filePath,
+        report,
+        patch.reason,
+        sustainabilityResult,
+        decision
+      );
+
+      return "optimized";
+    } else {
+      vscode.window.showInformationMessage("❌ Optimization discarded.");
+      return "rejected";
+    }
 
   } catch (err: any) {
     if (err.message === "ALREADY_OPTIMIZED") {
-      return;
+      return "no-opportunity";
     }
     if (err instanceof UnsupportedLanguageError) {
       vscode.window.showInformationMessage(err.message);
-      isRunning = false;
-      return;
+      return "unsupported";
     }
     vscode.window.showErrorMessage(`❌ SustainaDev failed: ${err.message || err}`);
+    return "error";
   } finally {
     isRunning = false;
     vscode.window.showInformationMessage("🟢 SustainaDev pipeline ready for next run.");
   }
+}
+
+async function executeAnalyzeLoop(context: vscode.ExtensionContext) {
+  const MAX_ITERATIONS = 10;
+
+  await vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: "SustainaDev: Optimization Loop",
+      cancellable: true,
+    },
+    async (progress, token) => {
+      let iterations = 0;
+
+      sustainaDevOutput.appendLine("🔁 Starting optimization loop...");
+
+      while (iterations < MAX_ITERATIONS) {
+        // Check for user cancellation before starting a new iteration
+        if (token.isCancellationRequested) {
+          sustainaDevOutput.appendLine(`🔁 Loop cancelled by user after ${iterations} iteration(s).`);
+          vscode.window.showInformationMessage("SustainaDev: Optimization loop cancelled.");
+          break;
+        }
+
+        iterations++;
+        progress.report({ message: `Iteration ${iterations} / ${MAX_ITERATIONS}` });
+        sustainaDevOutput.appendLine(`🔁 Loop iteration ${iterations}/${MAX_ITERATIONS}`);
+
+        const status = await executeAnalyzeActiveFile(context);
+
+        if (status === "no-opportunity" || status === "no-editor" || status === "unsupported" || status === "cancelled" || status === "error") {
+          sustainaDevOutput.appendLine(`🔁 Loop stopped after ${iterations} iteration(s): ${status}`);
+          break;
+        }
+
+        // "optimized" or "rejected" → wait for the file to be fully saved before the next iteration
+        const editor = vscode.window.activeTextEditor;
+        if (editor) {
+          const SAVE_TIMEOUT_MS = 8000;
+          const POLL_INTERVAL_MS = 200;
+          let waited = 0;
+          while (editor.document.isDirty && waited < SAVE_TIMEOUT_MS) {
+            if (token.isCancellationRequested) { break; }
+            await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+            waited += POLL_INTERVAL_MS;
+          }
+          if (editor.document.isDirty) {
+            await editor.document.save();
+          }
+          sustainaDevOutput.appendLine(`🔁 File ready (waited ${waited}ms). Starting next iteration.`);
+        }
+      }
+
+      if (iterations >= MAX_ITERATIONS) {
+        vscode.window.showWarningMessage(
+          `⚠️ SustainaDev loop reached the safety cap of ${MAX_ITERATIONS} iterations. Run again to continue.`
+        );
+        sustainaDevOutput.appendLine(`⚠️ Loop safety cap of ${MAX_ITERATIONS} iterations reached.`);
+      }
+    }
+  );
 }
 
 async function executeOpenDashboard(context: vscode.ExtensionContext) {
@@ -540,6 +610,11 @@ async function applyPatchToDocument(uri: vscode.Uri, content: string) {
   }
   await vscode.commands.executeCommand("editor.action.formatDocument");
   await vscode.window.showTextDocument(uri, { preview: false });
+  // Ensure the document is fully saved to disk before returning
+  const doc = await vscode.workspace.openTextDocument(uri);
+  if (doc.isDirty) {
+    await doc.save();
+  }
 }
 
 async function handleReadAnalysis(panel: vscode.WebviewPanel, ws: string) {
