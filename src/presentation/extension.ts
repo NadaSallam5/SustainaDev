@@ -143,8 +143,22 @@ async function executeAnalyzeActiveFile(
     const refreshedDoc = await vscode.workspace.openTextDocument(originalUri);
     await refreshedDoc.save();
 
+    // Guard: analyzeFile reads activeTextEditor internally, so check focus before calling it
+    const analysisFocus = vscode.window.activeTextEditor;
+    if (!analysisFocus || analysisFocus.document.uri.fsPath !== originalUri.fsPath) {
+      vscode.window.showWarningMessage("SustainaDev: You clicked away from the file! Analysis aborted.");
+      return "cancelled";
+    }
+
     // STEP 1 — Scan ALL methods in the file via LSP + Tree-sitter (per-method)
     const factsList = await analyzer.analyzeFile(context);
+
+    // Re-check focus: user may have switched during analyzeFile's internal async LSP calls
+    const afterAnalysisFocus = vscode.window.activeTextEditor;
+    if (!afterAnalysisFocus || afterAnalysisFocus.document.uri.fsPath !== originalUri.fsPath) {
+      vscode.window.showWarningMessage("SustainaDev: You clicked away from the file! Analysis aborted.");
+      return "cancelled";
+    }
 
     if (!factsList || factsList.length === 0) {
       vscode.window.showInformationMessage(
@@ -240,7 +254,19 @@ async function executeAnalyzeActiveFile(
       usesStringBuilder: facts.usesStringBuilder,
     }, null, 2));
 
-    // STEP 5 — Build patch and show diff
+    // STEP 5 — Tab-switch and dirty guard (must run BEFORE buildOptimizationPatch
+    //           because the diff editor steals activeTextEditor focus once it opens)
+    const prePatchFocus = vscode.window.activeTextEditor;
+    if (!prePatchFocus || prePatchFocus.document.uri.fsPath !== originalUri.fsPath) {
+      vscode.window.showWarningMessage("SustainaDev: You clicked away from the file! Optimization aborted for safety.");
+      return "cancelled";
+    }
+    if (prePatchFocus.document.isDirty) {
+      vscode.window.showWarningMessage("SustainaDev: File was modified during analysis! Optimization aborted to prevent overwriting your changes.");
+      return "cancelled";
+    }
+
+    // Build patch and show diff (opens diff editor — activeTextEditor becomes null after this)
     const patch = await buildOptimizationPatch(
       refreshedDoc,
       {
@@ -256,29 +282,32 @@ async function executeAnalyzeActiveFile(
       analyzer
     );
 
+    const cleanupPreview = async () => {
+      if (patch.previewUri) {
+        try {
+          await closeExistingPreview(patch.previewUri);
+          if (fs.existsSync(patch.previewUri)) {
+            await fsp.unlink(patch.previewUri);
+          }
+          console.log(`🧹 Proactive cleanup: ${patch.previewUri}`);
+        } catch (e) {
+          console.warn(`⚠️ Failed to cleanup preview file: ${patch.previewUri}`, e);
+        }
+      }
+    };
+
+
     const choice = await vscode.window.showQuickPick(["✅ Accept Optimization", "❌ Reject"], {
       placeHolder: "Apply the optimized code?",
       ignoreFocusOut: true,
     });
 
     // Proactive cleanup of temp preview file
-    if (patch.previewUri) {
-      try {
-        await closeExistingPreview(patch.previewUri);
-        if (fs.existsSync(patch.previewUri)) {
-          await fsp.unlink(patch.previewUri);
-        }
-        console.log(`🧹 Proactive cleanup: ${patch.previewUri}`);
-      } catch (e) {
-        console.warn(
-          `⚠️ Failed to cleanup preview file: ${patch.previewUri}`,
-          e
-        );
-      }
-    }
+    await cleanupPreview();
 
+    // Escape = stop the whole loop (same intent as clicking away from the file)
     if (choice === undefined) {
-      // User dismissed (Escape / click-away)
+      sustainaDevOutput.appendLine(`⏹️ Optimization stopped by user (Escape).`);
       return "cancelled";
     }
 
@@ -519,11 +548,16 @@ async function executeAnalyzeActiveFile(
     return "error";
   } finally {
     isRunning = false;
-    vscode.window.showInformationMessage("🟢 SustainaDev pipeline ready for next run.");
   }
 }
 
 async function executeAnalyzeLoop(context: vscode.ExtensionContext) {
+  const lockedEditor = vscode.window.activeTextEditor;
+  if (!lockedEditor) {
+    vscode.window.showErrorMessage("❌ No file is open. Please open a file to analyze.");
+    return;
+  }
+  const lockedDocument = lockedEditor.document;
   const MAX_ITERATIONS = 10;
 
   await vscode.window.withProgress(
@@ -545,6 +579,12 @@ async function executeAnalyzeLoop(context: vscode.ExtensionContext) {
           break;
         }
 
+        const currentFocus = vscode.window.activeTextEditor;
+        if (!currentFocus || currentFocus.document.uri.fsPath !== lockedDocument.uri.fsPath) {
+            vscode.window.showWarningMessage("SustainaDev: Auto-loop stopped because you switched tabs.");
+            break; // Kills the loop
+        }
+
         iterations++;
         progress.report({ message: `Iteration ${iterations} / ${MAX_ITERATIONS}` });
         sustainaDevOutput.appendLine(`🔁 Loop iteration ${iterations}/${MAX_ITERATIONS}`);
@@ -564,6 +604,9 @@ async function executeAnalyzeLoop(context: vscode.ExtensionContext) {
           break;
         }
 
+        // Reclaim the lock during save-wait so a manual run can't sneak in
+        isRunning = true;
+
         // "optimized" or "skipped" — file may have been touched (ghost edit restore),
         // always wait for the buffer to settle before the next iteration
         const editor = vscode.window.activeTextEditor;
@@ -581,6 +624,8 @@ async function executeAnalyzeLoop(context: vscode.ExtensionContext) {
           }
           sustainaDevOutput.appendLine(`🔁 File ready (waited ${waited}ms). Starting next iteration.`);
         }
+
+        isRunning = false; // release before next iteration
 
         if (status === "skipped") {
           sustainaDevOutput.appendLine(`↩️ Strategy skipped. Trying next...`);
