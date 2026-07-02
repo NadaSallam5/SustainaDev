@@ -28,12 +28,10 @@ function findDuplicateIDs(ids) {
   const duplicates = [];
 
   for (let i = 0; i < ids.length; i++) {
-    if (seen.has(ids[i])) {
-      if (!duplicates.includes(ids[i])) {
-        duplicates.push(ids[i]);
-      }
-    } else {
+    if (!seen.has(ids[i])) {
       seen.add(ids[i]);
+    } else if (!duplicates.includes(ids[i])) {
+      duplicates.push(ids[i]);
     }
   }
 

@@ -1,7 +1,8 @@
-// testOptimization.ts
+// testComplexityOptimizations.ts
 
 // ========================================
-// 1. NESTED LOOPS (should trigger NESTED_LOOPS)
+// 1. O(n²) - NESTED LOOPS
+// Expected Optimization: Use Set
 // ========================================
 export function findDuplicates(arr: number[]): number[] {
   const duplicates: number[] = [];
@@ -17,68 +18,50 @@ export function findDuplicates(arr: number[]): number[] {
   return duplicates;
 }
 
-
 // ========================================
-// 2. RECURSION (should trigger RECURSION)
+// 2. O(n³) - TRIPLE NESTED LOOPS
+// Expected Optimization: Reduce unnecessary nesting
 // ========================================
-export function fibonacci(n: number): number {
-  if (n <= 1) return n;
-  return fibonacci(n - 1) + fibonacci(n - 2);
-}
-
-
-// ========================================
-// 3. STRING CONCAT IN LOOP (should trigger STRING_BUILDER)
-// ========================================
-export function buildString(words: string[]): string {
-  let result = "";
-
-  for (let i = 0; i < words.length; i++) {
-    result += words[i]; // inefficient concat
-  }
-
-  return result;
-}
-
-
-// ========================================
-// 4. SORTING INSIDE LOOP (should trigger SORTING_IN_LOOP)
-// ========================================
-export function sortInsideLoop(arr: number[]): number[] {
-  for (let i = 0; i < arr.length; i++) {
-    arr.sort((a, b) => a - b); // bad practice inside loop
-  }
-  return arr;
-}
-
-
-// ========================================
-// 5. NORMAL FUNCTION (should NOT trigger anything)
-// ========================================
-export function sumArray(arr: number[]): number {
-  let sum = 0;
-
-  for (const num of arr) {
-    sum += num;
-  }
-
-  return sum;
-}
-
-
-// ========================================
-// 6. DEEP LOOP (loopDepth = 3)
-// ========================================
-export function threeLevelLoop(arr: number[]): number {
+export function countTriplets(arr: number[]): number {
   let count = 0;
 
   for (let i = 0; i < arr.length; i++) {
     for (let j = 0; j < arr.length; j++) {
       for (let k = 0; k < arr.length; k++) {
-        count++;
+        if (arr[i] + arr[j] > arr[k]) {
+          count++;
+        }
       }
     }
   }
 
   return count;
+}
+
+// ========================================
+// 3. SORTING INSIDE LOOP
+// Expected Optimization: Sort once before the loop
+// ========================================
+export function processNumbers(numbers: number[]): number[] {
+  const result: number[] = [];
+
+  for (let i = 0; i < numbers.length; i++) {
+    numbers.sort((a, b) => a - b);
+    result.push(numbers[i]);
+  }
+
+  return result;
+}
+
+// ========================================
+// NORMAL FUNCTION (Should NOT Trigger)
+// ========================================
+export function sum(numbers: number[]): number {
+  let total = 0;
+
+  for (const num of numbers) {
+    total += num;
+  }
+
+  return total;
 }

@@ -12,7 +12,6 @@ export function buildOptimizationReport(
 
   const result = resolveComplexity(beforeAI, afterAI, beforeFacts, afterFacts, smellType);
 
-  console.log(`🧪 Complexity source: ${result.source} | warnings: ${result.warnings.join("; ") || "none"}`);
 
   return {
     metric: result.metric,

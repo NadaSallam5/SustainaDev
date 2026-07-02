@@ -1,11 +1,10 @@
 def find_duplicates(nums):
     seen = set()
-    duplicates = set()
+    duplicates = []
 
     for num in nums:
-        if num in seen:
-            duplicates.add(num)
-        else:
-            seen.add(num)
+        if num in seen and num not in duplicates:
+            duplicates.append(num)
+        seen.add(num)
 
-    return list(duplicates)
+    return duplicates

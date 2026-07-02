@@ -1,7 +1,8 @@
-// testOptimization.ts
+// testComplexityOptimizations.ts
 
 // ========================================
-// 1. NESTED LOOPS (should trigger NESTED_LOOPS)
+// 1. O(n²) - NESTED LOOPS
+// Expected Optimization: Use Set
 // ========================================
 export function findDuplicates(arr: number[]): number[] {
   const seen = new Set<number>();
@@ -19,59 +20,65 @@ export function findDuplicates(arr: number[]): number[] {
 }
 
 // ========================================
-// 2. RECURSION (should trigger RECURSION)
+// 2. O(n³) - TRIPLE NESTED LOOPS
+// Expected Optimization: Reduce unnecessary nesting
 // ========================================
-export function fibonacci(n: number): number {
-  if (n <= 1) {
-    return n;
+export function countTriplets(arr: number[]): number {
+  let count = 0;
+  const n = arr.length;
+
+  // Create a map to store the frequency of each element
+  const freqMap = new Map<number, number>();
+  for (let num of arr) {
+    if (freqMap.has(num)) {
+      freqMap.set(num, freqMap.get(num)! + 1);
+    } else {
+      freqMap.set(num, 1);
+    }
   }
-  return fibonacci(n - 1) + fibonacci(n - 2);
+
+  // Iterate through the array with two pointers
+  for (let i = 0; i < n - 2; i++) {
+    for (let j = i + 1; j < n - 1; j++) {
+      const sum = arr[i] + arr[j];
+      count += freqMap.get(sum - arr[j])!;
+    }
+  }
+
+  return count;
 }
 
 // ========================================
-// 3. STRING CONCAT IN LOOP (should trigger STRING_BUILDER)
+// 3. SORTING INSIDE LOOP
+// Expected Optimization: Sort once before the loop
 // ========================================
-export function buildString(words: string[]): string {
-  let result = "";
+export function processNumbers(numbers: number[]): number[] {
+  const result: number[] = [];
+  const length = numbers.length;
 
-  for (let i = 0; i < words.length; i++) {
-    result += words[i]; // inefficient concat
+  for (let i = 0; i < length; i++) {
+    let minIndex = i;
+    for (let j = i + 1; j < length; j++) {
+      if (numbers[j] < numbers[minIndex]) {
+        minIndex = j;
+      }
+    }
+    [numbers[i], numbers[minIndex]] = [numbers[minIndex], numbers[i]];
+    result.push(numbers[i]);
   }
 
   return result;
 }
 
 // ========================================
-// 4. SORTING INSIDE LOOP (should trigger SORTING_IN_LOOP)
+// NORMAL FUNCTION (Should NOT Trigger)
 // ========================================
-export function sortInsideLoop(arr: number[]): number[] {
-  arr.sort((a, b) => a - b); // Sort once outside the loop
-  return arr;
-}
+export function sum(numbers: number[]): number {
+  let total = 0;
 
-// ========================================
-// 5. NORMAL FUNCTION (should NOT trigger anything)
-// ========================================
-export function sumArray(arr: number[]): number {
-  let sum = 0;
-
-  for (const num of arr) {
-    sum += num;
+  for (const num of numbers) {
+    total += num;
   }
 
-  return sum;
-}
-
-// ========================================
-// 6. DEEP LOOP (loopDepth = 3)
-// ========================================
-export function threeLevelLoop(arr: number[]): number {
-  let count = 0;
-  const length = arr.length;
-
-  for (let i = 0; i < length; i++) {
-    count += length * length;
-  }
-
-  return count;
+  return total;
 }
